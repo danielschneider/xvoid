@@ -2,7 +2,7 @@ import { useEffect, useMemo, useReducer, useState } from 'react';
 import GameScene from './components/GameScene.jsx';
 import { TacticalHud } from './components/TacticalHud.jsx';
 import { cellKey, createInitialState, gameReducer, getReachable } from './engine/game.js';
-import { getVisibleCells } from './engine/map.js';
+import { getVisibleCells, hasLineOfSight } from './engine/map.js';
 
 export default function App() {
   const [state, dispatch] = useReducer(gameReducer, undefined, () => createInitialState());
@@ -11,11 +11,18 @@ export default function App() {
   const selected = state.units.find((unit) => unit.id === state.selectedId && unit.hp > 0);
   const target = state.units.find((unit) => unit.id === state.targetId && unit.hp > 0);
   const visibleCellKeys = useMemo(() => getVisibleCells(state.map, state.units), [state.map, state.units]);
+  const shootableEnemyIds = useMemo(() => {
+    if (!selected || selected.ap < 1) return new Set();
+    return new Set(state.units
+      .filter((unit) => unit.team === 'alien' && unit.hp > 0)
+      .filter((unit) => visibleCellKeys.has(cellKey(unit)) && hasLineOfSight(state.map, selected, unit))
+      .map((unit) => unit.id));
+  }, [selected, state.map, state.units, visibleCellKeys]);
   const remainingAP = state.units
     .filter((unit) => unit.team === 'player' && unit.hp > 0)
     .reduce((total, unit) => total + unit.ap, 0);
   const requestEndTurn = () => {
-    if (state.phase !== 'player') return;
+    if (state.phase !== 'player' || state.movement) return;
     if (remainingAP > 0) setShowEndTurnWarning(true);
     else dispatch({ type: 'end-turn' });
   };
@@ -25,10 +32,10 @@ export default function App() {
   };
 
   const paths = useMemo(() => {
-    if (state.phase !== 'player' || !selected || selected.team !== 'player' || !state.moveMode || selected.ap < 1) return new Map();
+    if (state.phase !== 'player' || state.movement || !selected || selected.team !== 'player' || !state.moveMode || selected.ap < 1) return new Map();
     const blocked = new Set(state.units.filter((unit) => unit.id !== selected.id && unit.hp > 0).map(cellKey));
     return getReachable(state.map, selected, blocked, selected.ap === 1 ? 5 : 10);
-  }, [selected, state.map, state.moveMode, state.phase, state.units]);
+  }, [selected, state.map, state.moveMode, state.movement, state.phase, state.units]);
   const pendingPath = pendingMove ? paths.get(cellKey(pendingMove)) : null;
 
   useEffect(() => {
@@ -51,6 +58,15 @@ export default function App() {
   }, [state.enemyTurnIndex, state.enemyTurnOrder.length, state.phase]);
 
   useEffect(() => {
+    if (!state.movement) return undefined;
+    const timer = window.setTimeout(
+      () => dispatch({ type: 'complete-movement', id: state.movement.id }),
+      state.movement.path.length * 220 + 80,
+    );
+    return () => window.clearTimeout(timer);
+  }, [state.movement]);
+
+  useEffect(() => {
     const onKeyDown = (event) => {
       if (event.key === 'Escape') {
         setPendingMove(null);
@@ -69,7 +85,7 @@ export default function App() {
   }, [requestEndTurn, state.selectedId, target]);
 
   const tapCell = (cell) => {
-    if (state.phase !== 'player') return;
+    if (state.phase !== 'player' || state.movement) return;
     const occupant = state.units.find((unit) => (
       unit.x === cell.x && unit.z === cell.z && unit.level === cell.level && unit.hp > 0
       && (unit.team === 'player' || visibleCellKeys.has(cellKey(unit)))
@@ -101,11 +117,12 @@ export default function App() {
 
   return (
     <main className="game-shell">
-      <div className="scene-wrap"><GameScene state={state} selected={selected} target={target} paths={paths} pendingMove={pendingMove} visibleCellKeys={visibleCellKeys} onCellTap={tapCell} /></div>
+      <div className="scene-wrap"><GameScene state={state} selected={selected} target={target} paths={paths} pendingMove={pendingMove} visibleCellKeys={visibleCellKeys} shootableEnemyIds={shootableEnemyIds} onCellTap={tapCell} /></div>
       <TacticalHud
         state={state}
         selected={selected}
         target={target}
+        hasShootableEnemy={shootableEnemyIds.size > 0}
         moveMode={state.moveMode}
         pendingMove={pendingMove}
         pendingMoveCost={pendingPath?.apCost}

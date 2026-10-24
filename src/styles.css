@@ -119,6 +119,7 @@ button { font: inherit; }
 .idle-preview > div:last-child { display: flex; flex-direction: column; gap: 5px; }
 .idle-preview strong { color: #a5b7ac; font-size: 8px; font-weight: 500; letter-spacing: .06em; }
 .idle-preview span { color: #708279; font-size: 7px; }
+.shootable-preview .preview-reticle, .shootable-preview strong { color: #f3bd76; }
 .battle-log { padding: 10px 12px 8px; }
 .log-heading { justify-content: space-between; margin-bottom: 7px; }
 .log-live { color: var(--mint); font-size: 7px; }

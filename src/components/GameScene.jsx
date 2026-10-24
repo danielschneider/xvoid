@@ -137,18 +137,40 @@ function FogOfWar({ cells, visibleCellKeys }) {
   ));
 }
 
-function PixelUnit({ unit, selected, targeted, camera }) {
+function PixelUnit({ unit, selected, targeted, shootable, camera, movement, visibleCellKeys }) {
   const group = useRef();
   const sprite = useRef();
+  const movementProgress = useRef({ id: null, elapsed: 0 });
+  const routeStart = useMemo(() => new THREE.Vector3(), []);
+  const routeEnd = useMemo(() => new THREE.Vector3(), []);
   const texture = useMemo(() => createSpriteTexture(unit.team, unit.color, unit.className), [unit.team, unit.color, unit.className]);
   const ground = [unit.x - 15.5, unit.level * LEVEL_HEIGHT + 0.035, unit.z - 15.5];
   const destination = useMemo(() => new THREE.Vector3(...ground), [unit.level, unit.x, unit.z]);
+  const fullRoute = movement?.unitId === unit.id ? movement.path : null;
+  const firstVisibleIndex = unit.team === 'alien' && fullRoute
+    ? fullRoute.findIndex((cell) => visibleCellKeys.has(cellKey(cell)))
+    : 0;
+  const route = fullRoute && firstVisibleIndex >= 0 ? fullRoute.slice(firstVisibleIndex) : null;
   const initialized = useRef(false);
-  useFrame(() => {
+  useFrame((_, delta) => {
     if (group.current) {
       if (!initialized.current) {
-        group.current.position.copy(destination);
+        const first = route?.[0];
+        if (first) group.current.position.set(first.x - 15.5, first.level * LEVEL_HEIGHT + 0.035, first.z - 15.5);
+        else group.current.position.copy(destination);
         initialized.current = true;
+      }
+      if (route?.length > 1) {
+        if (movementProgress.current.id !== movement.id) movementProgress.current = { id: movement.id, elapsed: 0 };
+        movementProgress.current.elapsed += delta;
+        const progress = Math.min(movementProgress.current.elapsed / 0.22, route.length - 1);
+        const segment = Math.min(Math.floor(progress), route.length - 2);
+        const segmentProgress = progress >= route.length - 1 ? 1 : progress - segment;
+        const from = route[segment];
+        const to = route[segment + 1];
+        routeStart.set(from.x - 15.5, from.level * LEVEL_HEIGHT + 0.035, from.z - 15.5);
+        routeEnd.set(to.x - 15.5, to.level * LEVEL_HEIGHT + 0.035, to.z - 15.5);
+        group.current.position.lerpVectors(routeStart, routeEnd, segmentProgress);
       } else {
         group.current.position.lerp(destination, 0.12);
       }
@@ -161,10 +183,10 @@ function PixelUnit({ unit, selected, targeted, camera }) {
         <circleGeometry args={[0.35, 20]} />
         <meshBasicMaterial color="#020807" transparent opacity={0.45} depthWrite={false} />
       </mesh>
-      {(selected || targeted) && (
+      {(selected || targeted || shootable) && (
         <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, 0.022, 0]}>
-          <ringGeometry args={[0.42, 0.49, 32]} />
-          <meshBasicMaterial color={targeted ? '#ff786d' : '#69e7ca'} transparent opacity={0.92} side={THREE.DoubleSide} />
+          <ringGeometry args={shootable && !targeted ? [0.48, 0.54, 32] : [0.42, 0.49, 32]} />
+          <meshBasicMaterial color={targeted ? '#ff786d' : shootable ? '#f3bd76' : '#69e7ca'} transparent opacity={0.92} side={THREE.DoubleSide} />
         </mesh>
       )}
       <mesh ref={sprite} position={[0, 0.82, 0]}>
@@ -366,7 +388,7 @@ function CameraRig({ floorRef, cells, onCellTap }) {
   return null;
 }
 
-function Battlefield({ state, selected, target, paths, pendingMove, visibleCellKeys, onCellTap }) {
+function Battlefield({ state, selected, target, paths, pendingMove, visibleCellKeys, shootableEnemyIds, onCellTap }) {
   const { camera } = useThree();
   const floorRef = useRef();
   const allCells = useMemo(() => Object.values(state.map.cells), [state.map]);
@@ -391,7 +413,7 @@ function Battlefield({ state, selected, target, paths, pendingMove, visibleCellK
       {pendingPath && selected && <MoveTrace path={pendingPath} start={selected} />}
       {selected && target && <AimBeam shooter={selected} target={target} blocked={!hasLineOfSight(state.map, selected, target)} />}
       {state.units.filter((unit) => unit.hp > 0 && (unit.team === 'player' || visibleCellKeys.has(cellKey(unit)))).map((unit) => (
-        <PixelUnit key={unit.id} unit={unit} selected={unit.id === state.selectedId} targeted={unit.id === state.targetId} camera={camera} />
+        <PixelUnit key={unit.id} unit={unit} selected={unit.id === state.selectedId} targeted={unit.id === state.targetId} shootable={shootableEnemyIds.has(unit.id)} camera={camera} movement={state.movement} visibleCellKeys={visibleCellKeys} />
       ))}
       {state.lastShot && <BeamEffect key={state.lastShot.id} shot={state.lastShot} camera={camera} />}
       <CameraRig floorRef={floorRef} cells={groundData} onCellTap={onCellTap} />
@@ -399,7 +421,7 @@ function Battlefield({ state, selected, target, paths, pendingMove, visibleCellK
   );
 }
 
-export default function GameScene({ state, selected, target, paths, pendingMove, visibleCellKeys, onCellTap }) {
+export default function GameScene({ state, selected, target, paths, pendingMove, visibleCellKeys, shootableEnemyIds, onCellTap }) {
   return (
     <Canvas
       orthographic
@@ -408,7 +430,7 @@ export default function GameScene({ state, selected, target, paths, pendingMove,
       gl={{ antialias: false, powerPreference: 'low-power', alpha: false }}
       style={{ touchAction: 'none' }}
     >
-      <Battlefield state={state} selected={selected} target={target} paths={paths} pendingMove={pendingMove} visibleCellKeys={visibleCellKeys} onCellTap={onCellTap} />
+      <Battlefield state={state} selected={selected} target={target} paths={paths} pendingMove={pendingMove} visibleCellKeys={visibleCellKeys} shootableEnemyIds={shootableEnemyIds} onCellTap={onCellTap} />
     </Canvas>
   );
 }

@@ -17,6 +17,7 @@ export function createInitialState(seed = 20261024) {
     moveMode: true,
     enemyTurnOrder: [],
     enemyTurnIndex: 0,
+    movement: null,
     turn: 1,
     phase: 'player',
     showUpper: true,
@@ -50,6 +51,7 @@ function moveUnit(state, destination) {
   const last = pathData.path[pathData.path.length - 1];
   return {
     ...state,
+    movement: { id: Date.now(), unitId: unit.id, path: [unit, ...pathData.path] },
     units: state.units.map((entry) => entry.id === unit.id
       ? { ...entry, x: last.x, z: last.z, level: last.level, ap: entry.ap - pathData.apCost }
       : entry),
@@ -104,7 +106,7 @@ function useAbility(state, ability) {
 }
 
 function endTurn(state) {
-  if (state.phase !== 'player') return state;
+  if (state.phase !== 'player' || state.movement) return state;
   const enemyTurnOrder = state.units.filter((unit) => unit.team === 'alien' && unit.hp > 0).map((unit) => unit.id);
   return {
     ...state,
@@ -153,6 +155,7 @@ function enemyStep(state) {
   const last = destination.path[destination.path.length - 1];
   return {
     ...state,
+    movement: { id: Date.now(), unitId: enemy.id, path: [enemy, ...destination.path] },
     units: state.units.map((unit) => unit.id === enemy.id
       ? { ...unit, x: last.x, z: last.z, level: last.level, ap: unit.ap - 1 }
       : unit),
@@ -185,25 +188,28 @@ function finishEnemyTurn(state) {
 export function gameReducer(state, action) {
   switch (action.type) {
     case 'select':
-      if (state.phase !== 'player') return state;
+      if (state.phase !== 'player' || state.movement) return state;
       return { ...state, selectedId: action.id, targetId: null };
     case 'target':
-      if (state.phase !== 'player') return state;
+      if (state.phase !== 'player' || state.movement) return state;
       return { ...state, targetId: action.id };
     case 'toggle-move-mode':
-      if (state.phase !== 'player') return state;
+      if (state.phase !== 'player' || state.movement) return state;
       return { ...state, moveMode: !state.moveMode, targetId: null };
     case 'move':
-      if (state.phase !== 'player') return state;
+      if (state.phase !== 'player' || state.movement) return state;
       return selectNextReadyPlayer(moveUnit(state, action.destination));
     case 'attack':
-      if (state.phase !== 'player') return state;
+      if (state.phase !== 'player' || state.movement) return state;
       return selectNextReadyPlayer(fireAt(state, action.id));
     case 'ability':
-      if (state.phase !== 'player') return state;
+      if (state.phase !== 'player' || state.movement) return state;
       return selectNextReadyPlayer(useAbility(state, action.name));
     case 'end-turn':
       return endTurn(state);
+    case 'complete-movement':
+      if (state.movement?.id !== action.id) return state;
+      return { ...state, movement: null };
     case 'enemy-step':
       return enemyStep(state);
     case 'finish-enemy-turn':

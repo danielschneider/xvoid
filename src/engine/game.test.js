@@ -18,6 +18,15 @@ test('movement follows reachable cells and spends one AP nearby', () => {
   assert.deepEqual([moved.units[0].x, moved.units[0].z, moved.units[0].ap], [4, 5, 1]);
 });
 
+test('movement route follows walkable cells around walls', () => {
+  const state = createInitialState(42);
+  const destination = { x: 7, z: 5, level: 0 };
+  const moved = gameReducer(state, { type: 'move', destination });
+  assert.equal(moved.units[0].x, destination.x);
+  assert.ok(moved.movement.path.length > Math.abs(destination.x - state.units[0].x) + 1);
+  assert.ok(moved.movement.path.slice(1).every((cell) => cell.walkable));
+});
+
 test('selects the next living player with AP when the current player runs out', () => {
   const state = createInitialState(42);
   const exhausted = { ...state, units: state.units.map((unit) => unit.id === 'vanguard' ? { ...unit, ap: 1 } : unit) };

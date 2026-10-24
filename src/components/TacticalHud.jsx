@@ -40,8 +40,8 @@ export function UnitPanel({ unit, onSelect, units }) {
   );
 }
 
-export function CombatPreview({ shooter, target, map }) {
-  if (!shooter || !target) return <section className="combat-preview idle-preview"><div className="preview-reticle"><Crosshair size={19} /></div><div><strong>KEIN ZIEL ERFASST</strong><span>Wähle eine feindliche Einheit</span></div></section>;
+export function CombatPreview({ shooter, target, map, hasShootableEnemy }) {
+  if (!shooter || !target) return <section className={`combat-preview idle-preview ${hasShootableEnemy ? 'shootable-preview' : ''}`}><div className="preview-reticle"><Crosshair size={19} /></div><div><strong>{hasShootableEnemy ? 'FEIND IM SCHUSSFELD' : 'KEIN ZIEL ERFASST'}</strong><span>{hasShootableEnemy ? 'Gegner antippen, dann Feuern drücken' : 'Wähle eine feindliche Einheit'}</span></div></section>;
   const dx = shooter.x - target.x;
   const dz = shooter.z - target.z;
   const distance = Math.hypot(dx, dz);
@@ -60,7 +60,7 @@ export function CombatPreview({ shooter, target, map }) {
   );
 }
 
-export function TacticalHud({ state, selected, target, moveMode, pendingMove, pendingMoveCost, remainingAP, showEndTurnWarning, onConfirmMove, onRequestEndTurn, onConfirmEndTurn, onCancelEndTurn, onAction, onRegenerate, onToggleLevels, onSelect }) {
+export function TacticalHud({ state, selected, target, hasShootableEnemy, moveMode, pendingMove, pendingMoveCost, remainingAP, showEndTurnWarning, onConfirmMove, onRequestEndTurn, onConfirmEndTurn, onCancelEndTurn, onAction, onRegenerate, onToggleLevels, onSelect }) {
   const livingEnemies = state.units.filter((unit) => unit.team === 'alien' && unit.hp > 0).length;
   const targetVisible = selected && target && hasLineOfSight(state.map, selected, target);
   return (
@@ -88,7 +88,7 @@ export function TacticalHud({ state, selected, target, moveMode, pendingMove, pe
 
       <div className="right-stack">
         <UnitPanel unit={selected} onSelect={onSelect} units={state.units} />
-        <CombatPreview shooter={selected} target={target} map={state.map} />
+        <CombatPreview shooter={selected} target={target} map={state.map} hasShootableEnemy={hasShootableEnemy} />
         <section className="battle-log"><div className="log-heading"><span>COMMS LOG</span><span className="log-live">LIVE</span></div>{state.logs.slice(0, 3).map((entry) => <p key={entry.id} className={`log-entry ${entry.kind}`}><i />{entry.text}</p>)}</section>
       </div>
 
