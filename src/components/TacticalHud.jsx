@@ -1,12 +1,12 @@
 import {
-  Activity, Crosshair, Eye, HeartPulse, Layers3, Move, Radio, RotateCcw,
+  Activity, Check, Crosshair, Eye, HeartPulse, Layers3, Move, Radio, RotateCcw,
   Shield, ShieldCheck, SkipForward, Swords, Target, Zap,
 } from 'lucide-react';
 import { hasLineOfSight } from '../engine/map.js';
 
-function ActionButton({ icon: Icon, label, hint, onClick, disabled = false, active = false, kind = '' }) {
+function ActionButton({ icon: Icon, label, hint, onClick, disabled = false, active = false, kind = '', title }) {
   return (
-    <button className={`action-button ${active ? 'is-active' : ''} ${kind}`} onClick={onClick} disabled={disabled} title={`${label}${hint ? ` · ${hint}` : ''}`}>
+    <button className={`action-button ${active ? 'is-active' : ''} ${kind}`} onClick={onClick} disabled={disabled} title={title || `${label}${hint ? ` · ${hint}` : ''}`}>
       <Icon size={17} strokeWidth={1.8} />
       <span>{label}</span>
       {hint && <kbd>{hint}</kbd>}
@@ -60,7 +60,7 @@ export function CombatPreview({ shooter, target, map }) {
   );
 }
 
-export function TacticalHud({ state, selected, target, moveMode, onAction, onRegenerate, onToggleLevels, onSelect }) {
+export function TacticalHud({ state, selected, target, moveMode, pendingMove, pendingMoveCost, onConfirmMove, onAction, onRegenerate, onToggleLevels, onSelect }) {
   const livingEnemies = state.units.filter((unit) => unit.team === 'alien' && unit.hp > 0).length;
   const targetVisible = selected && target && hasLineOfSight(state.map, selected, target);
   return (
@@ -98,6 +98,7 @@ export function TacticalHud({ state, selected, target, moveMode, onAction, onReg
           <ActionButton icon={Crosshair} label="Feuern" hint="F" onClick={() => target && onAction({ type: 'attack', id: target.id })} disabled={!targetVisible || !selected?.ap} kind="fire-action" />
           <ActionButton icon={Eye} label="Overwatch" hint="O" onClick={() => onAction({ type: 'ability', name: 'overwatch' })} disabled={!selected?.ap} />
           <ActionButton icon={ShieldCheck} label="Deckung" hint="H" onClick={() => onAction({ type: 'ability', name: 'hunker' })} disabled={!selected?.ap} />
+          {pendingMove && pendingMoveCost && <ActionButton icon={Check} label="Bestätigen" onClick={onConfirmMove} title={`Bewegung für ${pendingMoveCost} AP bestätigen`} active kind="confirm-move" />}
         </div>
         <div className="dock-end"><button className="end-turn-button" onClick={() => onAction({ type: 'end-turn' })}><SkipForward size={16} /><span>ZUG BEENDEN</span><kbd>↵</kbd></button></div>
       </footer>

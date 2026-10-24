@@ -113,6 +113,13 @@ function ReachableOverlay({ paths, map }) {
   ));
 }
 
+function MoveTrace({ path, start }) {
+  const points = useMemo(() => [start, ...path].map((cell) => (
+    new THREE.Vector3(cell.x - 15.5, cell.level * LEVEL_HEIGHT + 0.055, cell.z - 15.5)
+  )), [path, start]);
+  return <Line points={points} color="#d7f279" lineWidth={4} transparent opacity={0.95} />;
+}
+
 function PixelUnit({ unit, selected, targeted, camera }) {
   const sprite = useRef();
   const texture = useMemo(() => createSpriteTexture(unit.team, unit.color, unit.className), [unit.team, unit.color, unit.className]);
@@ -330,12 +337,13 @@ function CameraRig({ floorRef, cells, onCellTap }) {
   return null;
 }
 
-function Battlefield({ state, selected, paths, onCellTap }) {
+function Battlefield({ state, selected, paths, pendingMove, onCellTap }) {
   const { camera } = useThree();
   const floorRef = useRef();
   const allCells = useMemo(() => Object.values(state.map.cells), [state.map]);
   const visibleCells = useMemo(() => allCells.filter((cell) => cell.level === 0 || state.showUpper), [allCells, state.showUpper]);
   const groundData = useMemo(() => visibleCells.filter((cell) => cell.walkable), [visibleCells]);
+  const pendingPath = pendingMove ? paths.get(cellKey(pendingMove))?.path : null;
   return (
     <>
       <color attach="background" args={['#111817']} />
@@ -348,7 +356,8 @@ function Battlefield({ state, selected, paths, onCellTap }) {
       ))}
       <WallField cells={visibleCells} selected={selected} />
       <CoverField cells={visibleCells} selected={selected} />
-      <ReachableOverlay paths={paths} map={state.map} />
+      {selected?.ap > 0 && <ReachableOverlay paths={paths} map={state.map} />}
+      {pendingPath && selected && <MoveTrace path={pendingPath} start={selected} />}
       {state.units.map((unit) => unit.hp > 0 && (
         <PixelUnit key={unit.id} unit={unit} selected={unit.id === state.selectedId} targeted={unit.id === state.targetId} camera={camera} />
       ))}
@@ -358,7 +367,7 @@ function Battlefield({ state, selected, paths, onCellTap }) {
   );
 }
 
-export default function GameScene({ state, selected, paths, onCellTap }) {
+export default function GameScene({ state, selected, paths, pendingMove, onCellTap }) {
   return (
     <Canvas
       orthographic
@@ -367,7 +376,7 @@ export default function GameScene({ state, selected, paths, onCellTap }) {
       gl={{ antialias: false, powerPreference: 'low-power', alpha: false }}
       style={{ touchAction: 'none' }}
     >
-      <Battlefield state={state} selected={selected} paths={paths} onCellTap={onCellTap} />
+      <Battlefield state={state} selected={selected} paths={paths} pendingMove={pendingMove} onCellTap={onCellTap} />
     </Canvas>
   );
 }
