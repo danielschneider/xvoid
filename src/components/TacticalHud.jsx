@@ -1,5 +1,5 @@
 import {
-  Activity, AlertTriangle, Check, Crosshair, Eye, HeartPulse, Layers3, Move, Radio, RotateCcw,
+  Activity, AlertTriangle, Check, Copy, Crosshair, Eye, HeartPulse, Layers3, Move, Radio, RotateCcw,
   Shield, ShieldCheck, SkipForward, Swords, Target, Zap,
 } from 'lucide-react';
 import { hasLineOfSight } from '../engine/map.js';
@@ -60,7 +60,7 @@ export function CombatPreview({ shooter, target, map, hasShootableEnemy }) {
   );
 }
 
-export function TacticalHud({ state, selected, target, hasShootableEnemy, moveMode, pendingMove, pendingMoveCost, remainingAP, showEndTurnWarning, onConfirmMove, onRequestEndTurn, onConfirmEndTurn, onCancelEndTurn, onAction, onRegenerate, onToggleLevels, onSelect }) {
+export function TacticalHud({ state, selected, target, hasShootableEnemy, seedCopied, onCopySeed, moveMode, pendingMove, pendingMoveCost, remainingAP, showEndTurnWarning, onConfirmMove, onRequestEndTurn, onConfirmEndTurn, onCancelEndTurn, onAction, onRegenerate, onToggleLevels, onSelect }) {
   const livingEnemies = state.units.filter((unit) => unit.team === 'alien' && unit.hp > 0).length;
   const totalEnemies = state.units.filter((unit) => unit.team === 'alien').length;
   const eliminatedEnemies = totalEnemies - livingEnemies;
@@ -83,7 +83,7 @@ export function TacticalHud({ state, selected, target, hasShootableEnemy, moveMo
         ))}
         <div className="rail-divider" />
         <div className="mission-label"><Radio size={13} /><span>MISSION STATUS</span></div>
-        <p className="mission-objective">Sichere den Knotenpunkt.<br />Eliminiere feindliche Kräfte.</p>
+        <p className="mission-objective">Nutze die Kontrollpunkte als Wegmarken.<br />Eliminiere feindliche Kräfte.</p>
         <div className="objective-meter"><i style={{ width: `${(eliminatedEnemies / totalEnemies) * 100}%` }} /></div>
         <div className="objective-count"><span>HOSTILES ELIMINIERT</span><b>{eliminatedEnemies} / {totalEnemies}</b></div>
       </aside>
@@ -120,7 +120,7 @@ export function TacticalHud({ state, selected, target, hasShootableEnemy, moveMo
           </section>
         </div>
       )}
-      <div className="map-coordinates"><span>{state.map.size} × {state.map.size}</span><i /> PROC-GEN <i /> SEED {String(state.map.seed).slice(-5)}</div>
+      <div className="map-coordinates"><span>{state.map.size} × {state.map.size}</span><i /> PROC-GEN <i /><span>SEED {state.map.seed}</span><button className="seed-copy-button" onClick={onCopySeed} aria-label="Kartenseed kopieren" title={seedCopied ? 'Seed kopiert' : 'Seed kopieren'}>{seedCopied ? <Check size={12} /> : <Copy size={12} />}</button></div>
     </div>
   );
 }

@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { createInitialState, gameReducer } from './game.js';
+import { createInitialState, ENEMY_SHOT_RANGE, gameReducer } from './game.js';
 import { cellKey, getReachable, getVisibleCells, hasLineOfSight } from './map.js';
 
 test('creates a seeded 32x32 battlefield with traversable upper levels', () => {
@@ -20,6 +20,7 @@ test('new seeds vary map size, squad size, and spawn positions deterministically
     const seed = 100_000 + index * 7_919;
     const state = createInitialState(seed);
     const enemies = state.units.filter((unit) => unit.team === 'alien');
+    const players = state.units.filter((unit) => unit.team === 'player');
     sizes.add(state.map.size);
     spawnLayouts.add(state.units.map(({ id, x, z }) => `${id}:${x},${z}`).join('|'));
     roleLayouts.add(enemies.map((unit) => unit.aiRole).join('|'));
@@ -27,6 +28,34 @@ test('new seeds vary map size, squad size, and spawn positions deterministically
     assert.equal(enemies.length, state.map.size === 32 ? 5 : state.map.size === 40 ? 10 : 20);
     assert.equal(new Set(state.units.map(cellKey)).size, state.units.length);
     assert.ok(state.units.every((unit) => state.map.cells[cellKey(unit)]?.walkable));
+    assert.ok(players.every((player) => enemies.every((enemy) => (
+      Math.hypot(player.x - enemy.x, player.z - enemy.z) > ENEMY_SHOT_RANGE
+    ))));
+
+    const reachable = new Set(getReachable(state.map, players[0], new Set(), state.map.size * 2).keys());
+    reachable.add(cellKey(players[0]));
+    assert.ok(state.units.every((unit) => reachable.has(cellKey(unit))));
+
+    assert.equal(state.map.objectives.length, 3);
+    assert.equal(new Set(state.map.objectives.map(cellKey)).size, 3);
+    assert.ok(state.map.objectives.every((objective) => state.map.cells[cellKey(objective)]?.walkable));
+    for (let objectiveIndex = 1; objectiveIndex < state.map.objectives.length; objectiveIndex += 1) {
+      const previous = state.map.objectives[objectiveIndex - 1];
+      const objective = state.map.objectives[objectiveIndex];
+      assert.ok(Math.hypot(objective.x - previous.x, objective.z - previous.z) >= state.map.size * 0.1);
+    }
+
+    const middle = state.map.size / 2;
+    const quadrants = [
+      (cell) => cell.x < middle && cell.z < middle,
+      (cell) => cell.x >= middle && cell.z < middle,
+      (cell) => cell.x < middle && cell.z >= middle,
+      (cell) => cell.x >= middle && cell.z >= middle,
+    ];
+    for (const inQuadrant of quadrants) {
+      assert.ok(Object.values(state.map.cells).some((cell) => inQuadrant(cell) && cell.cover > 0));
+      assert.ok(Object.values(state.map.cells).some((cell) => inQuadrant(cell) && cell.level > 0));
+    }
   }
   assert.deepEqual([...sizes].sort((a, b) => a - b), [32, 40, 48]);
   assert.ok(spawnLayouts.size > 1);

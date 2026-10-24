@@ -1,5 +1,7 @@
 import { cellKey, createBattlefield, getReachable, getVisibleCells, hasLineOfSight } from './map.js';
 
+export const ENEMY_SHOT_RANGE = 13;
+
 const playerTemplates = [
   { id: 'vanguard', name: 'Vanguard', className: 'BREACHER', team: 'player', hp: 6, maxHp: 6, shield: 2, ap: 2, color: '#62e6c4' },
   { id: 'spectre', name: 'Spectre', className: 'RECON', team: 'player', hp: 5, maxHp: 5, shield: 1, ap: 2, color: '#87b5ff' },
@@ -42,7 +44,13 @@ function createStartingUnits(map, seed) {
   ));
   const playerSpawns = shuffle(openGround.filter((cell) => onSide(cell, playerStartsLow)), random).slice(0, playerTemplates.length);
   const enemyCount = map.size >= 48 ? 20 : map.size >= 40 ? 10 : 5;
-  const enemySpawns = shuffle(openGround.filter((cell) => onSide(cell, !playerStartsLow)), random).slice(0, enemyCount);
+  const reachableFromPlayers = new Set(getReachable(map, playerSpawns[0], new Set(), map.size * 2).keys());
+  const enemyCandidates = openGround.filter((cell) => (
+    onSide(cell, !playerStartsLow)
+    && reachableFromPlayers.has(cellKey(cell))
+    && playerSpawns.every((spawn) => Math.hypot(cell.x - spawn.x, cell.z - spawn.z) > ENEMY_SHOT_RANGE)
+  ));
+  const enemySpawns = shuffle(enemyCandidates, random).slice(0, enemyCount);
   const randomizedRoles = shuffle(enemyTemplates, random);
   const players = playerTemplates.map((unit, index) => ({
     ...unit,
@@ -199,7 +207,7 @@ function enemyStep(state) {
   const distance = Math.hypot(target.x - enemy.x, target.z - enemy.z);
   const visibleCells = getVisibleCells(state.map, players);
   const revealedTargets = visibleCells.has(cellKey(enemy))
-    ? players.filter((unit) => Math.hypot(unit.x - enemy.x, unit.z - enemy.z) <= 13 && hasLineOfSight(state.map, enemy, unit))
+    ? players.filter((unit) => Math.hypot(unit.x - enemy.x, unit.z - enemy.z) <= ENEMY_SHOT_RANGE && hasLineOfSight(state.map, enemy, unit))
       .sort((a, b) => Math.hypot(a.x - enemy.x, a.z - enemy.z) - Math.hypot(b.x - enemy.x, b.z - enemy.z))
     : [];
   const role = enemy.aiRole || enemy.role || 'raider';

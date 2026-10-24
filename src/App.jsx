@@ -8,6 +8,7 @@ export default function App() {
   const [state, dispatch] = useReducer(gameReducer, undefined, () => createInitialState());
   const [pendingMove, setPendingMove] = useState(null);
   const [showEndTurnWarning, setShowEndTurnWarning] = useState(false);
+  const [seedCopied, setSeedCopied] = useState(false);
   const selected = state.units.find((unit) => unit.id === state.selectedId && unit.hp > 0);
   const target = state.units.find((unit) => unit.id === state.targetId && unit.hp > 0);
   const visibleCellKeys = useMemo(() => getVisibleCells(state.map, state.units), [state.map, state.units]);
@@ -29,6 +30,15 @@ export default function App() {
   const confirmEndTurn = () => {
     setShowEndTurnWarning(false);
     dispatch({ type: 'end-turn' });
+  };
+  const copySeed = async () => {
+    try {
+      await navigator.clipboard.writeText(String(state.map.seed));
+      setSeedCopied(true);
+      window.setTimeout(() => setSeedCopied(false), 1500);
+    } catch {
+      setSeedCopied(false);
+    }
   };
 
   const paths = useMemo(() => {
@@ -122,6 +132,8 @@ export default function App() {
         state={state}
         selected={selected}
         target={target}
+        seedCopied={seedCopied}
+        onCopySeed={copySeed}
         hasShootableEnemy={shootableEnemyIds.size > 0}
         moveMode={state.moveMode}
         pendingMove={pendingMove}

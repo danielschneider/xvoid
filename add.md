@@ -50,15 +50,15 @@ Alle Rollen greifen weiterhin nur aufgedeckte Spieler mit freier Sichtlinie an. 
 
 ## Priorität 5: Zufallskarten fair und lesbar halten
 
-Größere Karten und mehr Gegner erzeugen Abwechslung, brauchen aber Qualitätsregeln:
+**Umgesetzt:** Die Kartengenerierung prüft Spawns und strategische Verteilung über 60 Seeds, einschließlich 48×48-Karten mit 20 Gegnern.
 
-- Spawnpunkte müssen auf begehbaren Feldern liegen und dürfen nicht direkt in Schussreichweite starten.
-- Spieler und Gegner müssen mindestens einen freien, erreichbaren Weg zueinander haben.
-- Ziele, Deckung und Höhenunterschiede sollen auf der Karte verteilt sein, nicht nur am Rand.
-- Karten mit 20 Gegnern brauchen größere oder mehrere Missionsziele sowie genügend Deckung und alternative Routen.
-- Der Seed sollte sichtbar und kopierbar sein, damit eine Karte reproduziert werden kann.
+- Spieler- und Gegnerspawns liegen auf begehbaren Feldern und sind weiter als die gegnerische Erstschussreichweite voneinander entfernt.
+- Jeder Spawn ist über das begehbare Wegenetz mit dem anderen Team verbunden.
+- Jeder Kartenquadrant enthält Deckung und erhöhte Positionen.
+- Drei seedstabile Kontrollpunkt-Markierungen liegen auf begehbaren Feldern entlang der Kartenmitte und bleiben im Nebel verborgen, bis sie aufgedeckt sind.
+- Der vollständige Seed ist im HUD sichtbar und lässt sich kopieren.
 
-Diese Regeln sollten als Tests für viele Seeds geprüft werden, insbesondere für den härtesten Fall mit 48×48 Feldern und 20 Gegnern.
+Ein Test prüft diese Eigenschaften über 60 Seeds. Die Kontrollpunkte sind derzeit strategische Wegmarken; Capture-, Extraktions- und Siegbedingungen bleiben Teil der Missionslogik aus Priorität 1.
 
 ## Priorität 6: Große Gefechte flüssig halten
 

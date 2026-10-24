@@ -281,6 +281,25 @@ function FogOfWar({ cells, visibleCellKeys }) {
   ));
 }
 
+function ObjectiveMarkers({ objectives, visibleCellKeys }) {
+  return objectives.filter((objective) => visibleCellKeys.has(cellKey(objective))).map((objective) => (
+    <group key={objective.id} position={[objective.x - 15.5, objective.level * LEVEL_HEIGHT, objective.z - 15.5]}>
+      <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, 0.055, 0]}>
+        <ringGeometry args={[0.34, 0.4, 24]} />
+        <meshBasicMaterial color="#f0c66e" transparent opacity={0.82} side={THREE.DoubleSide} />
+      </mesh>
+      <mesh position={[0, 0.22, 0]}>
+        <cylinderGeometry args={[0.045, 0.09, 0.34, 6]} />
+        <meshStandardMaterial color="#8f7846" roughness={0.62} metalness={0.48} />
+      </mesh>
+      <mesh position={[0, 0.43, 0]}>
+        <octahedronGeometry args={[0.11, 0]} />
+        <meshBasicMaterial color="#f0c66e" />
+      </mesh>
+    </group>
+  ));
+}
+
 function PixelUnit({ unit, selected, targeted, shootable, camera, movement, visibleCellKeys }) {
   const group = useRef();
   const sprite = useRef();
@@ -586,6 +605,7 @@ function Battlefield({ state, selected, target, paths, pendingMove, visibleCellK
       <CoverField cells={revealedCells} selected={selected} />
       <EnvironmentDetails cells={revealedCells} seed={state.map.seed} />
       <FogOfWar cells={visibleCells} visibleCellKeys={visibleCellKeys} />
+      <ObjectiveMarkers objectives={state.map.objectives} visibleCellKeys={visibleCellKeys} />
       {selected?.ap > 0 && <ReachableOverlay paths={paths} map={state.map} />}
       {pendingPath && selected && <MoveTrace path={pendingPath} start={selected} />}
       {selected && target && <AimBeam shooter={selected} target={target} blocked={!hasLineOfSight(state.map, selected, target)} />}

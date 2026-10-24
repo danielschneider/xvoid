@@ -150,6 +150,8 @@ button { font: inherit; }
 .end-turn-button kbd { color: #356c59; }
 .touch-controls { display: none; }
 .map-coordinates { position: absolute; right: 22px; bottom: 102px; display: flex; align-items: center; gap: 8px; color: #82958c; font-size: 7px; letter-spacing: .07em; text-shadow: 0 1px 5px #111; }
+.seed-copy-button { pointer-events: auto; display: grid; place-items: center; width: 24px; height: 24px; padding: 0; color: #aebdb1; border: 1px solid rgba(176,211,190,.22); background: rgba(14,22,21,.8); cursor: pointer; }
+.seed-copy-button:hover { color: var(--mint); border-color: rgba(111,228,196,.55); }
 .map-coordinates i { height: 8px; width: 1px; background: rgba(180,205,188,.28); }
 .scanline-overlay { pointer-events: none; position: absolute; inset: 0; opacity: .09; background: repeating-linear-gradient(0deg, transparent 0, transparent 3px, rgba(202,238,219,.16) 4px); mix-blend-mode: screen; }
 
