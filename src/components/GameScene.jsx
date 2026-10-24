@@ -2,7 +2,7 @@ import { useEffect, useMemo, useRef } from 'react';
 import { Canvas, useFrame, useThree } from '@react-three/fiber';
 import { Line } from '@react-three/drei';
 import * as THREE from 'three';
-import { cellKey } from '../engine/map.js';
+import { cellKey, hasLineOfSight } from '../engine/map.js';
 
 const LEVEL_HEIGHT = 1.5;
 
@@ -120,15 +120,43 @@ function MoveTrace({ path, start }) {
   return <Line points={points} color="#d7f279" lineWidth={4} transparent opacity={0.95} />;
 }
 
+function AimBeam({ shooter, target, blocked }) {
+  const points = useMemo(() => [shooter, target].map((unit) => (
+    new THREE.Vector3(unit.x - 15.5, unit.level * LEVEL_HEIGHT + 0.82, unit.z - 15.5)
+  )), [shooter, target]);
+  return <Line points={points} color={blocked ? '#e3bd72' : '#ff7065'} lineWidth={2} transparent opacity={0.78} />;
+}
+
+function FogOfWar({ cells, visibleCellKeys }) {
+  const foggedCells = useMemo(() => cells.filter((cell) => !visibleCellKeys.has(cellKey(cell))), [cells, visibleCellKeys]);
+  return foggedCells.map((cell) => (
+    <mesh key={`fog-${cellKey(cell)}`} position={[cell.x - 15.5, cell.level * LEVEL_HEIGHT + 0.026, cell.z - 15.5]} rotation={[-Math.PI / 2, 0, 0]}>
+      <planeGeometry args={[1, 1]} />
+      <meshBasicMaterial color="#080d0e" transparent opacity={0.9} depthWrite={false} />
+    </mesh>
+  ));
+}
+
 function PixelUnit({ unit, selected, targeted, camera }) {
+  const group = useRef();
   const sprite = useRef();
   const texture = useMemo(() => createSpriteTexture(unit.team, unit.color, unit.className), [unit.team, unit.color, unit.className]);
   const ground = [unit.x - 15.5, unit.level * LEVEL_HEIGHT + 0.035, unit.z - 15.5];
+  const destination = useMemo(() => new THREE.Vector3(...ground), [unit.level, unit.x, unit.z]);
+  const initialized = useRef(false);
   useFrame(() => {
+    if (group.current) {
+      if (!initialized.current) {
+        group.current.position.copy(destination);
+        initialized.current = true;
+      } else {
+        group.current.position.lerp(destination, 0.12);
+      }
+    }
     if (sprite.current) sprite.current.quaternion.copy(camera.quaternion);
   });
   return (
-    <group position={ground}>
+    <group ref={group}>
       <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, 0.012, 0]}>
         <circleGeometry args={[0.35, 20]} />
         <meshBasicMaterial color="#020807" transparent opacity={0.45} depthWrite={false} />
@@ -175,13 +203,14 @@ function BeamEffect({ shot, camera }) {
   }, [shot.damage, shot.hit]);
   const from = shot.from;
   const to = shot.to;
+  const animationDuration = shot.enemyShot ? 1.15 : 0.65;
   const points = [
     new THREE.Vector3(from.x - 15.5, from.level * LEVEL_HEIGHT + 0.8, from.z - 15.5),
     new THREE.Vector3(to.x - 15.5, to.level * LEVEL_HEIGHT + 0.8, to.z - 15.5),
   ];
   useFrame((_, delta) => {
     elapsed.current += delta;
-    const opacity = Math.max(0, 1 - elapsed.current / 0.65);
+    const opacity = Math.max(0, 1 - elapsed.current / animationDuration);
     if (line.current?.material) line.current.material.opacity = opacity;
     if (damageMaterial.current) damageMaterial.current.opacity = opacity;
     const shakeTime = Math.max(0, 0.16 - elapsed.current);
@@ -337,11 +366,12 @@ function CameraRig({ floorRef, cells, onCellTap }) {
   return null;
 }
 
-function Battlefield({ state, selected, paths, pendingMove, onCellTap }) {
+function Battlefield({ state, selected, target, paths, pendingMove, visibleCellKeys, onCellTap }) {
   const { camera } = useThree();
   const floorRef = useRef();
   const allCells = useMemo(() => Object.values(state.map.cells), [state.map]);
   const visibleCells = useMemo(() => allCells.filter((cell) => cell.level === 0 || state.showUpper), [allCells, state.showUpper]);
+  const revealedCells = useMemo(() => visibleCells.filter((cell) => visibleCellKeys.has(cellKey(cell))), [visibleCellKeys, visibleCells]);
   const groundData = useMemo(() => visibleCells.filter((cell) => cell.walkable), [visibleCells]);
   const pendingPath = pendingMove ? paths.get(cellKey(pendingMove))?.path : null;
   return (
@@ -354,11 +384,13 @@ function Battlefield({ state, selected, paths, pendingMove, onCellTap }) {
       {[0, 1, 2].map((level) => (level === 0 || state.showUpper) && (
         <gridHelper key={level} args={[32, 32, '#43504a', '#313d39']} position={[0, level * LEVEL_HEIGHT + 0.008, 0]} />
       ))}
-      <WallField cells={visibleCells} selected={selected} />
-      <CoverField cells={visibleCells} selected={selected} />
+      <WallField cells={revealedCells} selected={selected} />
+      <CoverField cells={revealedCells} selected={selected} />
+      <FogOfWar cells={visibleCells} visibleCellKeys={visibleCellKeys} />
       {selected?.ap > 0 && <ReachableOverlay paths={paths} map={state.map} />}
       {pendingPath && selected && <MoveTrace path={pendingPath} start={selected} />}
-      {state.units.map((unit) => unit.hp > 0 && (
+      {selected && target && <AimBeam shooter={selected} target={target} blocked={!hasLineOfSight(state.map, selected, target)} />}
+      {state.units.filter((unit) => unit.hp > 0 && (unit.team === 'player' || visibleCellKeys.has(cellKey(unit)))).map((unit) => (
         <PixelUnit key={unit.id} unit={unit} selected={unit.id === state.selectedId} targeted={unit.id === state.targetId} camera={camera} />
       ))}
       {state.lastShot && <BeamEffect key={state.lastShot.id} shot={state.lastShot} camera={camera} />}
@@ -367,7 +399,7 @@ function Battlefield({ state, selected, paths, pendingMove, onCellTap }) {
   );
 }
 
-export default function GameScene({ state, selected, paths, pendingMove, onCellTap }) {
+export default function GameScene({ state, selected, target, paths, pendingMove, visibleCellKeys, onCellTap }) {
   return (
     <Canvas
       orthographic
@@ -376,7 +408,7 @@ export default function GameScene({ state, selected, paths, pendingMove, onCellT
       gl={{ antialias: false, powerPreference: 'low-power', alpha: false }}
       style={{ touchAction: 'none' }}
     >
-      <Battlefield state={state} selected={selected} paths={paths} pendingMove={pendingMove} onCellTap={onCellTap} />
+      <Battlefield state={state} selected={selected} target={target} paths={paths} pendingMove={pendingMove} visibleCellKeys={visibleCellKeys} onCellTap={onCellTap} />
     </Canvas>
   );
 }

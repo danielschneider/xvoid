@@ -1,5 +1,5 @@
 import {
-  Activity, Check, Crosshair, Eye, HeartPulse, Layers3, Move, Radio, RotateCcw,
+  Activity, AlertTriangle, Check, Crosshair, Eye, HeartPulse, Layers3, Move, Radio, RotateCcw,
   Shield, ShieldCheck, SkipForward, Swords, Target, Zap,
 } from 'lucide-react';
 import { hasLineOfSight } from '../engine/map.js';
@@ -60,7 +60,7 @@ export function CombatPreview({ shooter, target, map }) {
   );
 }
 
-export function TacticalHud({ state, selected, target, moveMode, pendingMove, pendingMoveCost, onConfirmMove, onAction, onRegenerate, onToggleLevels, onSelect }) {
+export function TacticalHud({ state, selected, target, moveMode, pendingMove, pendingMoveCost, remainingAP, showEndTurnWarning, onConfirmMove, onRequestEndTurn, onConfirmEndTurn, onCancelEndTurn, onAction, onRegenerate, onToggleLevels, onSelect }) {
   const livingEnemies = state.units.filter((unit) => unit.team === 'alien' && unit.hp > 0).length;
   const targetVisible = selected && target && hasLineOfSight(state.map, selected, target);
   return (
@@ -70,11 +70,12 @@ export function TacticalHud({ state, selected, target, moveMode, pendingMove, pe
         <div className="mission-meta"><span className="live-indicator" /> <span>SEKTOR 07 / NEMESIS</span><i /> <span>R-{String(state.turn).padStart(2, '0')}</span></div>
         <div className="top-actions"><span className="enemy-count"><span>{String(livingEnemies).padStart(2, '0')}</span> HOSTILES</span><button className="icon-button level-toggle" onClick={onToggleLevels} title={state.showUpper ? 'Obere Etagen ausblenden' : 'Obere Etagen einblenden'}><Layers3 size={17} /><span>{state.showUpper ? 'ALLE LEVEL' : 'LEVEL 0'}</span></button><button className="icon-button regenerate-button" onClick={onRegenerate} title="Karte neu generieren"><RotateCcw size={16} /></button></div>
       </header>
+      {state.phase === 'enemy' && <div className="enemy-turn-banner" role="status" aria-live="polite"><Radio size={15} /> ENEMY TURN</div>}
 
       <aside className="left-rail">
         <div className="rail-heading"><span>OPERATIVES</span><b>{state.units.filter((unit) => unit.team === 'player' && unit.hp > 0).length} / 3</b></div>
         {state.units.filter((unit) => unit.team === 'player').map((unit, index) => (
-          <button key={unit.id} onClick={() => onSelect(unit.id)} className={`roster-unit ${unit.id === selected?.id ? 'selected' : ''} ${unit.hp <= 0 ? 'fallen' : ''}`}>
+          <button key={unit.id} onClick={() => onSelect(unit.id)} disabled={state.phase !== 'player' || unit.hp <= 0} className={`roster-unit ${unit.id === selected?.id ? 'selected' : ''} ${unit.hp <= 0 ? 'fallen' : ''}`}>
             <span className="roster-number">0{index + 1}</span><span className="roster-avatar" style={{ '--unit-color': unit.color }}>{unit.className.slice(0, 1)}</span><span className="roster-copy"><b>{unit.name}</b><small>{unit.className}</small></span><span className="roster-health">{unit.hp}<i>/ {unit.maxHp}</i></span>
           </button>
         ))}
@@ -94,16 +95,29 @@ export function TacticalHud({ state, selected, target, moveMode, pendingMove, pe
       <footer className="bottom-dock">
         <div className="dock-location"><span className="location-cross"><Move size={15} /></span><div><b>GRID {String(selected?.x ?? 0).padStart(2, '0')} : {String(selected?.z ?? 0).padStart(2, '0')}</b><small>DECK {selected?.level ?? 0} · {selected?.level > 0 ? 'ELEVATED' : 'GROUND'}</small></div></div>
         <div className="action-group">
-          <ActionButton icon={Move} label="Bewegen" hint="M" active={moveMode} onClick={() => onAction({ type: 'toggle-move-mode' })} disabled={!selected?.ap} />
-          <ActionButton icon={Crosshair} label="Feuern" hint="F" onClick={() => target && onAction({ type: 'attack', id: target.id })} disabled={!targetVisible || !selected?.ap} kind="fire-action" />
-          <ActionButton icon={Eye} label="Overwatch" hint="O" onClick={() => onAction({ type: 'ability', name: 'overwatch' })} disabled={!selected?.ap} />
-          <ActionButton icon={ShieldCheck} label="Deckung" hint="H" onClick={() => onAction({ type: 'ability', name: 'hunker' })} disabled={!selected?.ap} />
+          <ActionButton icon={Move} label="Bewegen" hint="M" active={moveMode} onClick={() => onAction({ type: 'toggle-move-mode' })} disabled={state.phase !== 'player' || !selected?.ap} />
+          <ActionButton icon={Crosshair} label="Feuern" onClick={() => target && onAction({ type: 'attack', id: target.id })} disabled={state.phase !== 'player' || !targetVisible || !selected?.ap} kind="fire-action" />
+          <ActionButton icon={Eye} label="Overwatch" hint="O" onClick={() => onAction({ type: 'ability', name: 'overwatch' })} disabled={state.phase !== 'player' || !selected?.ap} />
+          <ActionButton icon={ShieldCheck} label="Deckung" hint="H" onClick={() => onAction({ type: 'ability', name: 'hunker' })} disabled={state.phase !== 'player' || !selected?.ap} />
           {pendingMove && pendingMoveCost && <ActionButton icon={Check} label="Bestätigen" onClick={onConfirmMove} title={`Bewegung für ${pendingMoveCost} AP bestätigen`} active kind="confirm-move" />}
         </div>
-        <div className="dock-end"><button className="end-turn-button" onClick={() => onAction({ type: 'end-turn' })}><SkipForward size={16} /><span>ZUG BEENDEN</span><kbd>↵</kbd></button></div>
+        <div className="dock-end"><button className="end-turn-button" onClick={onRequestEndTurn} disabled={state.phase !== 'player'}><SkipForward size={16} /><span>ZUG BEENDEN</span><kbd>↵</kbd></button></div>
       </footer>
 
-      <div className="touch-controls"><button aria-label="Kamera drehen" title="Kamera drehen" onClick={() => window.dispatchEvent(new KeyboardEvent('keydown', { key: 'q' }))}><RotateCcw size={17} /></button><button aria-label="Etagen umschalten" title="Etagen umschalten" onClick={onToggleLevels}><Layers3 size={17} /></button><button aria-label="Zug beenden" title="Zug beenden" onClick={() => onAction({ type: 'end-turn' })}><SkipForward size={17} /></button></div>
+      <div className="touch-controls"><button aria-label="Kamera drehen" title="Kamera drehen" onClick={() => window.dispatchEvent(new KeyboardEvent('keydown', { key: 'q' }))}><RotateCcw size={17} /></button><button aria-label="Etagen umschalten" title="Etagen umschalten" onClick={onToggleLevels}><Layers3 size={17} /></button><button aria-label="Zug beenden" title="Zug beenden" onClick={onRequestEndTurn} disabled={state.phase !== 'player'}><SkipForward size={17} /></button></div>
+      {showEndTurnWarning && (
+        <div className="end-turn-warning-backdrop">
+          <section className="end-turn-warning" role="alertdialog" aria-modal="true" aria-labelledby="end-turn-warning-title" aria-describedby="end-turn-warning-copy">
+            <div className="end-turn-warning-icon"><AlertTriangle size={20} /></div>
+            <h2 id="end-turn-warning-title">AKTIONSPUNKTE ÜBRIG</h2>
+            <p id="end-turn-warning-copy">Deinem Team stehen noch {remainingAP} AP zur Verfügung. Zug trotzdem beenden?</p>
+            <div className="end-turn-warning-actions">
+              <button className="warning-continue-button" onClick={onCancelEndTurn}>WEITER SPIELEN</button>
+              <button className="warning-confirm-button" onClick={onConfirmEndTurn}><SkipForward size={15} /> ZUG BEENDEN</button>
+            </div>
+          </section>
+        </div>
+      )}
       <div className="map-coordinates"><span>32 × 32</span><i /> PROC-GEN <i /> SEED {String(state.map.seed).slice(-5)}</div>
     </div>
   );

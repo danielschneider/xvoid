@@ -1,4 +1,5 @@
 export const GRID_SIZE = 32;
+export const VISION_RANGE = 10;
 export const cellKey = ({ x, z, level = 0 }) => `${x},${z},${level}`;
 
 const makeRandom = (seed) => {
@@ -151,4 +152,16 @@ export function hasLineOfSight(map, from, to) {
     if (cell?.terrain === 'wall' || cell?.terrain === 'pillar') return false;
   }
   return true;
+}
+
+export function getVisibleCells(map, units) {
+  const observers = units.filter((unit) => unit.team === 'player' && unit.hp > 0);
+  const visible = new Set();
+  for (const cell of Object.values(map.cells)) {
+    if (observers.some((unit) => (
+      Math.hypot(unit.x - cell.x, unit.z - cell.z) <= VISION_RANGE
+      && hasLineOfSight(map, unit, cell)
+    ))) visible.add(cellKey(cell));
+  }
+  return visible;
 }

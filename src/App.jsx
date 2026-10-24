@@ -2,18 +2,33 @@ import { useEffect, useMemo, useReducer, useState } from 'react';
 import GameScene from './components/GameScene.jsx';
 import { TacticalHud } from './components/TacticalHud.jsx';
 import { cellKey, createInitialState, gameReducer, getReachable } from './engine/game.js';
+import { getVisibleCells } from './engine/map.js';
 
 export default function App() {
   const [state, dispatch] = useReducer(gameReducer, undefined, () => createInitialState());
   const [pendingMove, setPendingMove] = useState(null);
+  const [showEndTurnWarning, setShowEndTurnWarning] = useState(false);
   const selected = state.units.find((unit) => unit.id === state.selectedId && unit.hp > 0);
   const target = state.units.find((unit) => unit.id === state.targetId && unit.hp > 0);
+  const visibleCellKeys = useMemo(() => getVisibleCells(state.map, state.units), [state.map, state.units]);
+  const remainingAP = state.units
+    .filter((unit) => unit.team === 'player' && unit.hp > 0)
+    .reduce((total, unit) => total + unit.ap, 0);
+  const requestEndTurn = () => {
+    if (state.phase !== 'player') return;
+    if (remainingAP > 0) setShowEndTurnWarning(true);
+    else dispatch({ type: 'end-turn' });
+  };
+  const confirmEndTurn = () => {
+    setShowEndTurnWarning(false);
+    dispatch({ type: 'end-turn' });
+  };
 
   const paths = useMemo(() => {
-    if (!selected || selected.team !== 'player' || !state.moveMode || selected.ap < 1) return new Map();
+    if (state.phase !== 'player' || !selected || selected.team !== 'player' || !state.moveMode || selected.ap < 1) return new Map();
     const blocked = new Set(state.units.filter((unit) => unit.id !== selected.id && unit.hp > 0).map(cellKey));
     return getReachable(state.map, selected, blocked, selected.ap === 1 ? 5 : 10);
-  }, [selected, state.map, state.moveMode, state.units]);
+  }, [selected, state.map, state.moveMode, state.phase, state.units]);
   const pendingPath = pendingMove ? paths.get(cellKey(pendingMove)) : null;
 
   useEffect(() => {
@@ -22,27 +37,43 @@ export default function App() {
 
   useEffect(() => {
     if (!state.lastShot) return undefined;
-    const timer = window.setTimeout(() => dispatch({ type: 'clear-shot' }), 720);
+    const timer = window.setTimeout(() => dispatch({ type: 'clear-shot' }), state.lastShot.enemyShot ? 1300 : 720);
     return () => window.clearTimeout(timer);
   }, [state.lastShot]);
 
   useEffect(() => {
+    if (state.phase !== 'enemy') return undefined;
+    const finished = state.enemyTurnIndex >= state.enemyTurnOrder.length;
+    const timer = window.setTimeout(() => {
+      dispatch({ type: finished ? 'finish-enemy-turn' : 'enemy-step' });
+    }, 1400);
+    return () => window.clearTimeout(timer);
+  }, [state.enemyTurnIndex, state.enemyTurnOrder.length, state.phase]);
+
+  useEffect(() => {
     const onKeyDown = (event) => {
+      if (event.key === 'Escape') {
+        setPendingMove(null);
+        setShowEndTurnWarning(false);
+        return;
+      }
       if (event.target instanceof HTMLElement && ['INPUT', 'TEXTAREA', 'BUTTON'].includes(event.target.tagName)) return;
       const key = event.key.toLowerCase();
-      if (event.key === 'Escape') setPendingMove(null);
       if (key === 'm') dispatch({ type: 'toggle-move-mode' });
-      if (key === 'f' && target) dispatch({ type: 'attack', id: target.id });
       if (key === 'o') dispatch({ type: 'ability', name: 'overwatch' });
       if (key === 'h') dispatch({ type: 'ability', name: 'hunker' });
-      if (event.key === 'Enter') dispatch({ type: 'end-turn' });
+      if (event.key === 'Enter') requestEndTurn();
     };
     window.addEventListener('keydown', onKeyDown);
     return () => window.removeEventListener('keydown', onKeyDown);
-  }, [state.selectedId, target]);
+  }, [requestEndTurn, state.selectedId, target]);
 
   const tapCell = (cell) => {
-    const occupant = state.units.find((unit) => unit.x === cell.x && unit.z === cell.z && unit.level === cell.level && unit.hp > 0);
+    if (state.phase !== 'player') return;
+    const occupant = state.units.find((unit) => (
+      unit.x === cell.x && unit.z === cell.z && unit.level === cell.level && unit.hp > 0
+      && (unit.team === 'player' || visibleCellKeys.has(cellKey(unit)))
+    ));
     if (occupant?.team === 'player') {
       setPendingMove(null);
       dispatch({ type: 'select', id: occupant.id });
@@ -50,8 +81,7 @@ export default function App() {
     }
     if (occupant?.team === 'alien') {
       setPendingMove(null);
-      if (occupant.id === state.targetId) dispatch({ type: 'attack', id: occupant.id });
-      else dispatch({ type: 'target', id: occupant.id });
+      dispatch({ type: 'target', id: occupant.id });
       return;
     }
     if (state.moveMode && paths.has(cellKey(cell))) {
@@ -62,7 +92,7 @@ export default function App() {
   };
 
   const confirmMove = () => {
-    if (!pendingMove || !pendingPath || !selected || pendingPath.apCost > selected.ap) return;
+    if (state.phase !== 'player' || !pendingMove || !pendingPath || !selected || pendingPath.apCost > selected.ap) return;
     dispatch({ type: 'move', destination: pendingMove });
     setPendingMove(null);
   };
@@ -71,7 +101,7 @@ export default function App() {
 
   return (
     <main className="game-shell">
-      <div className="scene-wrap"><GameScene state={state} selected={selected} paths={paths} pendingMove={pendingMove} onCellTap={tapCell} /></div>
+      <div className="scene-wrap"><GameScene state={state} selected={selected} target={target} paths={paths} pendingMove={pendingMove} visibleCellKeys={visibleCellKeys} onCellTap={tapCell} /></div>
       <TacticalHud
         state={state}
         selected={selected}
@@ -79,7 +109,12 @@ export default function App() {
         moveMode={state.moveMode}
         pendingMove={pendingMove}
         pendingMoveCost={pendingPath?.apCost}
+        remainingAP={remainingAP}
+        showEndTurnWarning={showEndTurnWarning}
         onConfirmMove={confirmMove}
+        onRequestEndTurn={requestEndTurn}
+        onConfirmEndTurn={confirmEndTurn}
+        onCancelEndTurn={() => setShowEndTurnWarning(false)}
         onAction={dispatch}
         onRegenerate={regenerate}
         onToggleLevels={() => dispatch({ type: 'toggle-levels' })}
