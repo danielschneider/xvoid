@@ -17,6 +17,7 @@ npm run build
 ```
 
 Vite schreibt die statischen Dateien nach `dist/`. Die relative Asset-Basis (`base: './'`) unterstützt GitHub-Pages-Projektseiten; der Workflow unter `.github/workflows/deploy.yml` veröffentlicht `dist` bei Pushes auf `main`.
+Vite schreibt die statischen Dateien nach `dist/`. Die relative Asset-Basis (`base: './'`) unterstützt GitHub-Pages-Projektseiten. Der Workflow unter `.github/workflows/deploy.yml` testet und veröffentlicht `dist` bei Pushes auf `main`; in den Repository-Einstellungen muss unter **Settings → Pages → Build and deployment** als Quelle **GitHub Actions** ausgewählt sein. `.github/workflows/deployci.yml` führt Tests und Build als CI-Prüfung für Pushes und Pull Requests aus.
 
 ## Steuerung
 
