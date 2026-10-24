@@ -1,17 +1,79 @@
 import { cellKey, createBattlefield, getReachable, getVisibleCells, hasLineOfSight } from './map.js';
 
-const initialUnits = [
-  { id: 'vanguard', name: 'Vanguard', className: 'BREACHER', team: 'player', x: 3, z: 5, level: 0, hp: 6, maxHp: 6, shield: 2, ap: 2, color: '#62e6c4' },
-  { id: 'spectre', name: 'Spectre', className: 'RECON', team: 'player', x: 4, z: 7, level: 0, hp: 5, maxHp: 5, shield: 1, ap: 2, color: '#87b5ff' },
-  { id: 'medic', name: 'Medic', className: 'FIELD MEDIC', team: 'player', x: 6, z: 6, level: 0, hp: 5, maxHp: 5, shield: 2, ap: 2, color: '#f0d77e' },
-  { id: 'raider-a', name: 'Void Raider', className: 'RAIDER', team: 'alien', x: 27, z: 25, level: 0, hp: 5, maxHp: 5, shield: 0, ap: 2, color: '#ff6f66' },
-  { id: 'raider-b', name: 'Void Stalker', className: 'STALKER', team: 'alien', x: 25, z: 27, level: 0, hp: 6, maxHp: 6, shield: 1, ap: 2, color: '#d28cff' },
+const playerTemplates = [
+  { id: 'vanguard', name: 'Vanguard', className: 'BREACHER', team: 'player', hp: 6, maxHp: 6, shield: 2, ap: 2, color: '#62e6c4' },
+  { id: 'spectre', name: 'Spectre', className: 'RECON', team: 'player', hp: 5, maxHp: 5, shield: 1, ap: 2, color: '#87b5ff' },
+  { id: 'medic', name: 'Medic', className: 'FIELD MEDIC', team: 'player', hp: 5, maxHp: 5, shield: 2, ap: 2, color: '#f0d77e' },
 ];
 
+const enemyTemplates = [
+  { role: 'raider', name: 'Void Raider', className: 'RAIDER', hp: 5, shield: 0, color: '#ff6f66' },
+  { role: 'stalker', name: 'Void Stalker', className: 'STALKER', hp: 6, shield: 1, color: '#d28cff' },
+  { role: 'scout', name: 'Void Scout', className: 'SCOUT', hp: 4, shield: 0, color: '#ff9b70' },
+  { role: 'guard', name: 'Void Guard', className: 'GUARD', hp: 7, shield: 2, color: '#d47682' },
+];
+
+function makeRandom(seed) {
+  let value = seed >>> 0;
+  return () => {
+    value = (value * 1664525 + 1013904223) >>> 0;
+    return value / 4294967296;
+  };
+}
+
+function shuffle(items, random) {
+  const result = [...items];
+  for (let index = result.length - 1; index > 0; index -= 1) {
+    const swapIndex = Math.floor(random() * (index + 1));
+    [result[index], result[swapIndex]] = [result[swapIndex], result[index]];
+  }
+  return result;
+}
+
+function createStartingUnits(map, seed) {
+  const random = makeRandom(seed ^ 0x9e3779b9);
+  const axis = random() < 0.5 ? 'x' : 'z';
+  const playerStartsLow = random() < 0.5;
+  const lowBoundary = Math.floor(map.size * 0.24);
+  const highBoundary = Math.ceil(map.size * 0.76);
+  const onSide = (cell, low) => low ? cell[axis] <= lowBoundary : cell[axis] >= highBoundary;
+  const openGround = Object.values(map.cells).filter((cell) => (
+    cell.level === 0 && cell.terrain === 'floor' && cell.walkable && !cell.structure
+  ));
+  const playerSpawns = shuffle(openGround.filter((cell) => onSide(cell, playerStartsLow)), random).slice(0, playerTemplates.length);
+  const enemyCount = map.size >= 48 ? 20 : map.size >= 40 ? 10 : 5;
+  const enemySpawns = shuffle(openGround.filter((cell) => onSide(cell, !playerStartsLow)), random).slice(0, enemyCount);
+  const randomizedRoles = shuffle(enemyTemplates, random);
+  const players = playerTemplates.map((unit, index) => ({
+    ...unit,
+    x: playerSpawns[index].x,
+    z: playerSpawns[index].z,
+    level: 0,
+  }));
+  const enemies = enemySpawns.map((spawn, index) => {
+    const template = randomizedRoles[index % randomizedRoles.length];
+    return {
+      ...template,
+      id: `raider-${String(index + 1).padStart(2, '0')}`,
+      team: 'alien',
+      aiRole: template.role,
+      x: spawn.x,
+      z: spawn.z,
+      level: 0,
+      postX: spawn.x,
+      postZ: spawn.z,
+      maxHp: template.hp,
+      ap: 2,
+    };
+  });
+  return [...players, ...enemies];
+}
+
 export function createInitialState(seed = 20261024) {
+  const map = createBattlefield(seed);
   return {
-    map: createBattlefield(seed),
-    units: initialUnits.map((unit) => ({ ...unit })),
+    map,
+    units: createStartingUnits(map, seed),
     selectedId: 'vanguard',
     targetId: null,
     moveMode: true,
@@ -31,6 +93,8 @@ const addLog = (state, text, kind = 'system') => [
   ...state.logs,
 ].slice(0, 5);
 
+const facingToward = (from, to) => Math.atan2(to.x - from.x, to.z - from.z);
+
 function selectNextReadyPlayer(state) {
   if (state.phase !== 'player') return state;
   const current = state.units.find((unit) => unit.id === state.selectedId);
@@ -49,11 +113,13 @@ function moveUnit(state, destination) {
   const pathData = getReachable(state.map, unit, occupied).get(cellKey(destination));
   if (!pathData || pathData.apCost > unit.ap) return state;
   const last = pathData.path[pathData.path.length - 1];
+  const previous = pathData.path.length > 1 ? pathData.path[pathData.path.length - 2] : unit;
+  const facing = facingToward(previous, last);
   return {
     ...state,
     movement: { id: Date.now(), unitId: unit.id, path: [unit, ...pathData.path] },
     units: state.units.map((entry) => entry.id === unit.id
-      ? { ...entry, x: last.x, z: last.z, level: last.level, ap: entry.ap - pathData.apCost }
+      ? { ...entry, x: last.x, z: last.z, level: last.level, ap: entry.ap - pathData.apCost, facing }
       : entry),
     targetId: null,
     logs: addLog(state, `${unit.name} rückt ${pathData.steps} Felder vor.`, 'move'),
@@ -78,7 +144,7 @@ function fireAt(state, targetId, shooterId = state.selectedId, enemyShot = false
   const damage = hit ? enemyShot ? 1 + Math.floor(Math.random() * 2) : 2 + Math.floor(Math.random() * 3) : 0;
   const remainingDamage = Math.max(0, damage - target.shield);
   const nextUnits = state.units.map((unit) => {
-    if (unit.id === shooter.id) return { ...unit, ap: unit.ap - 1 };
+    if (unit.id === shooter.id) return { ...unit, ap: unit.ap - 1, facing: facingToward(shooter, target) };
     if (unit.id === target.id && hit) {
       const shieldDamage = Math.min(unit.shield, damage);
       return { ...unit, shield: unit.shield - shieldDamage, hp: Math.max(0, unit.hp - remainingDamage) };
@@ -136,31 +202,76 @@ function enemyStep(state) {
     ? players.filter((unit) => Math.hypot(unit.x - enemy.x, unit.z - enemy.z) <= 13 && hasLineOfSight(state.map, enemy, unit))
       .sort((a, b) => Math.hypot(a.x - enemy.x, a.z - enemy.z) - Math.hypot(b.x - enemy.x, b.z - enemy.z))
     : [];
-  if (enemy.ap > 0 && revealedTargets.length > 0) {
-    const shot = fireAt(state, revealedTargets[0].id, enemy.id, true);
+  const role = enemy.aiRole || enemy.role || 'raider';
+  const retreating = role === 'scout' && enemy.hp <= Math.ceil(enemy.maxHp / 2) && distance <= 5;
+
+  if (!retreating && enemy.ap > 0 && revealedTargets.length > 0) {
+    const targetToShoot = role === 'raider'
+      ? [...revealedTargets].sort((a, b) => {
+        const coverA = state.map.cells[cellKey(a)]?.cover || 0;
+        const coverB = state.map.cells[cellKey(b)]?.cover || 0;
+        return (Math.hypot(a.x - enemy.x, a.z - enemy.z) + coverA * 2)
+          - (Math.hypot(b.x - enemy.x, b.z - enemy.z) + coverB * 2);
+      })[0]
+      : revealedTargets[0];
+    const shot = fireAt(state, targetToShoot.id, enemy.id, true);
     return { ...shot, enemyTurnIndex: state.enemyTurnIndex + 1 };
   }
 
   const blocked = new Set(state.units.filter((unit) => unit.id !== enemy.id && unit.hp > 0).map(cellKey));
-  const paths = getReachable(state.map, enemy, blocked, 5);
-  const destination = [...paths.entries()]
+  const maxSteps = role === 'scout' ? 7 : role === 'stalker' ? 6 : 5;
+  const paths = getReachable(state.map, enemy, blocked, maxSteps);
+  let destinations = [...paths.entries()]
     .map(([key, path]) => ({ cell: state.map.cells[key], ...path }))
-    .filter(({ cell }) => Math.hypot(target.x - cell.x, target.z - cell.z) < distance)
-    .sort((a, b) => (
-      Math.hypot(target.x - a.cell.x, target.z - a.cell.z) - Math.hypot(target.x - b.cell.x, target.z - b.cell.z)
-      || b.steps - a.steps
-    ))[0];
+    .filter(({ cell }) => {
+      const nextDistance = Math.hypot(target.x - cell.x, target.z - cell.z);
+      return retreating ? nextDistance > distance : nextDistance < distance;
+    });
 
-  if (!destination || enemy.ap < 1) return { ...state, enemyTurnIndex: state.enemyTurnIndex + 1 };
+  if (role === 'guard' && !retreating) {
+    const postDistance = Math.hypot(enemy.x - enemy.postX, enemy.z - enemy.postZ);
+    if (postDistance <= 1) destinations = [];
+    else destinations = destinations.filter(({ cell }) => (
+      Math.hypot(cell.x - enemy.postX, cell.z - enemy.postZ) < postDistance
+    ));
+  }
+
+  if (role === 'stalker' || retreating) {
+    const concealed = destinations.filter(({ cell }) => !visibleCells.has(cellKey(cell)));
+    if (concealed.length > 0) destinations = concealed;
+  }
+
+  destinations.sort((a, b) => {
+    const distanceA = Math.hypot(target.x - a.cell.x, target.z - a.cell.z);
+    const distanceB = Math.hypot(target.x - b.cell.x, target.z - b.cell.z);
+    if (retreating) return distanceB - distanceA || b.steps - a.steps;
+    if (role === 'guard') {
+      return Math.hypot(a.cell.x - enemy.postX, a.cell.z - enemy.postZ)
+        - Math.hypot(b.cell.x - enemy.postX, b.cell.z - enemy.postZ);
+    }
+    return distanceA - distanceB || b.steps - a.steps;
+  });
+  const destination = destinations[0];
+
+  if (!destination || enemy.ap < 1) {
+    const decision = role === 'guard' ? 'hält den Posten' : role === 'stalker' ? 'bleibt verborgen' : 'hält die Position';
+    return {
+      ...state,
+      enemyTurnIndex: state.enemyTurnIndex + 1,
+      logs: addLog(state, `${enemy.name} ${decision}.`, 'combat'),
+    };
+  }
   const last = destination.path[destination.path.length - 1];
+  const previous = destination.path.length > 1 ? destination.path[destination.path.length - 2] : enemy;
+  const facing = facingToward(previous, last);
   return {
     ...state,
     movement: { id: Date.now(), unitId: enemy.id, path: [enemy, ...destination.path] },
     units: state.units.map((unit) => unit.id === enemy.id
-      ? { ...unit, x: last.x, z: last.z, level: last.level, ap: unit.ap - 1 }
+      ? { ...unit, x: last.x, z: last.z, level: last.level, ap: unit.ap - 1, facing }
       : unit),
     enemyTurnIndex: state.enemyTurnIndex + 1,
-    logs: addLog(state, `${enemy.name} rückt vor.`, 'move'),
+    logs: addLog(state, `${enemy.name} ${retreating ? 'zieht sich zurück' : role === 'guard' ? 'kehrt zum Posten zurück' : 'rückt vor'}.`, 'move'),
   };
 }
 
@@ -192,7 +303,13 @@ export function gameReducer(state, action) {
       return { ...state, selectedId: action.id, targetId: null };
     case 'target':
       if (state.phase !== 'player' || state.movement) return state;
-      return { ...state, targetId: action.id };
+      return {
+        ...state,
+        targetId: action.id,
+        units: state.units.map((unit) => unit.id === state.selectedId
+          ? { ...unit, facing: facingToward(unit, state.units.find((target) => target.id === action.id) || unit) }
+          : unit),
+      };
     case 'toggle-move-mode':
       if (state.phase !== 'player' || state.movement) return state;
       return { ...state, moveMode: !state.moveMode, targetId: null };

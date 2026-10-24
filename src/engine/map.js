@@ -1,4 +1,4 @@
-export const GRID_SIZE = 32;
+export const GRID_SIZES = [32, 40, 48];
 export const VISION_RANGE = 10;
 export const cellKey = ({ x, z, level = 0 }) => `${x},${z},${level}`;
 
@@ -12,18 +12,20 @@ const makeRandom = (seed) => {
 
 export function createBattlefield(seed = Date.now()) {
   const random = makeRandom(seed);
+  const size = GRID_SIZES[Math.floor(random() * GRID_SIZES.length)];
+  const middle = Math.floor(size / 2);
   const cells = {};
   const transitions = {};
   const rooms = [
     { x: 5, z: 4, w: 7, h: 7 },
-    { x: 19, z: 4, w: 8, h: 7 },
-    { x: 5, z: 20, w: 8, h: 7 },
-    { x: 19, z: 20, w: 8, h: 7 },
+    { x: size - 13, z: 4, w: 8, h: 7 },
+    { x: 5, z: size - 12, w: 8, h: 7 },
+    { x: size - 13, z: size - 12, w: 8, h: 7 },
   ];
 
-  for (let z = 0; z < GRID_SIZE; z += 1) {
-    for (let x = 0; x < GRID_SIZE; x += 1) {
-      const corridor = x === 15 || z === 15;
+  for (let z = 0; z < size; z += 1) {
+    for (let x = 0; x < size; x += 1) {
+      const corridor = x === middle || z === middle;
       cells[cellKey({ x, z })] = {
         x,
         z,
@@ -86,9 +88,9 @@ export function createBattlefield(seed = Date.now()) {
     }
   });
 
-  for (let index = 0; index < 64; index += 1) {
-    const x = 2 + Math.floor(random() * (GRID_SIZE - 4));
-    const z = 2 + Math.floor(random() * (GRID_SIZE - 4));
+  for (let index = 0; index < Math.floor(size * size / 16); index += 1) {
+    const x = 2 + Math.floor(random() * (size - 4));
+    const z = 2 + Math.floor(random() * (size - 4));
     const cell = cells[cellKey({ x, z })];
     if (cell?.walkable && !cell.structure && cell.cover === 0 && (x + z) % 3 !== 0) {
       cell.cover = random() > 0.68 ? 2 : 1;
@@ -96,7 +98,7 @@ export function createBattlefield(seed = Date.now()) {
     }
   }
 
-  return { seed, size: GRID_SIZE, cells, transitions, rooms };
+  return { seed, size, cells, transitions, rooms };
 }
 
 export function getReachable(map, start, blocked = new Set(), maxSteps = 10) {

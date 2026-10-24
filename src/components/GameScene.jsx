@@ -6,7 +6,13 @@ import { cellKey, hasLineOfSight } from '../engine/map.js';
 
 const LEVEL_HEIGHT = 1.5;
 
-function createSpriteTexture(team, color, className) {
+function seededNoise(seed, x, z, salt = 0) {
+  let value = (seed ^ Math.imul(x, 374761393) ^ Math.imul(z, 668265263) ^ Math.imul(salt, 2246822519)) >>> 0;
+  value = Math.imul(value ^ (value >>> 13), 1274126177) >>> 0;
+  return ((value ^ (value >>> 16)) >>> 0) / 4294967296;
+}
+
+function createSpriteTexture(team, color, className, view) {
   const canvas = document.createElement('canvas');
   canvas.width = 48;
   canvas.height = 64;
@@ -18,22 +24,43 @@ function createSpriteTexture(team, color, className) {
   };
   const glow = team === 'alien' ? '#ff7770' : color;
   const armor = team === 'alien' ? '#39242d' : '#203737';
-  pixel(18, 3, 12, 3, glow);
-  pixel(15, 6, 18, 13, '#a8c3b8');
-  pixel(13, 10, 3, 6, armor);
-  pixel(32, 10, 3, 6, armor);
-  pixel(16, 18, 16, 2, glow);
-  pixel(11, 21, 26, 20, armor);
-  pixel(8, 23, 5, 16, glow);
-  pixel(35, 23, 5, 16, glow);
-  pixel(14, 24, 20, 7, '#547b70');
-  pixel(20, 31, 8, 8, glow);
-  pixel(14, 41, 8, 15, '#20302f');
-  pixel(26, 41, 8, 15, '#20302f');
-  pixel(10, 55, 12, 4, glow);
-  pixel(26, 55, 12, 4, glow);
-  pixel(19, 10, 3, 3, team === 'alien' ? '#ffb19a' : '#eaffcf');
-  pixel(24, 10, 3, 3, team === 'alien' ? '#ffb19a' : '#eaffcf');
+  const sideView = view === 'left' || view === 'right';
+  if (view === 'left') {
+    context.translate(canvas.width, 0);
+    context.scale(-1, 1);
+  }
+  pixel(sideView ? 19 : 18, 3, sideView ? 10 : 12, 3, glow);
+  pixel(sideView ? 17 : 15, 6, sideView ? 14 : 18, 13, '#a8c3b8');
+  pixel(sideView ? 14 : 13, 10, 3, 6, armor);
+  pixel(sideView ? 31 : 32, 10, 3, 6, armor);
+  pixel(sideView ? 18 : 16, 18, sideView ? 12 : 16, 2, glow);
+  pixel(sideView ? 14 : 11, 21, sideView ? 20 : 26, 20, armor);
+  pixel(sideView ? 10 : 8, 23, 5, 16, glow);
+  pixel(sideView ? 34 : 35, 23, 5, 16, glow);
+  pixel(sideView ? 17 : 14, 24, sideView ? 15 : 20, 7, '#547b70');
+  pixel(sideView ? 20 : 20, 31, 8, 8, glow);
+  pixel(sideView ? 15 : 14, 41, 7, 15, '#20302f');
+  pixel(sideView ? 27 : 26, 41, 7, 15, '#20302f');
+  pixel(sideView ? 12 : 10, 55, 10, 4, glow);
+  pixel(sideView ? 27 : 26, 55, 10, 4, glow);
+  if (view === 'back') {
+    pixel(18, 9, 12, 5, '#36524c');
+    pixel(22, 21, 4, 19, '#71877b');
+    pixel(18, 27, 12, 3, glow);
+  } else if (sideView) {
+    pixel(23, 10, 7, 4, team === 'alien' ? '#ffb19a' : '#eaffcf');
+    pixel(28, 27, 12, 4, '#718078');
+    pixel(37, 26, 8, 2, '#c5c3a3');
+    pixel(30, 31, 3, 5, '#35433d');
+    pixel(31, 25, 4, 2, glow);
+  } else {
+    pixel(19, 10, 3, 3, team === 'alien' ? '#ffb19a' : '#eaffcf');
+    pixel(24, 10, 3, 3, team === 'alien' ? '#ffb19a' : '#eaffcf');
+    pixel(28, 28, 11, 4, '#718078');
+    pixel(37, 27, 8, 2, '#c5c3a3');
+    pixel(31, 32, 3, 5, '#35433d');
+    pixel(33, 25, 4, 2, glow);
+  }
   if (className === 'RECON') pixel(36, 20, 4, 28, '#98baff');
   if (className === 'FIELD MEDIC') pixel(20, 23, 8, 3, '#f5efc7');
   const texture = new THREE.CanvasTexture(canvas);
@@ -71,6 +98,76 @@ function InstancedGround({ cells, visibleCells, meshRef }) {
   );
 }
 
+function EnvironmentDetails({ cells, seed }) {
+  const grassRef = useRef();
+  const stoneRef = useRef();
+  const dummy = useMemo(() => new THREE.Object3D(), []);
+  const grassMaterial = useMemo(() => new THREE.MeshStandardMaterial({ roughness: 1, flatShading: true }), []);
+  const stoneMaterial = useMemo(() => new THREE.MeshStandardMaterial({ color: '#777c73', roughness: 0.94, flatShading: true }), []);
+  const grass = useMemo(() => cells
+    .filter((cell) => cell.level === 0 && cell.walkable && !cell.structure && !cell.corridor && cell.cover === 0 && seededNoise(seed, cell.x, cell.z, 1) < 0.19)
+    .flatMap((cell) => Array.from({ length: 3 }, (_, index) => {
+      const height = 0.16 + seededNoise(seed, cell.x, cell.z, index + 2) * 0.18;
+      return {
+        x: cell.x - 15.5 + (seededNoise(seed, cell.x, cell.z, index + 5) - 0.5) * 0.62,
+        z: cell.z - 15.5 + (seededNoise(seed, cell.x, cell.z, index + 8) - 0.5) * 0.62,
+        height,
+        rotation: seededNoise(seed, cell.x, cell.z, index + 11) * Math.PI,
+        lightness: 0.24 + seededNoise(seed, cell.x, cell.z, index + 14) * 0.16,
+      };
+    })), [cells, seed]);
+  const stones = useMemo(() => cells
+    .filter((cell) => cell.level === 0 && cell.walkable && !cell.structure && !cell.corridor && cell.cover === 0 && seededNoise(seed, cell.x, cell.z, 21) < 0.055)
+    .map((cell) => ({
+      x: cell.x - 15.5 + (seededNoise(seed, cell.x, cell.z, 22) - 0.5) * 0.42,
+      z: cell.z - 15.5 + (seededNoise(seed, cell.x, cell.z, 23) - 0.5) * 0.42,
+      scale: 0.65 + seededNoise(seed, cell.x, cell.z, 24) * 0.65,
+      rotation: seededNoise(seed, cell.x, cell.z, 25) * Math.PI,
+    })), [cells, seed]);
+
+  useEffect(() => {
+    if (grassRef.current) {
+      grass.forEach((blade, index) => {
+        dummy.position.set(blade.x, blade.height / 2, blade.z);
+        dummy.rotation.set(0, blade.rotation, 0);
+        dummy.scale.set(1, blade.height / 0.34, 1);
+        dummy.updateMatrix();
+        grassRef.current.setMatrixAt(index, dummy.matrix);
+        grassRef.current.setColorAt(index, new THREE.Color().setHSL(0.25, 0.42, blade.lightness));
+      });
+      grassRef.current.instanceMatrix.needsUpdate = true;
+      if (grassRef.current.instanceColor) grassRef.current.instanceColor.needsUpdate = true;
+    }
+    if (stoneRef.current) {
+      stones.forEach((stone, index) => {
+        dummy.position.set(stone.x, 0.07, stone.z);
+        dummy.rotation.set(stone.rotation * 0.4, stone.rotation, stone.rotation * 0.7);
+        dummy.scale.setScalar(stone.scale);
+        dummy.updateMatrix();
+        stoneRef.current.setMatrixAt(index, dummy.matrix);
+        stoneRef.current.setColorAt(index, new THREE.Color().setHSL(0.24, 0.06, 0.38 + stone.scale * 0.08));
+      });
+      stoneRef.current.instanceMatrix.needsUpdate = true;
+      if (stoneRef.current.instanceColor) stoneRef.current.instanceColor.needsUpdate = true;
+    }
+  }, [dummy, grass, stones]);
+
+  return (
+    <>
+      {grass.length > 0 && (
+        <instancedMesh ref={grassRef} args={[undefined, grassMaterial, grass.length]}>
+          <coneGeometry args={[0.055, 0.34, 4]} />
+        </instancedMesh>
+      )}
+      {stones.length > 0 && (
+        <instancedMesh ref={stoneRef} args={[undefined, stoneMaterial, stones.length]}>
+          <dodecahedronGeometry args={[0.16, 0]} />
+        </instancedMesh>
+      )}
+    </>
+  );
+}
+
 function CoverField({ cells, selected }) {
   const data = useMemo(() => cells.filter((cell) => cell.terrain === 'console' || cell.terrain === 'pillar'), [cells]);
   return data.map((cell) => {
@@ -78,14 +175,27 @@ function CoverField({ cells, selected }) {
     const position = [cell.x - 15.5, cell.level * LEVEL_HEIGHT + height / 2, cell.z - 15.5];
     return (
       <group key={cellKey(cell)} position={position}>
+        <mesh position={[0, -height / 2 + 0.045, 0]}>
+          <boxGeometry args={cell.terrain === 'pillar' ? [0.72, 0.09, 0.72] : [0.88, 0.09, 0.62]} />
+          <meshStandardMaterial color="#303d39" roughness={0.82} metalness={0.32} />
+        </mesh>
         <mesh castShadow={false}>
           <boxGeometry args={cell.terrain === 'pillar' ? [0.64, height, 0.64] : [0.82, height, 0.56]} />
           <meshStandardMaterial color={cell.terrain === 'pillar' ? '#708078' : '#57716b'} roughness={0.7} metalness={0.36} />
+        </mesh>
+        <mesh position={[0, height * 0.14, cell.terrain === 'pillar' ? 0.331 : 0.29]}>
+          <boxGeometry args={cell.terrain === 'pillar' ? [0.34, 0.48, 0.035] : [0.54, 0.17, 0.035]} />
+          <meshStandardMaterial color="#263632" roughness={0.58} metalness={0.52} />
+        </mesh>
+        <mesh position={[0, height * 0.14, cell.terrain === 'pillar' ? 0.351 : 0.31]}>
+          <boxGeometry args={[cell.terrain === 'pillar' ? 0.24 : 0.4, 0.035, 0.012]} />
+          <meshBasicMaterial color={selected ? '#54dfc1' : '#83bfa2'} />
         </mesh>
         <mesh position={[0, height / 2 + 0.012, 0]}>
           <boxGeometry args={[0.68, 0.025, 0.6]} />
           <meshBasicMaterial color={selected ? '#54dfc1' : '#9cd2bd'} />
         </mesh>
+        {cell.terrain === 'pillar' && <mesh position={[0, height / 2 - 0.055, 0]}><boxGeometry args={[0.72, 0.055, 0.72]} /><meshStandardMaterial color="#849087" roughness={0.52} metalness={0.48} /></mesh>}
       </group>
     );
   });
@@ -95,10 +205,44 @@ function WallField({ cells, selected }) {
   return cells.filter((cell) => cell.terrain === 'wall').map((cell) => {
     const nearby = selected && Math.hypot(selected.x - cell.x, selected.z - cell.z) < 5;
     return (
-      <mesh key={cellKey(cell)} position={[cell.x - 15.5, 0.74, cell.z - 15.5]}>
-        <boxGeometry args={[1, 1.55, 1]} />
-        <meshStandardMaterial color="#68746d" roughness={0.8} metalness={0.25} transparent={nearby} opacity={nearby ? 0.34 : 1} />
-      </mesh>
+      <group key={cellKey(cell)} position={[cell.x - 15.5, 0.74, cell.z - 15.5]}>
+        <mesh>
+          <boxGeometry args={[0.92, 1.42, 0.92]} />
+          <meshStandardMaterial color="#5c6c65" roughness={0.78} metalness={0.3} transparent={nearby} opacity={nearby ? 0.34 : 1} />
+        </mesh>
+        <mesh position={[0, -0.57, 0]}>
+          <boxGeometry args={[1, 0.2, 1]} />
+          <meshStandardMaterial color="#394942" roughness={0.7} metalness={0.42} transparent={nearby} opacity={nearby ? 0.34 : 1} />
+        </mesh>
+        <mesh position={[0, 0.72, 0]}>
+          <boxGeometry args={[1.02, 0.12, 1.02]} />
+          <meshStandardMaterial color="#859087" roughness={0.52} metalness={0.48} transparent={nearby} opacity={nearby ? 0.34 : 1} />
+        </mesh>
+        <mesh position={[0, 0.08, 0.466]}>
+          <boxGeometry args={[0.56, 0.68, 0.025]} />
+          <meshStandardMaterial color="#334741" roughness={0.62} metalness={0.38} transparent={nearby} opacity={nearby ? 0.34 : 1} />
+        </mesh>
+        <mesh position={[0, 0.08, 0.482]}>
+          <boxGeometry args={[0.32, 0.055, 0.012]} />
+          <meshBasicMaterial color={nearby ? '#315a4e' : '#76b99a'} />
+        </mesh>
+        <mesh position={[0.466, 0.08, 0]} rotation={[0, Math.PI / 2, 0]}>
+          <boxGeometry args={[0.56, 0.68, 0.025]} />
+          <meshStandardMaterial color="#334741" roughness={0.62} metalness={0.38} transparent={nearby} opacity={nearby ? 0.34 : 1} />
+        </mesh>
+        <mesh position={[0.482, 0.08, 0]} rotation={[0, Math.PI / 2, 0]}>
+          <boxGeometry args={[0.32, 0.055, 0.012]} />
+          <meshBasicMaterial color={nearby ? '#315a4e' : '#76b99a'} />
+        </mesh>
+        <mesh position={[-0.37, 0.03, 0.473]}>
+          <boxGeometry args={[0.055, 1.05, 0.035]} />
+          <meshStandardMaterial color="#829087" roughness={0.58} metalness={0.52} transparent={nearby} opacity={nearby ? 0.34 : 1} />
+        </mesh>
+        <mesh position={[0.37, 0.03, 0.473]}>
+          <boxGeometry args={[0.055, 1.05, 0.035]} />
+          <meshStandardMaterial color="#829087" roughness={0.58} metalness={0.52} transparent={nearby} opacity={nearby ? 0.34 : 1} />
+        </mesh>
+      </group>
     );
   });
 }
@@ -143,7 +287,14 @@ function PixelUnit({ unit, selected, targeted, shootable, camera, movement, visi
   const movementProgress = useRef({ id: null, elapsed: 0 });
   const routeStart = useMemo(() => new THREE.Vector3(), []);
   const routeEnd = useMemo(() => new THREE.Vector3(), []);
-  const texture = useMemo(() => createSpriteTexture(unit.team, unit.color, unit.className), [unit.team, unit.color, unit.className]);
+  const cameraDirection = useMemo(() => new THREE.Vector3(), []);
+  const worldUp = useMemo(() => new THREE.Vector3(0, 1, 0), []);
+  const facingQuaternion = useMemo(() => new THREE.Quaternion(), []);
+  const spriteTextures = useMemo(() => Object.fromEntries(
+    ['front', 'right', 'back', 'left'].map((view) => [view, createSpriteTexture(unit.team, unit.color, unit.className, view)]),
+  ), [unit.team, unit.color, unit.className]);
+  const spriteView = useRef(null);
+  const visualFacing = useRef(unit.facing ?? 0);
   const ground = [unit.x - 15.5, unit.level * LEVEL_HEIGHT + 0.035, unit.z - 15.5];
   const destination = useMemo(() => new THREE.Vector3(...ground), [unit.level, unit.x, unit.z]);
   const fullRoute = movement?.unitId === unit.id ? movement.path : null;
@@ -175,7 +326,30 @@ function PixelUnit({ unit, selected, targeted, shootable, camera, movement, visi
         group.current.position.lerp(destination, 0.12);
       }
     }
-    if (sprite.current) sprite.current.quaternion.copy(camera.quaternion);
+    if (sprite.current) {
+      camera.getWorldDirection(cameraDirection);
+      const cameraFacing = Math.atan2(-cameraDirection.x, -cameraDirection.z);
+      const desiredFacing = unit.facing ?? 0;
+      const turnDelta = Math.atan2(Math.sin(desiredFacing - visualFacing.current), Math.cos(desiredFacing - visualFacing.current));
+      visualFacing.current += turnDelta * Math.min(1, delta * 7);
+      const relativeFacing = Math.atan2(
+        Math.sin(visualFacing.current - cameraFacing),
+        Math.cos(visualFacing.current - cameraFacing),
+      );
+      const view = Math.abs(relativeFacing) < Math.PI / 4
+        ? 'front'
+        : Math.abs(relativeFacing) > Math.PI * 3 / 4
+          ? 'back'
+          : relativeFacing > 0 ? 'right' : 'left';
+      if (spriteView.current !== view) {
+        sprite.current.material.map = spriteTextures[view];
+        sprite.current.material.needsUpdate = true;
+        spriteView.current = view;
+      }
+      facingQuaternion.setFromAxisAngle(worldUp, visualFacing.current - cameraFacing);
+      facingQuaternion.premultiply(camera.quaternion);
+      sprite.current.quaternion.slerp(facingQuaternion, Math.min(1, delta * 6));
+    }
   });
   return (
     <group ref={group}>
@@ -191,7 +365,7 @@ function PixelUnit({ unit, selected, targeted, shootable, camera, movement, visi
       )}
       <mesh ref={sprite} position={[0, 0.82, 0]}>
         <planeGeometry args={[0.9, 1.32]} />
-        <meshBasicMaterial map={texture} transparent alphaTest={0.25} depthWrite side={THREE.DoubleSide} toneMapped={false} />
+        <meshBasicMaterial map={spriteTextures.front} transparent alphaTest={0.25} depthWrite side={THREE.DoubleSide} toneMapped={false} />
       </mesh>
       {unit.hp <= 0 && <mesh position={[0, 0.18, 0]} rotation={[0, 0, -0.4]}><boxGeometry args={[0.7, 0.09, 0.12]} /><meshBasicMaterial color="#9c4d4b" /></mesh>}
     </group>
@@ -396,18 +570,21 @@ function Battlefield({ state, selected, target, paths, pendingMove, visibleCellK
   const revealedCells = useMemo(() => visibleCells.filter((cell) => visibleCellKeys.has(cellKey(cell))), [visibleCellKeys, visibleCells]);
   const groundData = useMemo(() => visibleCells.filter((cell) => cell.walkable), [visibleCells]);
   const pendingPath = pendingMove ? paths.get(cellKey(pendingMove))?.path : null;
+  const mapOffset = 15.5 - (state.map.size - 1) / 2;
   return (
     <>
       <color attach="background" args={['#111817']} />
       <ambientLight intensity={1.1} />
       <directionalLight position={[8, 18, 7]} intensity={2.2} color="#d7eadb" />
       <directionalLight position={[-12, 8, -10]} intensity={0.55} color="#73bcb3" />
+      <group position={[mapOffset, 0, mapOffset]}>
       <InstancedGround cells={allCells} visibleCells={visibleCells} meshRef={floorRef} />
       {[0, 1, 2].map((level) => (level === 0 || state.showUpper) && (
-        <gridHelper key={level} args={[32, 32, '#43504a', '#313d39']} position={[0, level * LEVEL_HEIGHT + 0.008, 0]} />
+        <gridHelper key={level} args={[state.map.size, state.map.size, '#43504a', '#313d39']} position={[0, level * LEVEL_HEIGHT + 0.008, 0]} />
       ))}
       <WallField cells={revealedCells} selected={selected} />
       <CoverField cells={revealedCells} selected={selected} />
+      <EnvironmentDetails cells={revealedCells} seed={state.map.seed} />
       <FogOfWar cells={visibleCells} visibleCellKeys={visibleCellKeys} />
       {selected?.ap > 0 && <ReachableOverlay paths={paths} map={state.map} />}
       {pendingPath && selected && <MoveTrace path={pendingPath} start={selected} />}
@@ -416,6 +593,7 @@ function Battlefield({ state, selected, target, paths, pendingMove, visibleCellK
         <PixelUnit key={unit.id} unit={unit} selected={unit.id === state.selectedId} targeted={unit.id === state.targetId} shootable={shootableEnemyIds.has(unit.id)} camera={camera} movement={state.movement} visibleCellKeys={visibleCellKeys} />
       ))}
       {state.lastShot && <BeamEffect key={state.lastShot.id} shot={state.lastShot} camera={camera} />}
+      </group>
       <CameraRig floorRef={floorRef} cells={groundData} onCellTap={onCellTap} />
     </>
   );
@@ -425,7 +603,7 @@ export default function GameScene({ state, selected, target, paths, pendingMove,
   return (
     <Canvas
       orthographic
-      camera={{ position: [23, 28, 23], zoom: 34, near: 0.1, far: 150 }}
+      camera={{ position: [23, 28, 23], zoom: Math.max(20, 34 * 32 / state.map.size), near: 0.1, far: 200 }}
       dpr={Math.min(window.devicePixelRatio || 1, 2)}
       gl={{ antialias: false, powerPreference: 'low-power', alpha: false }}
       style={{ touchAction: 'none' }}

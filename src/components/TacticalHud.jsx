@@ -62,6 +62,8 @@ export function CombatPreview({ shooter, target, map, hasShootableEnemy }) {
 
 export function TacticalHud({ state, selected, target, hasShootableEnemy, moveMode, pendingMove, pendingMoveCost, remainingAP, showEndTurnWarning, onConfirmMove, onRequestEndTurn, onConfirmEndTurn, onCancelEndTurn, onAction, onRegenerate, onToggleLevels, onSelect }) {
   const livingEnemies = state.units.filter((unit) => unit.team === 'alien' && unit.hp > 0).length;
+  const totalEnemies = state.units.filter((unit) => unit.team === 'alien').length;
+  const eliminatedEnemies = totalEnemies - livingEnemies;
   const targetVisible = selected && target && hasLineOfSight(state.map, selected, target);
   return (
     <div className="hud-layer">
@@ -82,8 +84,8 @@ export function TacticalHud({ state, selected, target, hasShootableEnemy, moveMo
         <div className="rail-divider" />
         <div className="mission-label"><Radio size={13} /><span>MISSION STATUS</span></div>
         <p className="mission-objective">Sichere den Knotenpunkt.<br />Eliminiere feindliche Kräfte.</p>
-        <div className="objective-meter"><i style={{ width: `${((3 - livingEnemies) / 3) * 100}%` }} /></div>
-        <div className="objective-count"><span>HOSTILES ELIMINIERT</span><b>{3 - livingEnemies} / 3</b></div>
+        <div className="objective-meter"><i style={{ width: `${(eliminatedEnemies / totalEnemies) * 100}%` }} /></div>
+        <div className="objective-count"><span>HOSTILES ELIMINIERT</span><b>{eliminatedEnemies} / {totalEnemies}</b></div>
       </aside>
 
       <div className="right-stack">
@@ -118,7 +120,7 @@ export function TacticalHud({ state, selected, target, hasShootableEnemy, moveMo
           </section>
         </div>
       )}
-      <div className="map-coordinates"><span>32 × 32</span><i /> PROC-GEN <i /> SEED {String(state.map.seed).slice(-5)}</div>
+      <div className="map-coordinates"><span>{state.map.size} × {state.map.size}</span><i /> PROC-GEN <i /> SEED {String(state.map.seed).slice(-5)}</div>
     </div>
   );
 }
