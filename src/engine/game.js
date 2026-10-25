@@ -1,6 +1,7 @@
 import { cellKey, createBattlefield, getReachable, getVisibleCells, hasLineOfSight, isPassable, VISION_RANGE } from './map.js';
 
-export const ENEMY_SHOT_RANGE = 13;
+export const SHOT_RANGE = 10;
+export const ENEMY_SHOT_RANGE = SHOT_RANGE;
 export const OVERWATCH_RANGE = 8;
 export const HUNKER_COVER_BONUS = 0.15;
 export const FLANK_ANGLE = Math.PI / 3;
@@ -37,6 +38,53 @@ function shuffle(items, random) {
   return result;
 }
 
+const spawnDistance = (a, b) => Math.hypot(a.x - b.x, a.z - b.z);
+
+// Player squad: all units within SQUAD_RADIUS of each other and mutually reachable.
+const SQUAD_RADIUS = 2;
+
+function* squadClusters(map, candidates, random) {
+  for (const center of shuffle(candidates, random)) {
+    const near = shuffle(
+      candidates.filter((cell) => cell !== center && spawnDistance(cell, center) <= SQUAD_RADIUS),
+      random,
+    );
+    if (near.length < 2) continue;
+    const reachable = new Set(getReachable(map, center, new Set(), map.size * 2).keys());
+    reachable.add(cellKey(center));
+    const connected = near.filter((cell) => reachable.has(cellKey(cell)));
+    for (let first = 0; first < connected.length - 1; first += 1) {
+      for (let second = first + 1; second < connected.length; second += 1) {
+        if (spawnDistance(connected[first], connected[second]) > SQUAD_RADIUS) continue;
+        yield { squad: [center, connected[first], connected[second]], reachable };
+      }
+    }
+  }
+}
+
+// Enemies spread across the map in groups of one or two. Every unit keeps at
+// least `spacing` distance from every unit of every other group; only the two
+// members of one group sit close together.
+function placeEnemyGroups(candidates, count, random, spacing) {
+  const placed = [];
+  const isFree = (cell, ignore = null) => !placed.some((other) => (
+    other !== ignore && spawnDistance(other, cell) < spacing
+  ));
+  for (const leader of shuffle(candidates, random)) {
+    if (placed.length >= count) break;
+    if (!isFree(leader)) continue;
+    placed.push(leader);
+    if (placed.length < count && random() < 0.5) {
+      const partner = shuffle(
+        candidates.filter((other) => spawnDistance(other, leader) >= 1 && spawnDistance(other, leader) <= 2),
+        random,
+      ).find((other) => !placed.some((unit) => spawnDistance(unit, other) === 0) && isFree(other, leader));
+      if (partner) placed.push(partner);
+    }
+  }
+  return placed.length >= count ? placed.slice(0, count) : null;
+}
+
 function createStartingUnits(map, seed) {
   const random = makeRandom(seed ^ 0x9e3779b9);
   const middle = Math.floor(map.size / 2);
@@ -54,58 +102,37 @@ function createStartingUnits(map, seed) {
     (cell) => cell.x < middle && cell.z >= middle,
     (cell) => cell.x >= middle && cell.z >= middle,
   ];
-  const reachableFromMap = new Set(getReachable(map, safeCells[0], new Set(), map.size * 2).keys());
-  reachableFromMap.add(cellKey(safeCells[0]));
-  const randomizedQuadrants = shuffle(quadrants, random);
-  let playerSpawns = [];
-  let enemySpawns = [];
-  let bestSpawnSet = null;
+  let playerSpawns = null;
+  let enemySpawns = null;
 
-  for (const inCorner of randomizedQuadrants) {
-    const playerCandidates = shuffle(safeCells.filter(inCorner), random);
-    const enemyCandidates = safeCells.filter((cell) => reachableFromMap.has(cellKey(cell)));
-    for (let first = 0; first < playerCandidates.length - 2; first += 1) {
-      for (let second = first + 1; second < playerCandidates.length - 1; second += 1) {
-        for (let third = second + 1; third < playerCandidates.length; third += 1) {
-          const players = [playerCandidates[first], playerCandidates[second], playerCandidates[third]];
-          const enemies = enemyCandidates.filter((cell) => players.every((spawn) => (
-            Math.hypot(cell.x - spawn.x, cell.z - spawn.z) > VISION_RANGE
-            || !hasLineOfSight(map, spawn, cell)
-          )));
-          if (!bestSpawnSet || enemies.length > bestSpawnSet.enemyCandidates.length) {
-            bestSpawnSet = { players, enemyCandidates: enemies };
-          }
-          if (enemies.length >= enemyCount) {
-            playerSpawns = players;
-            enemySpawns = shuffle(enemies, random).slice(0, enemyCount);
-            break;
-          }
+  // Strict pass: squad starts in a random quadrant and no enemy is in its initial vision.
+  // Relaxed pass (fallback): squad anywhere, enemies only avoid the squad's cells.
+  const passes = [
+    ...shuffle(quadrants, random).map((inQuadrant) => ({ area: safeCells.filter(inQuadrant), strict: true })),
+    { area: safeCells, strict: false },
+  ];
+  for (const { area, strict } of passes) {
+    for (const cluster of squadClusters(map, area, random)) {
+      if (enemySpawns) break;
+      const enemyCandidates = safeCells.filter((cell) => (
+        cluster.reachable.has(cellKey(cell))
+        && !cluster.squad.some((player) => spawnDistance(player, cell) === 0)
+        && (!strict || cluster.squad.every((player) => (
+          spawnDistance(cell, player) > VISION_RANGE || !hasLineOfSight(map, player, cell)
+        )))
+      ));
+      for (let spacing = Math.floor(map.size * 0.3); spacing >= 2 && !enemySpawns; spacing -= 1) {
+        const placed = placeEnemyGroups(enemyCandidates, enemyCount, random, spacing);
+        if (placed) {
+          playerSpawns = cluster.squad;
+          enemySpawns = placed;
         }
-        if (enemySpawns.length >= enemyCount) break;
       }
-      if (enemySpawns.length >= enemyCount) break;
     }
-    if (enemySpawns.length >= enemyCount) break;
+    if (enemySpawns) break;
   }
 
-  if (enemySpawns.length < enemyCount && bestSpawnSet) {
-    playerSpawns = bestSpawnSet.players;
-    const selectedPlayerCells = new Set(playerSpawns.map(cellKey));
-    const reachableFromPlayer = new Set(getReachable(map, playerSpawns[0], new Set(), map.size * 2).keys());
-    reachableFromPlayer.add(cellKey(playerSpawns[0]));
-    const fallbackCandidates = safeCells
-      .filter((cell) => !selectedPlayerCells.has(cellKey(cell)) && reachableFromPlayer.has(cellKey(cell)))
-      .sort((a, b) => {
-        const distanceA = Math.min(...playerSpawns.map((player) => Math.hypot(a.x - player.x, a.z - player.z)));
-        const distanceB = Math.min(...playerSpawns.map((player) => Math.hypot(b.x - player.x, b.z - player.z)));
-        return distanceB - distanceA;
-      });
-    enemySpawns = [
-      ...shuffle(bestSpawnSet.enemyCandidates, random),
-      ...shuffle(fallbackCandidates, random),
-    ].slice(0, enemyCount);
-  }
-  if (playerSpawns.length < playerTemplates.length || enemySpawns.length < enemyCount) {
+  if (!playerSpawns || !enemySpawns || playerSpawns.length < playerTemplates.length || enemySpawns.length < enemyCount) {
     throw new Error(`Unable to place a fair ${map.size}x${map.size} starting force`);
   }
   const randomizedRoles = shuffle(enemyTemplates, random);
@@ -145,6 +172,7 @@ export function createInitialState(seed = 20261024, generation = 0) {
     selectedId: 'vanguard',
     targetId: null,
     moveMode: true,
+    shootMode: false,
     enemyTurnOrder: [],
     enemyTurnIndex: 0,
     movement: null,
@@ -171,7 +199,7 @@ function selectNextReadyPlayer(state) {
   const currentIndex = players.findIndex((unit) => unit.id === current.id);
   const next = [...players.slice(currentIndex + 1), ...players.slice(0, currentIndex)]
     .find((unit) => unit.ap > 0);
-  return next ? { ...state, selectedId: next.id, targetId: null } : state;
+  return next ? { ...state, selectedId: next.id, targetId: null, moveMode: true, shootMode: false } : state;
 }
 
 function moveUnit(state, destination) {
@@ -199,7 +227,7 @@ const clamp = (value, low, high) => Math.max(low, Math.min(high, value));
 const normalizeAngle = (angle) => Math.atan2(Math.sin(angle), Math.cos(angle));
 
 export function computeDistanceModifier(distance) {
-  return (8 - distance) * 0.015;
+  return (5 - distance) * 0.1;
 }
 
 // A shot is a flank when it arrives >= FLANK_ANGLE away from the side the defender's Deckung faces.
@@ -215,10 +243,10 @@ export function computeHitChance(state, shooter, target, enemyShot = false) {
   let cover = (targetCell?.cover === 2 ? 0.4 : targetCell?.cover === 1 ? 0.2 : 0)
     + (inDeckung ? HUNKER_COVER_BONUS : 0);
   if (inDeckung && isFlank(shooter, target)) cover *= 1 - FLANK_COVER_BYPASS;
-  if (enemyShot) return clamp(0.52 - cover * ENEMY_COVER_FACTOR, 0.05, 0.95);
   const distance = Math.hypot(shooter.x - target.x, shooter.z - target.z);
-  const elevationBonus = shooter.level > target.level ? 0.15 : 0;
   const distanceModifier = computeDistanceModifier(distance);
+  if (enemyShot) return clamp(0.52 - cover * ENEMY_COVER_FACTOR + distanceModifier, 0.05, 0.95);
+  const elevationBonus = shooter.level > target.level ? 0.15 : 0;
   return clamp(0.7 + elevationBonus - cover + distanceModifier, 0.05, 0.95);
 }
 
@@ -229,6 +257,9 @@ function fireAt(state, targetId, shooterId = state.selectedId, enemyShot = false
   const visible = hasLineOfSight(state.map, shooter, target);
   if (!visible) {
     return { ...state, targetId, logs: addLog(state, 'Schusslinie blockiert.', 'combat') };
+  }
+  if (Math.hypot(shooter.x - target.x, shooter.z - target.z) > SHOT_RANGE) {
+    return { ...state, targetId, logs: addLog(state, 'Ziel außer Reichweite.', 'combat') };
   }
   const hitChance = computeHitChance(state, shooter, target, enemyShot);
   const hit = Math.random() < hitChance;
@@ -422,25 +453,28 @@ export function gameReducer(state, action) {
   switch (action.type) {
     case 'select':
       if (state.phase !== 'player' || state.movement) return state;
-      return { ...state, selectedId: action.id, targetId: null };
+      return { ...state, selectedId: action.id, targetId: null, shootMode: false, moveMode: true };
     case 'target':
       if (state.phase !== 'player' || state.movement) return state;
+      // Selecting an enemy leaves move mode and enters shoot mode.
       return {
         ...state,
         targetId: action.id,
+        moveMode: false,
+        shootMode: true,
         units: state.units.map((unit) => unit.id === state.selectedId
           ? { ...unit, facing: facingToward(unit, state.units.find((target) => target.id === action.id) || unit) }
           : unit),
       };
     case 'toggle-move-mode':
       if (state.phase !== 'player' || state.movement) return state;
-      return { ...state, moveMode: !state.moveMode, targetId: null };
+      return { ...state, moveMode: !state.moveMode, shootMode: false, targetId: null };
     case 'move':
       if (state.phase !== 'player' || state.movement) return state;
       return selectNextReadyPlayer(moveUnit(state, action.destination));
     case 'attack':
       if (state.phase !== 'player' || state.movement) return state;
-      return selectNextReadyPlayer(fireAt(state, action.id));
+      return { ...selectNextReadyPlayer(fireAt(state, action.id)), shootMode: false };
     case 'ability':
       if (state.phase !== 'player' || state.movement) return state;
       return selectNextReadyPlayer(useAbility(state, action.name));

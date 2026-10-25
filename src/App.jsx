@@ -1,13 +1,12 @@
 import { useEffect, useMemo, useReducer, useState } from 'react';
 import GameScene from './components/GameScene.jsx';
 import { TacticalHud } from './components/TacticalHud.jsx';
-import { cellKey, createInitialState, gameReducer, getReachable } from './engine/game.js';
+import { cellKey, computeHitChance, createInitialState, gameReducer, getReachable, SHOT_RANGE } from './engine/game.js';
 import { getVisibleCells, hasLineOfSight } from './engine/map.js';
 
 export default function App() {
   const [state, dispatch] = useReducer(gameReducer, undefined, () => createInitialState());
   const [pendingMove, setPendingMove] = useState(null);
-  const [showEndTurnWarning, setShowEndTurnWarning] = useState(false);
   const [showNewGameWarning, setShowNewGameWarning] = useState(false);
   const [seedCopied, setSeedCopied] = useState(false);
   const selected = state.units.find((unit) => unit.id === state.selectedId && unit.hp > 0);
@@ -26,9 +25,17 @@ export default function App() {
     if (!selected || selected.ap < 1) return new Set();
     return new Set(state.units
       .filter((unit) => unit.team === 'alien' && unit.hp > 0)
-      .filter((unit) => visibleCellKeys.has(cellKey(unit)) && hasLineOfSight(state.map, selected, unit))
+      .filter((unit) => visibleCellKeys.has(cellKey(unit)) && hasLineOfSight(state.map, selected, unit) && Math.hypot(selected.x - unit.x, selected.z - unit.z) <= SHOT_RANGE)
       .map((unit) => unit.id));
   }, [selected, state.map, state.units, visibleCellKeys]);
+  const enemyHitChances = useMemo(() => {
+    const chances = new Map();
+    if (!selected || selected.ap < 1) return chances;
+    state.units
+      .filter((unit) => shootableEnemyIds.has(unit.id))
+      .forEach((unit) => chances.set(unit.id, Math.round(computeHitChance(state, selected, unit) * 100)));
+    return chances;
+  }, [selected, shootableEnemyIds, state]);
   const activeEnemy = state.phase === 'enemy'
     ? state.units.find((unit) => unit.id === state.enemyTurnOrder[state.enemyTurnIndex] && unit.hp > 0)
     : null;
@@ -36,16 +43,25 @@ export default function App() {
     ? (activeEnemy && visibleCellKeys.has(cellKey(activeEnemy)) ? activeEnemy : null)
     : selected;
   const focusToken = state.phase === 'enemy' ? state.enemyTurnIndex : 0;
-  const remainingAP = state.units
-    .filter((unit) => unit.team === 'player' && unit.hp > 0)
-    .reduce((total, unit) => total + unit.ap, 0);
+  const playerUnits = state.units.filter((unit) => unit.team === 'player' && unit.hp > 0);
+  // Other living player units that still have AP, in roster order after the currently selected unit.
+  const readyUnits = useMemo(() => {
+    const ready = playerUnits.filter((unit) => unit.ap > 0 && unit.id !== state.selectedId);
+    const selectedIndex = playerUnits.findIndex((unit) => unit.id === state.selectedId);
+    return [...ready].sort((a, b) => {
+      const ia = (playerUnits.indexOf(a) - selectedIndex + playerUnits.length) % playerUnits.length;
+      const ib = (playerUnits.indexOf(b) - selectedIndex + playerUnits.length) % playerUnits.length;
+      return ia - ib;
+    });
+  }, [playerUnits, state.selectedId]);
+  const nextReadyUnit = readyUnits[0] ?? null;
   const requestEndTurn = () => {
     if (state.phase !== 'player' || state.movement) return;
-    if (remainingAP > 0) setShowEndTurnWarning(true);
-    else dispatch({ type: 'end-turn' });
-  };
-  const confirmEndTurn = () => {
-    setShowEndTurnWarning(false);
+    if (nextReadyUnit) {
+      setPendingMove(null);
+      dispatch({ type: 'select', id: nextReadyUnit.id });
+      return;
+    }
     dispatch({ type: 'end-turn' });
   };
   const copySeed = async () => {
@@ -107,11 +123,10 @@ export default function App() {
     const onKeyDown = (event) => {
       if (event.key === 'Escape') {
         setPendingMove(null);
-        setShowEndTurnWarning(false);
         setShowNewGameWarning(false);
         return;
       }
-      if (showEndTurnWarning || showNewGameWarning) return;
+      if (showNewGameWarning) return;
       if (event.target instanceof HTMLElement && ['INPUT', 'TEXTAREA', 'BUTTON'].includes(event.target.tagName)) return;
       const key = event.key.toLowerCase();
       if (key === 'm') dispatch({ type: 'toggle-move-mode' });
@@ -121,7 +136,7 @@ export default function App() {
     };
     window.addEventListener('keydown', onKeyDown);
     return () => window.removeEventListener('keydown', onKeyDown);
-  }, [requestEndTurn, showEndTurnWarning, showNewGameWarning, state.selectedId, target]);
+  }, [requestEndTurn, showNewGameWarning, state.selectedId, target]);
 
   const tapCell = (cell) => {
     if (state.phase !== 'player' || state.movement) return;
@@ -160,7 +175,7 @@ export default function App() {
 
   return (
     <main className="game-shell">
-      <div className="scene-wrap"><GameScene state={state} selected={selected} focusUnit={focusUnit} focusToken={focusToken} target={target} paths={paths} pendingMove={pendingMove} visibleCellKeys={visibleCellKeys} shootableEnemyIds={shootableEnemyIds} onCellTap={tapCell} movingUnitId={state.movement?.unitId ?? null} /></div>
+      <div className="scene-wrap"><GameScene state={state} selected={selected} focusUnit={focusUnit} focusToken={focusToken} target={target} paths={paths} pendingMove={pendingMove} visibleCellKeys={visibleCellKeys} shootableEnemyIds={shootableEnemyIds} enemyHitChances={enemyHitChances} onCellTap={tapCell} movingUnitId={state.movement?.unitId ?? null} /></div>
       <TacticalHud
         state={state}
         selected={selected}
@@ -171,12 +186,9 @@ export default function App() {
         moveMode={state.moveMode}
         pendingMove={pendingMove}
         pendingMoveCost={pendingPath?.apCost}
-        remainingAP={remainingAP}
-        showEndTurnWarning={showEndTurnWarning}
+        nextReadyUnit={nextReadyUnit}
         onConfirmMove={confirmMove}
         onRequestEndTurn={requestEndTurn}
-        onConfirmEndTurn={confirmEndTurn}
-        onCancelEndTurn={() => setShowEndTurnWarning(false)}
         showNewGameWarning={showNewGameWarning}
         onRequestRegenerate={requestRegenerate}
         onConfirmRegenerate={regenerate}

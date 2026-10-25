@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef } from 'react';
 import { Canvas, useFrame, useLoader, useThree } from '@react-three/fiber';
-import { Line } from '@react-three/drei';
+import { Html, Line } from '@react-three/drei';
 import * as THREE from 'three';
 import { cellKey, hasLineOfSight } from '../engine/map.js';
 
@@ -308,7 +308,14 @@ function AimBeam({ shooter, target, blocked }) {
   const points = useMemo(() => [shooter, target].map((unit) => (
     new THREE.Vector3(unit.x - 15.5, unit.level * LEVEL_HEIGHT + 0.82, unit.z - 15.5)
   )), [shooter, target]);
-  return <Line points={points} color={blocked ? '#e3bd72' : '#ff7065'} lineWidth={2} transparent opacity={0.78} />;
+  const color = blocked ? '#ffd27a' : '#ff4d42';
+  return (
+    <group>
+      <Line points={points} color={color} lineWidth={9} transparent opacity={0.35} depthTest={false} renderOrder={998} />
+      <Line points={points} color="#ffffff" lineWidth={3} transparent opacity={0.95} depthTest={false} renderOrder={999} />
+      <Line points={points} color={color} lineWidth={5} transparent opacity={1} depthTest={false} renderOrder={999} />
+    </group>
+  );
 }
 
 function FogOfWar({ cells, visibleCellKeys }) {
@@ -340,7 +347,7 @@ function ObjectiveMarkers({ objectives, visibleCellKeys }) {
   ));
 }
 
-function PixelUnit({ unit, selected, targeted, shootable, camera, movement, visibleCellKeys }) {
+function PixelUnit({ unit, selected, targeted, shootable, hitChance, camera, movement, visibleCellKeys }) {
   const group = useRef();
   const bodyGroup = useRef();
   const billboard = useRef();
@@ -464,6 +471,11 @@ function PixelUnit({ unit, selected, targeted, shootable, camera, movement, visi
         </mesh>
       </group>
       {unit.hp <= 0 && <mesh position={[0, 0.18, 0]} rotation={[0, 0, -0.4]}><boxGeometry args={[0.7, 0.09, 0.12]} /><meshBasicMaterial color="#9c4d4b" /></mesh>}
+      {shootable && hitChance != null && (
+        <Html position={[0, 1.95, 0]} center zIndexRange={[20, 0]} style={{ pointerEvents: 'none' }}>
+          <span className="enemy-hit-chance">{hitChance}%</span>
+        </Html>
+      )}
     </group>
   );
 }
@@ -698,7 +710,7 @@ function CameraRig({ floorRef, cells, onCellTap, focusUnit, focusToken, mapOffse
   return null;
 }
 
-function Battlefield({ state, selected, focusUnit, focusToken, target, paths, pendingMove, visibleCellKeys, shootableEnemyIds, onCellTap, movingUnitId }) {
+function Battlefield({ state, selected, focusUnit, focusToken, target, paths, pendingMove, visibleCellKeys, shootableEnemyIds, enemyHitChances, onCellTap, movingUnitId }) {
   const { camera } = useThree();
   const floorRef = useRef();
   const allCells = useMemo(() => Object.values(state.map.cells), [state.map]);
@@ -724,7 +736,7 @@ function Battlefield({ state, selected, focusUnit, focusToken, target, paths, pe
       {pendingPath && selected && <MoveTrace path={pendingPath} start={selected} />}
       {selected && target && <AimBeam shooter={selected} target={target} blocked={!hasLineOfSight(state.map, selected, target)} />}
       {state.units.filter((unit) => unit.hp > 0 && (unit.team === 'player' || visibleCellKeys.has(cellKey(unit)))).map((unit) => (
-        <PixelUnit key={`${state.generation}:${unit.id}`} unit={unit} selected={unit.id === state.selectedId} targeted={unit.id === state.targetId} shootable={shootableEnemyIds.has(unit.id)} camera={camera} movement={state.movement} visibleCellKeys={visibleCellKeys} />
+        <PixelUnit key={`${state.generation}:${unit.id}`} unit={unit} selected={unit.id === state.selectedId} targeted={unit.id === state.targetId} shootable={shootableEnemyIds.has(unit.id)} hitChance={enemyHitChances?.get(unit.id)} camera={camera} movement={state.movement} visibleCellKeys={visibleCellKeys} />
       ))}
       {state.lastShot && <BeamEffect key={state.lastShot.id} shot={state.lastShot} camera={camera} />}
       </group>
@@ -733,7 +745,7 @@ function Battlefield({ state, selected, focusUnit, focusToken, target, paths, pe
   );
 }
 
-export default function GameScene({ state, selected, focusUnit, focusToken, target, paths, pendingMove, visibleCellKeys, shootableEnemyIds, onCellTap, movingUnitId }) {
+export default function GameScene({ state, selected, focusUnit, focusToken, target, paths, pendingMove, visibleCellKeys, shootableEnemyIds, enemyHitChances, onCellTap, movingUnitId }) {
   return (
     <Canvas
       orthographic
@@ -742,7 +754,7 @@ export default function GameScene({ state, selected, focusUnit, focusToken, targ
       gl={{ antialias: false, powerPreference: 'low-power', alpha: false }}
       style={{ touchAction: 'none' }}
     >
-      <Battlefield state={state} selected={selected} focusUnit={focusUnit} focusToken={focusToken} target={target} paths={paths} pendingMove={pendingMove} visibleCellKeys={visibleCellKeys} shootableEnemyIds={shootableEnemyIds} onCellTap={onCellTap} movingUnitId={movingUnitId} />
+      <Battlefield state={state} selected={selected} focusUnit={focusUnit} focusToken={focusToken} target={target} paths={paths} pendingMove={pendingMove} visibleCellKeys={visibleCellKeys} shootableEnemyIds={shootableEnemyIds} enemyHitChances={enemyHitChances} onCellTap={onCellTap} movingUnitId={movingUnitId} />
     </Canvas>
   );
 }

@@ -3,7 +3,7 @@ import {
   Activity, AlertTriangle, Check, Copy, Crosshair, ChevronDown, Eye, HeartPulse, Layers3, Move, Radio, RotateCcw,
   Shield, ShieldCheck, SkipForward, Swords, Target, Zap,
 } from 'lucide-react';
-import { computeDistanceModifier } from '../engine/game.js';
+import { computeDistanceModifier, SHOT_RANGE } from '../engine/game.js';
 import { hasLineOfSight } from '../engine/map.js';
 
 function ActionButton({ icon: Icon, label, hint, onClick, disabled = false, active = false, kind = '', title }) {
@@ -48,7 +48,7 @@ export function CombatPreview({ shooter, target, map, hasShootableEnemy }) {
   const dx = shooter.x - target.x;
   const dz = shooter.z - target.z;
   const distance = Math.hypot(dx, dz);
-  const visible = hasLineOfSight(map, shooter, target);
+  const visible = hasLineOfSight(map, shooter, target) && distance <= SHOT_RANGE;
   const cover = map.cells[`${target.x},${target.z},${target.level}`]?.cover || 0;
   const coverPenalty = cover === 2 ? 40 : cover === 1 ? 20 : 0;
   const elevation = shooter.level > target.level ? 15 : 0;
@@ -56,14 +56,14 @@ export function CombatPreview({ shooter, target, map, hasShootableEnemy }) {
   const hit = visible ? Math.max(5, Math.min(95, 70 + elevation - coverPenalty + distanceModifier)) : 0;
   return (
     <section className="combat-preview">
-      <div className="preview-target"><span className="target-icon"><Target size={17} /></span><div><strong>{target.name}</strong><span>{visible ? `${target.className} · ${Math.round(distance)} M` : 'SCHUSSLINIE BLOCKIERT'}</span></div><b>{visible ? `${hit}%` : '—'}</b></div>
+      <div className="preview-target"><span className="target-icon"><Target size={17} /></span><div><strong>{target.name}</strong><span>{visible ? `${target.className} · ${Math.round(distance)} M` : distance > SHOT_RANGE ? 'AUSSER REICHWEITE' : 'SCHUSSLINIE BLOCKIERT'}</span></div><b>{visible ? `${hit}%` : '—'}</b></div>
       <div className="chance-track"><i style={{ width: `${hit}%` }} /></div>
       <div className="chance-breakdown"><span>Basis <b>70%</b></span><span>Deckung <b className={coverPenalty ? 'negative' : ''}>−{coverPenalty}%</b></span><span>Höhe <b className="positive">+{elevation}%</b></span><span>Distanz <b className={distanceModifier > 0 ? 'positive' : distanceModifier < 0 ? 'negative' : ''}>{distanceModifier > 0 ? '+' : ''}{distanceModifier}%</b></span></div>
     </section>
   );
 }
 
-export function TacticalHud({ state, selected, target, hasShootableEnemy, seedCopied, onCopySeed, moveMode, pendingMove, pendingMoveCost, remainingAP, showEndTurnWarning, onConfirmMove, onRequestEndTurn, onConfirmEndTurn, onCancelEndTurn, showNewGameWarning, onConfirmRegenerate, onCancelRegenerate, onAction, onRequestRegenerate, onToggleLevels, onSelect }) {
+export function TacticalHud({ state, selected, target, hasShootableEnemy, seedCopied, onCopySeed, moveMode, pendingMove, pendingMoveCost, nextReadyUnit, onConfirmMove, onRequestEndTurn, showNewGameWarning, onConfirmRegenerate, onCancelRegenerate, onAction, onRequestRegenerate, onToggleLevels, onSelect }) {
   const [stackOpen, setStackOpen] = useState(() => window.innerWidth > 900);
   const livingEnemies = state.units.filter((unit) => unit.team === 'alien' && unit.hp > 0).length;
   const totalEnemies = state.units.filter((unit) => unit.team === 'alien').length;
@@ -108,28 +108,15 @@ export function TacticalHud({ state, selected, target, hasShootableEnemy, seedCo
         <div className="dock-location"><span className="location-cross"><Move size={15} /></span><div><b>GRID {String(selected?.x ?? 0).padStart(2, '0')} : {String(selected?.z ?? 0).padStart(2, '0')}</b><small>DECK {selected?.level ?? 0} · {selected?.level > 0 ? 'ELEVATED' : 'GROUND'}</small></div></div>
         <div className="action-group">
           <ActionButton icon={Move} label="Bewegen" hint="M" active={moveMode} onClick={() => onAction({ type: 'toggle-move-mode' })} disabled={state.phase !== 'player' || !selected?.ap} />
-          <ActionButton icon={Crosshair} label="Feuern" onClick={() => target && onAction({ type: 'attack', id: target.id })} disabled={state.phase !== 'player' || !targetVisible || !selected?.ap} kind="fire-action" />
+          <ActionButton icon={Crosshair} label="Feuern" active={state.shootMode} onClick={() => target && onAction({ type: 'attack', id: target.id })} disabled={state.phase !== 'player' || !targetVisible || !selected?.ap} kind="fire-action" />
           <ActionButton icon={Eye} label="Overwatch" hint="O" onClick={() => onAction({ type: 'ability', name: 'overwatch' })} disabled={state.phase !== 'player' || !selected?.ap} />
           <ActionButton icon={ShieldCheck} label="Deckung" hint="H" onClick={() => onAction({ type: 'ability', name: 'hunker' })} disabled={state.phase !== 'player' || !selected?.ap} />
           {pendingMove && pendingMoveCost && <ActionButton icon={Check} label="Bestätigen" onClick={onConfirmMove} title={`Bewegung für ${pendingMoveCost} AP bestätigen`} active kind="confirm-move" />}
         </div>
-        <div className="dock-end"><button className="end-turn-button" onClick={onRequestEndTurn} disabled={state.phase !== 'player'}><SkipForward size={16} /><span>ZUG BEENDEN</span><kbd>↵</kbd></button></div>
+        <div className="dock-end"><button className="end-turn-button" onClick={onRequestEndTurn} disabled={state.phase !== 'player'}><SkipForward size={16} /><span>{nextReadyUnit ? 'NÄCHSTE' : 'ZUG BEENDEN'}</span><kbd>↵</kbd></button></div>
       </footer>
 
-      <div className="touch-controls"><button aria-label="Kamera drehen" title="Kamera drehen" onClick={() => window.dispatchEvent(new KeyboardEvent('keydown', { key: 'q' }))}><RotateCcw size={17} /></button><button aria-label="Etagen umschalten" title="Etagen umschalten" onClick={onToggleLevels}><Layers3 size={17} /></button><button aria-label="Zug beenden" title="Zug beenden" onClick={onRequestEndTurn} disabled={state.phase !== 'player'}><SkipForward size={17} /></button></div>
-      {showEndTurnWarning && (
-        <div className="end-turn-warning-backdrop">
-          <section className="end-turn-warning" role="alertdialog" aria-modal="true" aria-labelledby="end-turn-warning-title" aria-describedby="end-turn-warning-copy">
-            <div className="end-turn-warning-icon"><AlertTriangle size={20} /></div>
-            <h2 id="end-turn-warning-title">AKTIONSPUNKTE ÜBRIG</h2>
-            <p id="end-turn-warning-copy">Deinem Team stehen noch {remainingAP} AP zur Verfügung. Zug trotzdem beenden?</p>
-            <div className="end-turn-warning-actions">
-              <button className="warning-continue-button" onClick={onCancelEndTurn}>WEITER SPIELEN</button>
-              <button className="warning-confirm-button" onClick={onConfirmEndTurn}><SkipForward size={15} /> ZUG BEENDEN</button>
-            </div>
-          </section>
-        </div>
-      )}
+      <div className="touch-controls"><button aria-label="Kamera drehen" title="Kamera drehen" onClick={() => window.dispatchEvent(new KeyboardEvent('keydown', { key: 'q' }))}><RotateCcw size={17} /></button><button aria-label="Etagen umschalten" title="Etagen umschalten" onClick={onToggleLevels}><Layers3 size={17} /></button><button aria-label={nextReadyUnit ? 'Nächste Einheit' : 'Zug beenden'} title={nextReadyUnit ? 'Nächste Einheit' : 'Zug beenden'} onClick={onRequestEndTurn} disabled={state.phase !== 'player'}><SkipForward size={17} /></button></div>
       {showNewGameWarning && (
         <div className="end-turn-warning-backdrop">
           <section className="end-turn-warning" role="alertdialog" aria-modal="true" aria-labelledby="new-game-warning-title" aria-describedby="new-game-warning-copy">

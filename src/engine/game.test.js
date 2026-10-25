@@ -164,6 +164,14 @@ test('selects the next living player with AP when the current player runs out', 
   assert.equal(next.selectedId, 'spectre');
 });
 
+test('switching player resets to move mode', () => {
+  const state = { ...createInitialState(42), moveMode: false, shootMode: true };
+  const selected = gameReducer(state, { type: 'select', id: 'spectre' });
+  assert.equal(selected.selectedId, 'spectre');
+  assert.equal(selected.moveMode, true);
+  assert.equal(selected.shootMode, false);
+});
+
 test('keeps the current player selected when no player has AP left', () => {
   const state = createInitialState(42);
   const exhausted = { ...state, units: state.units.map((unit) => unit.team === 'player' ? { ...unit, ap: 0 } : unit) };
@@ -199,10 +207,10 @@ test('ending the player turn refreshes AP and advances the round', () => {
 
 test('enemies advance toward the nearest player during their turn', () => {
   const state = createInitialState(42);
-  const enemy = state.units[3];
+  const enemy = state.units.find((unit) => unit.aiRole === 'raider');
   const target = state.units[0];
   const distanceBefore = Math.hypot(enemy.x - target.x, enemy.z - target.z);
-  const enemyTurn = gameReducer(state, { type: 'end-turn' });
+  const enemyTurn = { ...gameReducer(state, { type: 'end-turn' }), enemyTurnOrder: [enemy.id], enemyTurnIndex: 0 };
   const afterAction = gameReducer(enemyTurn, { type: 'enemy-step' });
   const movedEnemy = afterAction.units.find((unit) => unit.id === enemy.id);
   const distanceAfter = Math.hypot(movedEnemy.x - target.x, movedEnemy.z - target.z);
@@ -425,16 +433,16 @@ test('hunkering lowers the hit chance by the Deckung bonus on open ground', () =
 });
 
 test('shooting at close range gets a distance bonus while long range keeps its penalty', () => {
-  assert.equal(computeDistanceModifier(3), 0.075);
-  assert.equal(computeDistanceModifier(8), 0);
-  assert.equal(computeDistanceModifier(13), -0.075);
+  assert.ok(Math.abs(computeDistanceModifier(3) - 0.2) < 1e-9);
+  assert.equal(computeDistanceModifier(5), 0);
+  assert.ok(Math.abs(computeDistanceModifier(8) + 0.3) < 1e-9);
 
   const state = createInitialState(42);
   state.map.cells[cellKey({ x: 10, z: 10, level: 0 })].cover = 0;
   const target = { x: 10, z: 10, level: 0, status: null, id: 'x' };
   const close = computeHitChance(state, { x: 10, z: 13, level: 0 }, target);
-  const neutral = computeHitChance(state, { x: 10, z: 18, level: 0 }, target);
-  const far = computeHitChance(state, { x: 10, z: 23, level: 0 }, target);
+  const neutral = computeHitChance(state, { x: 10, z: 15, level: 0 }, target);
+  const far = computeHitChance(state, { x: 10, z: 18, level: 0 }, target);
 
   assert.ok(close > neutral);
   assert.ok(neutral > far);

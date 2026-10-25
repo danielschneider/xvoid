@@ -245,3 +245,4 @@ button { font: inherit; }
   .bottom-dock { bottom: 8px; min-height: 60px; }
   .map-coordinates { bottom: 78px; }
 }
+.enemy-hit-chance { display: inline-block; padding: 2px 5px; border: 1px solid #f3bd76; background: rgba(12, 18, 16, .85); color: #f3bd76; font: 700 11px/1 monospace; white-space: nowrap; border-radius: 2px; }
