@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import {
-  Activity, AlertTriangle, Check, Copy, Crosshair, ChevronDown, Eye, HeartPulse, Layers3, Move, Radio, RotateCcw,
+  Activity, AlertTriangle, Check, Copy, Crosshair, ChevronDown, Eye, Footprints, HeartPulse, Layers3, Move, Radio, RotateCcw,
   Shield, ShieldCheck, SkipForward, Swords, Target, Zap,
 } from 'lucide-react';
 import { COVER_VALUE, computeCoverFor, computeDistanceModifier, getFlankedBy, SHOT_RANGE } from '../engine/game.js';
@@ -37,6 +37,8 @@ export function UnitPanel({ unit, onSelect, units, flankedBy }) {
       </div>
       <div className="stat-row"><span><HeartPulse size={13} /> VITALITÄT</span><HealthBar value={unit.hp} total={unit.maxHp} /><b>{unit.hp}/{unit.maxHp}</b></div>
       <div className="stat-row"><span><Shield size={13} /> SCHILD</span><HealthBar value={unit.shield} total={2} tone="blue" /><b>{unit.shield}/2</b></div>
+      <div className="stat-row"><span><Crosshair size={13} /> FEUERKRAFT</span><b>{unit.power > 0 ? `+${unit.power}` : unit.power ?? 0}</b></div>
+      <div className="stat-row"><span><Footprints size={13} /> BEWEGUNG</span><b>{unit.moveRange ?? 10} Felder</b></div>
       <div className="ap-row"><span>AKTIONS-PUNKTE</span><div>{[0, 1].map((point) => <i key={point} className={point < unit.ap ? 'ap-filled' : ''}><Zap size={12} fill="currentColor" /></i>)}</div></div>
       {unit.status && <div className="stance-badge"><Eye size={12} /> OVERWATCH</div>}
       {flankedBy?.length > 0 && <div className="flank-badge" role="status"><AlertTriangle size={12} /> FLANKIERT <span>{flankedBy.map((enemy) => enemy.name).join(', ')}</span></div>}

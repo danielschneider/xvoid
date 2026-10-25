@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useReducer, useState } from 'react';
 import GameScene from './components/GameScene.jsx';
 import { TacticalHud } from './components/TacticalHud.jsx';
-import { cellKey, computeHitChance, createInitialState, gameReducer, getReachable, SHOT_RANGE } from './engine/game.js';
+import { cellKey, computeHitChance, createInitialState, gameReducer, getReachable, movementLimits, SHOT_RANGE } from './engine/game.js';
 import { getCoverProfile, getVisibleCells, hasLineOfSight } from './engine/map.js';
 
 export default function App() {
@@ -82,7 +82,8 @@ export default function App() {
   const paths = useMemo(() => {
     if (state.phase !== 'player' || state.movement || !selected || selected.team !== 'player' || !state.moveMode || selected.ap < 1) return new Map();
     const blocked = new Set(state.units.filter((unit) => unit.id !== selected.id && unit.hp > 0).map(cellKey));
-    return getReachable(state.map, selected, blocked, selected.ap === 1 ? 5 : 10);
+    const { maxSteps, cheapSteps } = movementLimits(selected);
+    return getReachable(state.map, selected, blocked, maxSteps, cheapSteps);
   }, [selected, state.map, state.moveMode, state.movement, state.phase, state.units]);
   // Protection of every cell the selected unit could move to, shown as ground tint.
   const coverProfiles = useMemo(() => {

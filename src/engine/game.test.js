@@ -108,7 +108,7 @@ test('movement route follows walkable cells around walls', () => {
   state.units = state.units.map((unit, index) => unit.id === 'vanguard'
     ? { ...unit, x: 4, z: 5 }
     : { ...unit, x: 28, z: index + 1 });
-  const destination = { x: 8, z: 3, level: 0 };
+  const destination = { x: 7, z: 2, level: 0 };
   const moved = gameReducer(state, { type: 'move', destination });
   assert.equal(moved.units[0].x, destination.x);
   assert.ok(moved.movement.path.length > Math.abs(destination.x - state.units[0].x) + 1);
@@ -193,6 +193,15 @@ test('ending the player turn refreshes AP and advances the round', () => {
   assert.equal(finished.turn, 2);
   assert.equal(finished.phase, 'player');
   assert.equal(finished.units[0].ap, 2);
+});
+
+test('each new round starts the player unit in move mode', () => {
+  const state = { ...createInitialState(42), phase: 'enemy', enemyTurnOrder: [], enemyTurnIndex: 0, moveMode: false, shootMode: true, targetId: 'x' };
+  const next = gameReducer(state, { type: 'finish-enemy-turn' });
+  assert.equal(next.turn, 2);
+  assert.equal(next.moveMode, true);
+  assert.equal(next.shootMode, false);
+  assert.equal(next.targetId, null);
 });
 
 test('enemies advance toward the nearest player during their turn', () => {
@@ -589,4 +598,52 @@ test('enemy shots never crit', () => {
   const enemy = state.units.find((unit) => unit.id === 'raider-01');
   assert.equal(computeCritChance(state, enemy, target, true), 0);
   assert.equal(computeCritChance(state, target, enemy, false), CRIT_CHANCE);
+});
+
+test('the three player types differ in HP, movement range and shooting power', () => {
+  const players = createInitialState(42).units.filter((unit) => unit.team === 'player');
+  const byId = Object.fromEntries(players.map((unit) => [unit.id, unit]));
+  assert.equal(new Set(players.map((unit) => unit.moveRange)).size, 3);
+  assert.equal(new Set(players.map((unit) => unit.power)).size, 3);
+  assert.equal(new Set(players.map((unit) => unit.maxHp)).size, 3);
+  assert.ok(byId.spectre.moveRange > byId.medic.moveRange && byId.medic.moveRange > byId.vanguard.moveRange);
+  assert.ok(byId.spectre.power > byId.vanguard.power && byId.vanguard.power > byId.medic.power);
+  assert.ok(byId.spectre.maxHp < byId.vanguard.maxHp && byId.spectre.maxHp < byId.medic.maxHp);
+});
+
+test('movement range per type caps reachable cells at full AP and at 1 AP', () => {
+  const state = createInitialState(42);
+  for (const unit of state.units.filter((entry) => entry.team === 'player')) {
+    const blocked = new Set(state.units.filter((entry) => entry.id !== unit.id && entry.hp > 0).map(cellKey));
+    const full = [...getReachable(state.map, unit, blocked, unit.moveRange, Math.ceil(unit.moveRange / 2)).values()];
+    assert.ok(full.every((entry) => entry.steps <= unit.moveRange));
+    assert.ok(full.some((entry) => entry.steps === unit.moveRange));
+    assert.ok(full.every((entry) => entry.apCost === (entry.steps <= Math.ceil(unit.moveRange / 2) ? 1 : 2)));
+  }
+});
+
+test('a unit with 1 AP can only move its cheap half of moveRange', () => {
+  const state = createInitialState(42);
+  const unit = state.units.find((entry) => entry.id === 'spectre');
+  const encounter = { ...state, units: state.units.map((entry) => (entry.id === unit.id ? { ...entry, ap: 1 } : entry)) };
+  const blocked = new Set(state.units.filter((entry) => entry.id !== unit.id && entry.hp > 0).map(cellKey));
+  const reachable = [...getReachable(encounter.map, unit, blocked, 5, 5).values()];
+  const far = reachable.find((entry) => entry.steps > 5);
+  assert.equal(far, undefined);
+  assert.ok(encounter.units.find((entry) => entry.id === unit.id).ap === 1);
+});
+
+test('player shooting power adds to damage, enemy shots ignore it', () => {
+  const state = createInitialState(42);
+  const shooter = { ...state.units.find((unit) => unit.id === 'spectre'), ap: 2 };
+  const target = { ...state.units.find((unit) => unit.id === 'raider-01'), shield: 0, hp: 20, maxHp: 20 };
+  const encounter = {
+    ...state,
+    selectedId: shooter.id,
+    units: state.units.map((unit) => (unit.id === shooter.id ? { ...shooter, x: target.x, z: target.z + 1, level: 0 }
+      : unit.id === target.id ? target : { ...unit, hp: 0 })),
+  };
+  // Hit (0), no crit (0.99), base roll 0 -> 2 + power 1 = 3.
+  const result = withRandomSequence([0, 0.99, 0], () => gameReducer(encounter, { type: 'attack', id: target.id }));
+  assert.equal(result.lastShot.damage, 3);
 });

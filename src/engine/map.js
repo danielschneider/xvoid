@@ -235,7 +235,7 @@ export function createBattlefield(seed = Date.now()) {
   return { seed, size, cells, transitions, rooms: buildings };
 }
 
-export function getReachable(map, start, blocked = new Set(), maxSteps = 10) {
+export function getReachable(map, start, blocked = new Set(), maxSteps = 10, cheapSteps = 5) {
   const startKey = cellKey(start);
   const queue = [start];
   const distance = new Map([[startKey, 0]]);
@@ -265,7 +265,7 @@ export function getReachable(map, start, blocked = new Set(), maxSteps = 10) {
       path.unshift(map.cells[cursor]);
       cursor = previous.get(cursor);
     }
-    paths.set(key, { steps, path, apCost: steps <= 5 ? 1 : 2 });
+    paths.set(key, { steps, path, apCost: steps <= cheapSteps ? 1 : 2 });
   }
   return paths;
 }

@@ -9,11 +9,22 @@ export const COVER_VALUE = { 0: 0, 1: 0.2, 2: 0.4 };
 export const CRIT_CHANCE = 0.15;
 export const CRIT_MULTIPLIER = 2;
 
+// moveRange: max steps per turn at full AP. Half of it (rounded up) costs 1 AP.
+// power: flat damage bonus on player shots (enemy shots ignore it).
 const playerTemplates = [
-  { id: 'vanguard', name: 'Vanguard', className: 'BREACHER', team: 'player', hp: 6, maxHp: 6, shield: 2, ap: 2, color: '#62e6c4' },
-  { id: 'spectre', name: 'Spectre', className: 'RECON', team: 'player', hp: 5, maxHp: 5, shield: 1, ap: 2, color: '#87b5ff' },
-  { id: 'medic', name: 'Medic', className: 'FIELD MEDIC', team: 'player', hp: 5, maxHp: 5, shield: 2, ap: 2, color: '#f0d77e' },
+  { id: 'vanguard', name: 'Vanguard', className: 'BREACHER', team: 'player', hp: 7, maxHp: 7, shield: 2, ap: 2, moveRange: 6, power: 0, color: '#62e6c4' },
+  { id: 'spectre', name: 'Spectre', className: 'RECON', team: 'player', hp: 4, maxHp: 4, shield: 1, ap: 2, moveRange: 9, power: 1, color: '#87b5ff' },
+  { id: 'medic', name: 'Medic', className: 'FIELD MEDIC', team: 'player', hp: 5, maxHp: 5, shield: 2, ap: 2, moveRange: 7, power: -1, color: '#f0d77e' },
 ];
+
+const DEFAULT_MOVE_RANGE = 10;
+
+// Step limits for a unit's move. With 1 AP left only the cheap (1 AP) half is reachable.
+export function movementLimits(unit) {
+  const moveRange = unit.moveRange ?? DEFAULT_MOVE_RANGE;
+  const cheapSteps = Math.ceil(moveRange / 2);
+  return { maxSteps: unit.ap === 1 ? cheapSteps : moveRange, cheapSteps };
+}
 
 const enemyTemplates = [
   { role: 'raider', name: 'Void Raider', className: 'RAIDER', hp: 5, shield: 0, color: '#ff6f66' },
@@ -171,7 +182,8 @@ function createStartingUnits(map, seed) {
 function initialSelection(map, units) {
   const canMove = (unit) => {
     const blocked = new Set(units.filter((other) => other.id !== unit.id && other.hp > 0).map(cellKey));
-    return getReachable(map, unit, blocked, unit.ap === 1 ? 5 : 10).size > 0;
+    const { maxSteps, cheapSteps } = movementLimits(unit);
+    return getReachable(map, unit, blocked, maxSteps, cheapSteps).size > 0;
   };
   const players = units.filter((unit) => unit.team === 'player' && unit.hp > 0);
   return (players.find(canMove) ?? players[0]).id;
@@ -223,7 +235,8 @@ function moveUnit(state, destination) {
   const unit = state.units.find((entry) => entry.id === state.selectedId);
   if (!unit || unit.team !== 'player' || unit.ap < 1) return state;
   const occupied = new Set(state.units.filter((entry) => entry.id !== unit.id && entry.hp > 0).map(cellKey));
-  const pathData = getReachable(state.map, unit, occupied).get(cellKey(destination));
+  const { maxSteps, cheapSteps } = movementLimits(unit);
+  const pathData = getReachable(state.map, unit, occupied, maxSteps, cheapSteps).get(cellKey(destination));
   if (!pathData || pathData.apCost > unit.ap) return state;
   const last = pathData.path[pathData.path.length - 1];
   const previous = pathData.path.length > 1 ? pathData.path[pathData.path.length - 2] : unit;
@@ -292,7 +305,9 @@ function fireAt(state, targetId, shooterId = state.selectedId, enemyShot = false
   const hitChance = computeHitChance(state, shooter, target, enemyShot);
   const hit = random() < hitChance;
   const crit = hit && random() < computeCritChance(state, shooter, target, enemyShot);
-  const baseDamage = enemyShot ? 1 + Math.floor(random() * 2) : 2 + Math.floor(random() * 3);
+  const baseDamage = enemyShot
+    ? 1 + Math.floor(random() * 2)
+    : 2 + Math.floor(random() * 3) + (shooter.power ?? 0);
   const damage = hit ? (crit ? baseDamage * CRIT_MULTIPLIER : baseDamage) : 0;
   const remainingDamage = Math.max(0, damage - target.shield);
   const nextUnits = state.units.map((unit) => {
@@ -465,6 +480,9 @@ function finishEnemyTurn(state) {
     phase: 'player',
     selectedId,
     targetId: null,
+    // Every new round starts the selected player unit in movement mode.
+    moveMode: true,
+    shootMode: false,
     enemyTurnOrder: [],
     enemyTurnIndex: 0,
     logs: addLog(state, `Runde ${turn}: Zug deiner Einheit.`, 'system'),

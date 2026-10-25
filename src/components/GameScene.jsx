@@ -852,6 +852,11 @@ function Battlefield({ state, selected, coverProfiles, focusUnit, focusToken, ta
   const allCells = useMemo(() => Object.values(state.map.cells), [state.map]);
   const visibleCells = useMemo(() => allCells.filter((cell) => cell.level === 0 || state.showUpper), [allCells, state.showUpper]);
   const revealedCells = useMemo(() => visibleCells.filter((cell) => visibleCellKeys.has(cellKey(cell))), [visibleCellKeys, visibleCells]);
+  // Only show reachable tiles on displayed floors that the player can currently see (fog hides the rest).
+  const shownPaths = useMemo(() => new Map([...paths].filter(([key, value]) => {
+    const cell = state.map.cells[key];
+    return cell && (cell.level === 0 || state.showUpper) && visibleCellKeys.has(key) && value;
+  })), [paths, state.map, state.showUpper, visibleCellKeys]);
   const groundData = useMemo(() => visibleCells.filter((cell) => cell.walkable), [visibleCells]);
   const pendingPath = pendingMove ? paths.get(cellKey(pendingMove))?.path : null;
   const mapOffset = 15.5 - (state.map.size - 1) / 2;
@@ -867,7 +872,7 @@ function Battlefield({ state, selected, coverProfiles, focusUnit, focusToken, ta
       <WallField cells={revealedCells} selected={selected} />
       <CoverField cells={revealedCells} selected={selected} />
       <FogOfWar cells={visibleCells} visibleCellKeys={visibleCellKeys} />
-      {selected?.ap > 0 && <ReachableOverlay paths={paths} map={state.map} coverProfiles={coverProfiles} />}
+      {selected?.ap > 0 && <ReachableOverlay paths={shownPaths} map={state.map} coverProfiles={coverProfiles} />}
       {pendingPath && selected && <MoveTrace path={pendingPath} start={selected} />}
       {pendingMove && <SideCoverMarkers state={state} unit={pendingMove} />}
       {state.units.filter((unit) => unit.team === 'player' && unit.hp > 0).map((unit) => <SideCoverMarkers key={`cover-${unit.id}`} state={state} unit={unit} />)}
