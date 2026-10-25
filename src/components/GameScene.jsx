@@ -896,7 +896,7 @@ export default function GameScene({ state, selected, coverProfiles, focusUnit, f
   return (
     <Canvas
       orthographic
-      camera={{ position: [23, 28, 23], zoom: Math.max(20, 34 * 32 / state.map.size), near: 0.1, far: 200 }}
+      camera={{ position: [23, 28, 23], zoom: Math.max(30, 50 * 32 / state.map.size), near: 0.1, far: 200 }}
       dpr={Math.min(window.devicePixelRatio || 1, 2)}
       gl={{ antialias: false, powerPreference: 'low-power', alpha: false }}
       style={{ touchAction: 'none' }}

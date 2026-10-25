@@ -1,5 +1,9 @@
 export const GRID_SIZES = [32, 40, 48];
 export const VISION_RANGE = 10;
+// Fog reveal radius for the player squad; wider than spawn-safety vision so the map shows more.
+export const FOG_REVEAL_RANGE = 14;
+// Highest level index a building reaches. Level 0 is ground, so 3 means up to four floors.
+export const MAX_BUILDING_LEVEL = 3;
 export const cellKey = ({ x, z, level = 0 }) => `${x},${z},${level}`;
 
 // Terrain that physically blocks movement. Boxes (pillar/console) are rendered as
@@ -52,18 +56,76 @@ function placeBox(cells, transitions, cell, cover) {
   if (!allPassableReachable(cells, transitions)) Object.assign(cell, previous);
 }
 
+// Saves every cell and transition inside a building's footprint (all levels) so a
+// failed placement can be undone exactly.
+function snapshotRegion(cells, transitions, room, topLevel) {
+  const saved = [];
+  for (let level = 0; level <= topLevel; level += 1) {
+    for (let z = room.z - 1; z <= room.z + room.h; z += 1) {
+      for (let x = room.x - 1; x <= room.x + room.w; x += 1) {
+        const key = cellKey({ x, z, level });
+        saved.push([key, cells[key] ? { ...cells[key] } : undefined, transitions[key]]);
+      }
+    }
+  }
+  return saved;
+}
+
+function restoreRegion(cells, transitions, saved) {
+  for (const [key, cell, transition] of saved) {
+    if (cell) cells[key] = cell;
+    else delete cells[key];
+    if (transition) transitions[key] = transition;
+    else delete transitions[key];
+  }
+}
+
+// Raises a walled building with `topLevel + 1` floors. Each upper floor is an open
+// interior platform, and one stair column in the interior corner links every floor.
+function raiseBuilding(cells, transitions, room, topLevel) {
+  const { x, z, w, h } = room;
+  for (let zz = z; zz < z + h; zz += 1) {
+    for (let xx = x; xx < x + w; xx += 1) {
+      const perimeter = xx === x || xx === x + w - 1 || zz === z || zz === z + h - 1;
+      const door = (xx === x + Math.floor(w / 2) && zz === z) || (xx === x && zz === z + Math.floor(h / 2));
+      const cell = cells[cellKey({ x: xx, z: zz })];
+      cell.structure = true;
+      if (perimeter && !door) {
+        cell.terrain = 'wall';
+        cell.walkable = false;
+        cell.cover = 2;
+      }
+    }
+  }
+
+  for (let level = 1; level <= topLevel; level += 1) {
+    for (let zz = z + 1; zz < z + h - 1; zz += 1) {
+      for (let xx = x + 1; xx < x + w - 1; xx += 1) {
+        const floor = { x: xx, z: zz, level };
+        cells[cellKey(floor)] = { ...floor, terrain: 'platform', walkable: true, cover: 0, structure: true, corridor: false };
+      }
+    }
+  }
+
+  const stairX = x + 1;
+  const stairZ = z + 1;
+  for (let level = 0; level <= topLevel; level += 1) {
+    cells[cellKey({ x: stairX, z: stairZ, level })].terrain = 'stairs';
+  }
+  for (let level = 0; level < topLevel; level += 1) {
+    const lower = cellKey({ x: stairX, z: stairZ, level });
+    const upper = cellKey({ x: stairX, z: stairZ, level: level + 1 });
+    transitions[lower] = [...(transitions[lower] || []), { x: stairX, z: stairZ, level: level + 1 }];
+    transitions[upper] = [...(transitions[upper] || []), { x: stairX, z: stairZ, level }];
+  }
+}
+
 export function createBattlefield(seed = Date.now()) {
   const random = makeRandom(seed);
   const size = GRID_SIZES[Math.floor(random() * GRID_SIZES.length)];
   const middle = Math.floor(size / 2);
   const cells = {};
   const transitions = {};
-  const rooms = [
-    { x: 5, z: 4, w: 7, h: 7 },
-    { x: size - 13, z: 4, w: 8, h: 7 },
-    { x: 5, z: size - 12, w: 8, h: 7 },
-    { x: size - 13, z: size - 12, w: 8, h: 7 },
-  ];
 
   for (let z = 0; z < size; z += 1) {
     for (let x = 0; x < size; x += 1) {
@@ -81,61 +143,84 @@ export function createBattlefield(seed = Date.now()) {
     }
   }
 
-  const interiorBoxCandidates = [];
+  // Four large corner buildings keep fixed origins so the spawn and stair layout
+  // stays predictable; their size and floor count vary per seed.
+  const anchorOrigins = [
+    { x: 5, z: 4 },
+    { x: size - 13, z: 4 },
+    { x: 5, z: size - 12 },
+    { x: size - 13, z: size - 12 },
+  ];
+  const buildings = [];
+  for (const origin of anchorOrigins) {
+    const room = {
+      x: origin.x,
+      z: origin.z,
+      w: 8 + Math.floor(random() * 3),
+      h: 8 + Math.floor(random() * 3),
+    };
+    raiseBuilding(cells, transitions, room, 1 + Math.floor(random() * MAX_BUILDING_LEVEL));
+    buildings.push(room);
+  }
 
-  rooms.forEach((room, roomIndex) => {
-    for (let z = room.z; z < room.z + room.h; z += 1) {
-      for (let x = room.x; x < room.x + room.w; x += 1) {
-        const perimeter = x === room.x || x === room.x + room.w - 1 || z === room.z || z === room.z + room.h - 1;
-        const door = (x === room.x + Math.floor(room.w / 2) && z === room.z)
-          || (x === room.x && z === room.z + Math.floor(room.h / 2));
-        const cell = cells[cellKey({ x, z })];
-        cell.structure = true;
-        if (perimeter && !door) {
-          cell.terrain = 'wall';
-          cell.walkable = false;
-          cell.cover = 2;
-        } else if (!perimeter && random() < 0.12) {
-          interiorBoxCandidates.push(cell);
-        }
-      }
+  // Extra buildings fill the remaining space in each quadrant. A building is kept only
+  // if it leaves a one-cell gap to others and the battlefield stays connected.
+  const extraAttempts = size >= 48 ? 30 : size >= 40 ? 22 : 16;
+  const bounds = {
+    left: { min: 2, max: middle - 3 },
+    right: { min: middle + 2, max: size - 3 },
+  };
+  for (let attempt = 0; attempt < extraAttempts; attempt += 1) {
+    const xBounds = bounds[random() < 0.5 ? 'left' : 'right'];
+    const zBounds = bounds[random() < 0.5 ? 'left' : 'right'];
+    const w = 6 + Math.floor(random() * 4);
+    const h = 6 + Math.floor(random() * 4);
+    const maxX = xBounds.max - w + 1;
+    const maxZ = zBounds.max - h + 1;
+    if (maxX < xBounds.min || maxZ < zBounds.min) continue;
+    const room = {
+      x: xBounds.min + Math.floor(random() * (maxX - xBounds.min + 1)),
+      z: zBounds.min + Math.floor(random() * (maxZ - zBounds.min + 1)),
+      w,
+      h,
+    };
+    const overlaps = buildings.some((other) => (
+      room.x - 1 <= other.x + other.w - 1 && other.x <= room.x + room.w
+      && room.z - 1 <= other.z + other.h - 1 && other.z <= room.z + room.h
+    ));
+    if (overlaps) continue;
+    const topLevel = 1 + Math.floor(random() * MAX_BUILDING_LEVEL);
+    const saved = snapshotRegion(cells, transitions, room, topLevel);
+    raiseBuilding(cells, transitions, room, topLevel);
+    if (!allPassableReachable(cells, transitions)) {
+      restoreRegion(cells, transitions, saved);
+      continue;
     }
+    buildings.push(room);
+  }
 
+  const interiorBoxCandidates = [];
+  const upperFloorCells = [];
+  for (const room of buildings) {
     for (let z = room.z + 1; z < room.z + room.h - 1; z += 1) {
       for (let x = room.x + 1; x < room.x + room.w - 1; x += 1) {
-        const roof = { x, z, level: 1 };
-        cells[cellKey(roof)] = { ...roof, terrain: 'platform', walkable: true, cover: 0, structure: true };
+        const cell = cells[cellKey({ x, z })];
+        if (random() < 0.12) interiorBoxCandidates.push(cell);
       }
     }
-
-    const stair = { x: room.x + 1, z: room.z + 1, level: 0 };
-    const upperStair = { ...stair, level: 1 };
-    cells[cellKey(stair)].terrain = 'stairs';
-    cells[cellKey(upperStair)].terrain = 'stairs';
-    transitions[cellKey(stair)] = [upperStair];
-    transitions[cellKey(upperStair)] = [stair];
-
-    if (roomIndex === 0) {
-      for (let z = room.z + 2; z < room.z + room.h - 2; z += 1) {
-        for (let x = room.x + 2; x < room.x + room.w - 2; x += 1) {
-          const control = { x, z, level: 2 };
-          cells[cellKey(control)] = { ...control, terrain: 'platform', walkable: true, cover: 0, structure: true };
-        }
-      }
-      const controlStair = { x: room.x + 2, z: room.z + 2, level: 1 };
-      const controlDeck = { ...controlStair, level: 2 };
-      cells[cellKey(controlStair)].terrain = 'stairs';
-      cells[cellKey(controlDeck)].terrain = 'stairs';
-      transitions[cellKey(controlStair)] = [...(transitions[cellKey(controlStair)] || []), controlDeck];
-      transitions[cellKey(controlDeck)] = [controlStair];
-    }
-  });
+  }
+  for (const cell of Object.values(cells)) {
+    if (cell.level > 0 && cell.terrain === 'platform') upperFloorCells.push(cell);
+  }
 
   // Boxes are placed only after all structure (stairs, platforms) exists, so the
   // connectivity guard sees the real map and can never overwrite a stair.
   for (const cell of interiorBoxCandidates) {
     if (cell.terrain !== 'floor') continue;
     placeBox(cells, transitions, cell, random() > 0.45 ? 2 : 1);
+  }
+  for (const cell of upperFloorCells) {
+    if (random() < 0.1) placeBox(cells, transitions, cell, random() > 0.5 ? 2 : 1);
   }
 
   for (let index = 0; index < Math.floor(size * size / 16); index += 1) {
@@ -163,7 +248,7 @@ export function createBattlefield(seed = Date.now()) {
     return { id: `control-${index + 1}`, x: cell.x, z: cell.z, level: 0 };
   });
 
-  return { seed, size, cells, transitions, rooms, objectives };
+  return { seed, size, cells, transitions, rooms: buildings, objectives };
 }
 
 export function getReachable(map, start, blocked = new Set(), maxSteps = 10) {
@@ -255,14 +340,59 @@ export function getCoverAgainst(map, target, shooter) {
   return { cover, flanked };
 }
 
+// Fog sight is more forgiving than combat LOS: a cell counts as seen when any ray from
+// the observer to the cell's centre or inset corners is clear. This keeps floor beside
+// a box or wall visible instead of being hidden by a single rounded centre line.
+const SIGHT_INSET = 0.45;
+const SIGHT_OFFSETS = [
+  [0, 0],
+  [-SIGHT_INSET, -SIGHT_INSET], [SIGHT_INSET, -SIGHT_INSET],
+  [-SIGHT_INSET, SIGHT_INSET], [SIGHT_INSET, SIGHT_INSET],
+];
+
+function hasSightRay(map, from, targetX, targetZ, level) {
+  const dx = targetX - from.x;
+  const dz = targetZ - from.z;
+  const steps = Math.ceil(Math.max(Math.abs(dx), Math.abs(dz)) * 4);
+  for (let step = 1; step < steps; step += 1) {
+    const ratio = step / steps;
+    const x = Math.round(from.x + dx * ratio);
+    const z = Math.round(from.z + dz * ratio);
+    const cell = map.cells[cellKey({ x, z, level })];
+    if (cell?.terrain === 'wall' || cell?.terrain === 'pillar') return false;
+  }
+  return true;
+}
+
+function canSeeCell(map, observer, cell) {
+  const level = Math.min(observer.level, cell.level);
+  return SIGHT_OFFSETS.some(([ox, oz]) => hasSightRay(map, observer, cell.x + ox, cell.z + oz, level));
+}
+
+const SOLID_TERRAIN = new Set(['wall', 'pillar', 'console']);
+const SIGHT_DIRECTIONS = [[1, 0], [-1, 0], [0, 1], [0, -1]];
+
 export function getVisibleCells(map, units) {
   const observers = units.filter((unit) => unit.team === 'player' && unit.hp > 0);
   const visible = new Set();
   for (const cell of Object.values(map.cells)) {
     if (observers.some((unit) => (
-      Math.hypot(unit.x - cell.x, unit.z - cell.z) <= VISION_RANGE
-      && hasLineOfSight(map, unit, cell)
+      Math.hypot(unit.x - cell.x, unit.z - cell.z) <= FOG_REVEAL_RANGE
+      && canSeeCell(map, unit, cell)
     ))) visible.add(cellKey(cell));
+  }
+  // Floor between a seen cover box and the solid cell behind it is also seen. The wall
+  // behind a box is itself hidden by the box, so only the box must be visible.
+  const COVER_BOXES = new Set(['pillar', 'console']);
+  for (const cell of Object.values(map.cells)) {
+    const key = cellKey(cell);
+    if (visible.has(key) || !isPassable(cell)) continue;
+    const behindBox = SIGHT_DIRECTIONS.some(([dx, dz]) => {
+      const box = map.cells[cellKey({ x: cell.x + dx, z: cell.z + dz, level: cell.level })];
+      const beyond = map.cells[cellKey({ x: cell.x - dx, z: cell.z - dz, level: cell.level })];
+      return visible.has(cellKey(box ?? {})) && COVER_BOXES.has(box?.terrain) && SOLID_TERRAIN.has(beyond?.terrain);
+    });
+    if (behindBox) visible.add(key);
   }
   return visible;
 }

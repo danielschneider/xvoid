@@ -116,7 +116,7 @@ test('movement route follows walkable cells around walls', () => {
   state.units = state.units.map((unit, index) => unit.id === 'vanguard'
     ? { ...unit, x: 4, z: 5 }
     : { ...unit, x: 28, z: index + 1 });
-  const destination = { x: 7, z: 5, level: 0 };
+  const destination = { x: 8, z: 3, level: 0 };
   const moved = gameReducer(state, { type: 'move', destination });
   assert.equal(moved.units[0].x, destination.x);
   assert.ok(moved.movement.path.length > Math.abs(destination.x - state.units[0].x) + 1);
