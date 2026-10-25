@@ -3,6 +3,7 @@ import {
   Activity, AlertTriangle, Check, Copy, Crosshair, ChevronDown, Eye, HeartPulse, Layers3, Move, Radio, RotateCcw,
   Shield, ShieldCheck, SkipForward, Swords, Target, Zap,
 } from 'lucide-react';
+import { computeDistanceModifier } from '../engine/game.js';
 import { hasLineOfSight } from '../engine/map.js';
 
 function ActionButton({ icon: Icon, label, hint, onClick, disabled = false, active = false, kind = '', title }) {
@@ -51,13 +52,13 @@ export function CombatPreview({ shooter, target, map, hasShootableEnemy }) {
   const cover = map.cells[`${target.x},${target.z},${target.level}`]?.cover || 0;
   const coverPenalty = cover === 2 ? 40 : cover === 1 ? 20 : 0;
   const elevation = shooter.level > target.level ? 15 : 0;
-  const distancePenalty = Math.round(Math.max(0, distance - 8) * 1.5);
-  const hit = visible ? Math.max(5, Math.min(95, 70 + elevation - coverPenalty - distancePenalty)) : 0;
+  const distanceModifier = Math.round(computeDistanceModifier(distance) * 100);
+  const hit = visible ? Math.max(5, Math.min(95, 70 + elevation - coverPenalty + distanceModifier)) : 0;
   return (
     <section className="combat-preview">
       <div className="preview-target"><span className="target-icon"><Target size={17} /></span><div><strong>{target.name}</strong><span>{visible ? `${target.className} · ${Math.round(distance)} M` : 'SCHUSSLINIE BLOCKIERT'}</span></div><b>{visible ? `${hit}%` : '—'}</b></div>
       <div className="chance-track"><i style={{ width: `${hit}%` }} /></div>
-      <div className="chance-breakdown"><span>Basis <b>70%</b></span><span>Deckung <b className={coverPenalty ? 'negative' : ''}>−{coverPenalty}%</b></span><span>Höhe <b className="positive">+{elevation}%</b></span><span>Distanz <b className={distancePenalty ? 'negative' : ''}>−{distancePenalty}%</b></span></div>
+      <div className="chance-breakdown"><span>Basis <b>70%</b></span><span>Deckung <b className={coverPenalty ? 'negative' : ''}>−{coverPenalty}%</b></span><span>Höhe <b className="positive">+{elevation}%</b></span><span>Distanz <b className={distanceModifier > 0 ? 'positive' : distanceModifier < 0 ? 'negative' : ''}>{distanceModifier > 0 ? '+' : ''}{distanceModifier}%</b></span></div>
     </section>
   );
 }

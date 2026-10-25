@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { computeHitChance, createInitialState, gameReducer, HUNKER_COVER_BONUS } from './game.js';
+import { computeDistanceModifier, computeHitChance, createInitialState, gameReducer, HUNKER_COVER_BONUS } from './game.js';
 import { cellKey, getReachable, getVisibleCells, hasLineOfSight, isPassable, VISION_RANGE } from './map.js';
 
 function adjacentWalkableCell(map, unit) {
@@ -422,6 +422,22 @@ test('hunkering lowers the hit chance by the Deckung bonus on open ground', () =
   const open = computeHitChance(state, shooter, target, false);
   const hunker = computeHitChance(state, shooter, { ...target, status: 'hunker' }, false);
   assert.ok(Math.abs((open - hunker) - HUNKER_COVER_BONUS) < 1e-9);
+});
+
+test('shooting at close range gets a distance bonus while long range keeps its penalty', () => {
+  assert.equal(computeDistanceModifier(3), 0.075);
+  assert.equal(computeDistanceModifier(8), 0);
+  assert.equal(computeDistanceModifier(13), -0.075);
+
+  const state = createInitialState(42);
+  state.map.cells[cellKey({ x: 10, z: 10, level: 0 })].cover = 0;
+  const target = { x: 10, z: 10, level: 0, status: null, id: 'x' };
+  const close = computeHitChance(state, { x: 10, z: 13, level: 0 }, target);
+  const neutral = computeHitChance(state, { x: 10, z: 18, level: 0 }, target);
+  const far = computeHitChance(state, { x: 10, z: 23, level: 0 }, target);
+
+  assert.ok(close > neutral);
+  assert.ok(neutral > far);
 });
 
 test('a flank bypasses part of the Deckung penalty', () => {

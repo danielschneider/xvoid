@@ -198,6 +198,10 @@ const clamp = (value, low, high) => Math.max(low, Math.min(high, value));
 
 const normalizeAngle = (angle) => Math.atan2(Math.sin(angle), Math.cos(angle));
 
+export function computeDistanceModifier(distance) {
+  return (8 - distance) * 0.015;
+}
+
 // A shot is a flank when it arrives >= FLANK_ANGLE away from the side the defender's Deckung faces.
 function isFlank(shooter, target) {
   if (target.coverFacing == null) return false;
@@ -214,8 +218,8 @@ export function computeHitChance(state, shooter, target, enemyShot = false) {
   if (enemyShot) return clamp(0.52 - cover * ENEMY_COVER_FACTOR, 0.05, 0.95);
   const distance = Math.hypot(shooter.x - target.x, shooter.z - target.z);
   const elevationBonus = shooter.level > target.level ? 0.15 : 0;
-  const distancePenalty = Math.max(0, distance - 8) * 0.015;
-  return clamp(0.7 + elevationBonus - cover - distancePenalty, 0.05, 0.95);
+  const distanceModifier = computeDistanceModifier(distance);
+  return clamp(0.7 + elevationBonus - cover + distanceModifier, 0.05, 0.95);
 }
 
 function fireAt(state, targetId, shooterId = state.selectedId, enemyShot = false, reaction = false) {
