@@ -460,18 +460,18 @@ function BeamEffect({ shot, camera }) {
   const previousShake = useRef({ x: 0, y: 0 });
   const damageTexture = useMemo(() => {
     const canvas = document.createElement('canvas');
-    canvas.width = 128;
-    canvas.height = 64;
+    canvas.width = 256;
+    canvas.height = 128;
     const context = canvas.getContext('2d');
-    context.font = 'bold 42px monospace';
+    context.font = 'bold 84px monospace';
     context.textAlign = 'center';
     context.textBaseline = 'middle';
-    context.lineWidth = 6;
+    context.lineWidth = 12;
     context.strokeStyle = '#17201c';
     context.fillStyle = shot.hit ? '#ff9580' : '#9ce3e3';
     const label = shot.hit ? `-${shot.damage}` : 'MISS';
-    context.strokeText(label, 64, 34);
-    context.fillText(label, 64, 34);
+    context.strokeText(label, 128, 68);
+    context.fillText(label, 128, 68);
     const texture = new THREE.CanvasTexture(canvas);
     texture.magFilter = THREE.NearestFilter;
     texture.minFilter = THREE.NearestFilter;
@@ -504,18 +504,35 @@ function BeamEffect({ shot, camera }) {
     <>
       <Line ref={line} points={points} color={shot.hit ? '#ff705f' : '#57d8ed'} lineWidth={2.2} transparent opacity={0.95} />
       {shot.hit && <pointLight position={points[1]} color="#ff664f" intensity={3} distance={3} decay={2} />}
-      <mesh position={[points[1].x, points[1].y + 0.72, points[1].z]} quaternion={camera.quaternion}>
-        <planeGeometry args={[0.8, 0.4]} />
-        <meshBasicMaterial ref={damageMaterial} map={damageTexture} transparent depthWrite={false} toneMapped={false} />
+      <mesh position={[points[1].x, points[1].y + 1.1, points[1].z]} quaternion={camera.quaternion} renderOrder={10}>
+        <planeGeometry args={[2.6, 1.3]} />
+        <meshBasicMaterial ref={damageMaterial} map={damageTexture} transparent depthWrite={false} depthTest={false} toneMapped={false} />
       </mesh>
     </>
   );
 }
 
-function CameraRig({ floorRef, cells, onCellTap }) {
+function CameraRig({ floorRef, cells, onCellTap, focusUnit, focusToken, mapOffset }) {
   const { camera, gl, size } = useThree();
   const raycaster = useMemo(() => new THREE.Raycaster(), []);
   const pointer = useMemo(() => new THREE.Vector2(), []);
+  const focusId = focusUnit?.id;
+
+  useEffect(() => {
+    if (!focusUnit) return;
+    const target = new THREE.Vector3(
+      focusUnit.x - 15.5 + mapOffset,
+      focusUnit.level * LEVEL_HEIGHT,
+      focusUnit.z - 15.5 + mapOffset,
+    );
+    const forward = camera.getWorldDirection(new THREE.Vector3());
+    if (Math.abs(forward.y) < 1e-6) return;
+    // Intersect the view ray with the unit's height plane to find the current view center.
+    const t = (target.y - camera.position.y) / forward.y;
+    const center = camera.position.clone().addScaledVector(forward, t);
+    camera.position.x += target.x - center.x;
+    camera.position.z += target.z - center.z;
+  }, [focusId, focusToken]); // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
     const element = gl.domElement;
@@ -643,7 +660,7 @@ function CameraRig({ floorRef, cells, onCellTap }) {
   return null;
 }
 
-function Battlefield({ state, selected, target, paths, pendingMove, visibleCellKeys, shootableEnemyIds, onCellTap }) {
+function Battlefield({ state, selected, focusUnit, focusToken, target, paths, pendingMove, visibleCellKeys, shootableEnemyIds, onCellTap }) {
   const { camera } = useThree();
   const floorRef = useRef();
   const allCells = useMemo(() => Object.values(state.map.cells), [state.map]);
@@ -673,12 +690,12 @@ function Battlefield({ state, selected, target, paths, pendingMove, visibleCellK
       ))}
       {state.lastShot && <BeamEffect key={state.lastShot.id} shot={state.lastShot} camera={camera} />}
       </group>
-      <CameraRig floorRef={floorRef} cells={groundData} onCellTap={onCellTap} />
+      <CameraRig floorRef={floorRef} cells={groundData} onCellTap={onCellTap} focusUnit={focusUnit} focusToken={focusToken} mapOffset={mapOffset} />
     </>
   );
 }
 
-export default function GameScene({ state, selected, target, paths, pendingMove, visibleCellKeys, shootableEnemyIds, onCellTap }) {
+export default function GameScene({ state, selected, focusUnit, focusToken, target, paths, pendingMove, visibleCellKeys, shootableEnemyIds, onCellTap }) {
   return (
     <Canvas
       orthographic
@@ -687,7 +704,7 @@ export default function GameScene({ state, selected, target, paths, pendingMove,
       gl={{ antialias: false, powerPreference: 'low-power', alpha: false }}
       style={{ touchAction: 'none' }}
     >
-      <Battlefield state={state} selected={selected} target={target} paths={paths} pendingMove={pendingMove} visibleCellKeys={visibleCellKeys} shootableEnemyIds={shootableEnemyIds} onCellTap={onCellTap} />
+      <Battlefield state={state} selected={selected} focusUnit={focusUnit} focusToken={focusToken} target={target} paths={paths} pendingMove={pendingMove} visibleCellKeys={visibleCellKeys} shootableEnemyIds={shootableEnemyIds} onCellTap={onCellTap} />
     </Canvas>
   );
 }

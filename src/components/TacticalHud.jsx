@@ -1,5 +1,6 @@
+import { useState } from 'react';
 import {
-  Activity, AlertTriangle, Check, Copy, Crosshair, Eye, HeartPulse, Layers3, Move, Radio, RotateCcw,
+  Activity, AlertTriangle, Check, Copy, Crosshair, ChevronDown, Eye, HeartPulse, Layers3, Move, Radio, RotateCcw,
   Shield, ShieldCheck, SkipForward, Swords, Target, Zap,
 } from 'lucide-react';
 import { hasLineOfSight } from '../engine/map.js';
@@ -61,6 +62,7 @@ export function CombatPreview({ shooter, target, map, hasShootableEnemy }) {
 }
 
 export function TacticalHud({ state, selected, target, hasShootableEnemy, seedCopied, onCopySeed, moveMode, pendingMove, pendingMoveCost, remainingAP, showEndTurnWarning, onConfirmMove, onRequestEndTurn, onConfirmEndTurn, onCancelEndTurn, onAction, onRegenerate, onToggleLevels, onSelect }) {
+  const [stackOpen, setStackOpen] = useState(() => window.innerWidth > 900);
   const livingEnemies = state.units.filter((unit) => unit.team === 'alien' && unit.hp > 0).length;
   const totalEnemies = state.units.filter((unit) => unit.team === 'alien').length;
   const eliminatedEnemies = totalEnemies - livingEnemies;
@@ -88,10 +90,16 @@ export function TacticalHud({ state, selected, target, hasShootableEnemy, seedCo
         <div className="objective-count"><span>HOSTILES ELIMINIERT</span><b>{eliminatedEnemies} / {totalEnemies}</b></div>
       </aside>
 
-      <div className="right-stack">
-        <UnitPanel unit={selected} onSelect={onSelect} units={state.units} />
-        <CombatPreview shooter={selected} target={target} map={state.map} hasShootableEnemy={hasShootableEnemy} />
-        <section className="battle-log"><div className="log-heading"><span>COMMS LOG</span><span className="log-live">LIVE</span></div>{state.logs.slice(0, 3).map((entry) => <p key={entry.id} className={`log-entry ${entry.kind}`}><i />{entry.text}</p>)}</section>
+      <div className={`right-stack ${stackOpen ? '' : 'is-collapsed'}`}>
+        <button className="stack-toggle" aria-expanded={stackOpen} aria-controls="einsatz-stack-body" onClick={() => setStackOpen((open) => !open)}>
+          <span>EINSATZSYSTEM</span>
+          <ChevronDown size={14} className="stack-chevron" />
+        </button>
+        <div id="einsatz-stack-body" className="stack-body">
+          <UnitPanel unit={selected} onSelect={onSelect} units={state.units} />
+          <CombatPreview shooter={selected} target={target} map={state.map} hasShootableEnemy={hasShootableEnemy} />
+          <section className="battle-log"><div className="log-heading"><span>COMMS LOG</span><span className="log-live">LIVE</span></div>{state.logs.slice(0, 3).map((entry) => <p key={entry.id} className={`log-entry ${entry.kind}`}><i />{entry.text}</p>)}</section>
+        </div>
       </div>
 
       <footer className="bottom-dock">

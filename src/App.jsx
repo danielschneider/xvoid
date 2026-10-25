@@ -19,6 +19,13 @@ export default function App() {
       .filter((unit) => visibleCellKeys.has(cellKey(unit)) && hasLineOfSight(state.map, selected, unit))
       .map((unit) => unit.id));
   }, [selected, state.map, state.units, visibleCellKeys]);
+  const activeEnemy = state.phase === 'enemy'
+    ? state.units.find((unit) => unit.id === state.enemyTurnOrder[state.enemyTurnIndex] && unit.hp > 0)
+    : null;
+  const focusUnit = state.phase === 'enemy'
+    ? (activeEnemy && visibleCellKeys.has(cellKey(activeEnemy)) ? activeEnemy : null)
+    : selected;
+  const focusToken = state.phase === 'enemy' ? state.enemyTurnIndex : 0;
   const remainingAP = state.units
     .filter((unit) => unit.team === 'player' && unit.hp > 0)
     .reduce((total, unit) => total + unit.ap, 0);
@@ -127,7 +134,7 @@ export default function App() {
 
   return (
     <main className="game-shell">
-      <div className="scene-wrap"><GameScene state={state} selected={selected} target={target} paths={paths} pendingMove={pendingMove} visibleCellKeys={visibleCellKeys} shootableEnemyIds={shootableEnemyIds} onCellTap={tapCell} /></div>
+      <div className="scene-wrap"><GameScene state={state} selected={selected} focusUnit={focusUnit} focusToken={focusToken} target={target} paths={paths} pendingMove={pendingMove} visibleCellKeys={visibleCellKeys} shootableEnemyIds={shootableEnemyIds} onCellTap={tapCell} /></div>
       <TacticalHud
         state={state}
         selected={selected}
