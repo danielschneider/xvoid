@@ -146,10 +146,12 @@ button { font: inherit; }
 .action-button.fire-action:not(:disabled) { color: #f2c4b4; border-color: rgba(236,123,104,.34); }
 .action-button.fire-action:not(:disabled) svg { color: #ff8874; }
 .dock-end { display: flex; justify-content: flex-end; width: 155px; }
-.end-turn-button { display: flex; align-items: center; justify-content: center; gap: 8px; min-width: 140px; min-height: 44px; padding: 0 10px; color: #13201c; background: var(--mint); border: 1px solid #81f4d0; font-size: 8px; font-weight: 600; letter-spacing: .04em; cursor: pointer; transition: filter .15s; }
+.end-turn-button { display: flex; align-items: center; justify-content: center; gap: 8px; min-width: 140px; min-height: 44px; padding: 0 10px; color: #0b1210; background: var(--mint); border: 1px solid #81f4d0; font-size: 8px; font-weight: 600; letter-spacing: .04em; cursor: pointer; transition: filter .15s; }
+.end-turn-button > * { color: #0b1210; }
+.end-turn-button svg { stroke: #0b1210; }
 .end-turn-button:hover { filter: brightness(1.12); }
 .end-turn-button:disabled { opacity: .45; cursor: not-allowed; }
-.end-turn-button kbd { color: #356c59; }
+.end-turn-button kbd { color: #0b1210; }
 .touch-controls { display: none; }
 .map-coordinates { position: absolute; right: 22px; bottom: 102px; display: flex; align-items: center; gap: 8px; color: #82958c; font-size: 7px; letter-spacing: .07em; text-shadow: 0 1px 5px #111; }
 .seed-copy-button { pointer-events: auto; display: grid; place-items: center; width: 24px; height: 24px; padding: 0; color: #aebdb1; border: 1px solid rgba(176,211,190,.22); background: rgba(14,22,21,.8); cursor: pointer; }
@@ -217,12 +219,16 @@ button { font: inherit; }
   .chance-breakdown span, .chance-breakdown b { font-size: 6px; }
   .battle-log { display: none; }
   .bottom-dock { bottom: max(8px, env(safe-area-inset-bottom)); width: calc(100% - 16px); min-height: 112px; flex-wrap: wrap; justify-content: space-between; gap: 7px; padding: 8px; }
+  .bottom-dock--compact { min-height: 0; padding: 6px 8px; }
+  .bottom-dock--compact .dock-location, .bottom-dock--compact .action-group { display: none; }
+  .bottom-dock--compact .dock-end { width: 100%; }
+  .bottom-dock--compact .end-turn-button { width: 100%; min-height: 44px; font-size: 11px; font-weight: 700; }
   .dock-location { width: auto; flex: 1; min-width: 120px; padding-left: 0; }
   .location-cross { width: 32px; height: 32px; }
   .dock-location b { font-size: 8px; }
   .dock-location small { font-size: 6px; }
   .dock-end { width: auto; }
-  .end-turn-button { min-width: 115px; min-height: 42px; font-size: 7px; }
+  .end-turn-button { min-width: 115px; min-height: 42px; font-size: 11px; font-weight: 700; }
   .action-group { order: 3; flex-basis: 100%; gap: 4px; }
   .action-button { flex: 1; min-width: 0; min-height: 40px; gap: 4px; padding: 0 4px; font-size: 7px; }
   .action-button svg { width: 15px; height: 15px; }

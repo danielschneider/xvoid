@@ -97,6 +97,22 @@ test('movement follows reachable cells and spends one AP nearby', () => {
   assert.equal(movedUnit.facing, Math.atan2(last.x - previous.x, last.z - previous.z));
 });
 
+test('movement advances a step counter that stops at the destination', () => {
+  const state = createInitialState(42);
+  const unit = state.units[0];
+  const blocked = new Set(state.units.filter((entry) => entry.id !== unit.id && entry.hp > 0).map(cellKey));
+  const destination = [...getReachable(state.map, unit, blocked).values()].find((path) => path.apCost === 1)?.path.at(-1);
+  assert.ok(destination);
+  let moved = gameReducer(state, { type: 'move', destination });
+  assert.equal(moved.movement.step, 0);
+  const id = moved.movement.id;
+  for (let i = 0; i < moved.movement.path.length + 3; i += 1) {
+    moved = gameReducer(moved, { type: 'advance-movement', id });
+  }
+  assert.equal(moved.movement.step, moved.movement.path.length - 1);
+  assert.equal(gameReducer(moved, { type: 'advance-movement', id: -1 }), moved);
+});
+
 test('movement route follows walkable cells around walls', () => {
   const state = createInitialState(42);
   state.units = state.units.map((unit, index) => unit.id === 'vanguard'
@@ -316,4 +332,12 @@ test('selected player turns toward the targeted enemy', () => {
   const encounter = { ...state, units: state.units.map((unit) => unit.id === enemy.id ? enemy : unit) };
   const aimed = gameReducer(encounter, { type: 'target', id: enemy.id });
   assert.equal(aimed.units[0].facing, 0);
+});
+test('regenerate increments the generation so views remount units on level reset', () => {
+  const state = createInitialState(42);
+  assert.equal(state.generation, 0);
+  const next = gameReducer(state, { type: 'regenerate', seed: 777 });
+  assert.equal(next.generation, 1);
+  const again = gameReducer(next, { type: 'regenerate', seed: 778 });
+  assert.equal(again.generation, 2);
 });

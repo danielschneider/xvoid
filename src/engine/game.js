@@ -129,9 +129,12 @@ function createStartingUnits(map, seed) {
   return [...players, ...enemies];
 }
 
-export function createInitialState(seed = 20261024) {
+export function createInitialState(seed = 20261024, generation = 0) {
   const map = createBattlefield(seed);
   return {
+    // Increments on every level reset. Views key their per-unit components on it
+    // so that a reset remounts them instead of reusing stale visual state.
+    generation,
     map,
     units: createStartingUnits(map, seed),
     selectedId: 'vanguard',
@@ -177,7 +180,7 @@ function moveUnit(state, destination) {
   const facing = facingToward(previous, last);
   return {
     ...state,
-    movement: { id: Date.now(), unitId: unit.id, path: [unit, ...pathData.path] },
+    movement: { id: Date.now(), unitId: unit.id, path: [unit, ...pathData.path], step: 0 },
     units: state.units.map((entry) => entry.id === unit.id
       ? { ...entry, x: last.x, z: last.z, level: last.level, ap: entry.ap - pathData.apCost, facing }
       : entry),
@@ -326,7 +329,7 @@ function enemyStep(state) {
   const facing = facingToward(previous, last);
   return {
     ...state,
-    movement: { id: Date.now(), unitId: enemy.id, path: [enemy, ...destination.path] },
+    movement: { id: Date.now(), unitId: enemy.id, path: [enemy, ...destination.path], step: 0 },
     units: state.units.map((unit) => unit.id === enemy.id
       ? { ...unit, x: last.x, z: last.z, level: last.level, ap: unit.ap - 1, facing }
       : unit),
@@ -384,6 +387,10 @@ export function gameReducer(state, action) {
       return selectNextReadyPlayer(useAbility(state, action.name));
     case 'end-turn':
       return endTurn(state);
+    case 'advance-movement':
+      if (!state.movement || state.movement.id !== action.id) return state;
+      if (state.movement.step >= state.movement.path.length - 1) return state;
+      return { ...state, movement: { ...state.movement, step: state.movement.step + 1 } };
     case 'complete-movement':
       if (state.movement?.id !== action.id) return state;
       return { ...state, movement: null };
@@ -392,7 +399,7 @@ export function gameReducer(state, action) {
     case 'finish-enemy-turn':
       return finishEnemyTurn(state);
     case 'regenerate':
-      return createInitialState(action.seed);
+      return createInitialState(action.seed, state.generation + 1);
     case 'toggle-levels':
       return { ...state, showUpper: !state.showUpper };
     case 'clear-shot':

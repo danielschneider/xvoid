@@ -61,7 +61,7 @@ export function CombatPreview({ shooter, target, map, hasShootableEnemy }) {
   );
 }
 
-export function TacticalHud({ state, selected, target, hasShootableEnemy, seedCopied, onCopySeed, moveMode, pendingMove, pendingMoveCost, remainingAP, showEndTurnWarning, onConfirmMove, onRequestEndTurn, onConfirmEndTurn, onCancelEndTurn, onAction, onRegenerate, onToggleLevels, onSelect }) {
+export function TacticalHud({ state, selected, target, hasShootableEnemy, seedCopied, onCopySeed, moveMode, pendingMove, pendingMoveCost, remainingAP, showEndTurnWarning, onConfirmMove, onRequestEndTurn, onConfirmEndTurn, onCancelEndTurn, showNewGameWarning, onConfirmRegenerate, onCancelRegenerate, onAction, onRequestRegenerate, onToggleLevels, onSelect }) {
   const [stackOpen, setStackOpen] = useState(() => window.innerWidth > 900);
   const livingEnemies = state.units.filter((unit) => unit.team === 'alien' && unit.hp > 0).length;
   const totalEnemies = state.units.filter((unit) => unit.team === 'alien').length;
@@ -72,7 +72,7 @@ export function TacticalHud({ state, selected, target, hasShootableEnemy, seedCo
       <header className="topbar">
         <div className="brand-lockup"><span className="brand-mark"><Activity size={17} /></span><span className="brand-name">XVOID</span><span className="brand-separator" /><span className="brand-mode">TACTICAL OPERATIONS</span></div>
         <div className="mission-meta"><span className="live-indicator" /> <span>SEKTOR 07 / NEMESIS</span><i /> <span>R-{String(state.turn).padStart(2, '0')}</span></div>
-        <div className="top-actions"><span className="enemy-count"><span>{String(livingEnemies).padStart(2, '0')}</span> HOSTILES</span><button className="icon-button level-toggle" onClick={onToggleLevels} title={state.showUpper ? 'Obere Etagen ausblenden' : 'Obere Etagen einblenden'}><Layers3 size={17} /><span>{state.showUpper ? 'ALLE LEVEL' : 'LEVEL 0'}</span></button><button className="icon-button regenerate-button" onClick={onRegenerate} title="Karte neu generieren"><RotateCcw size={16} /></button></div>
+        <div className="top-actions"><span className="enemy-count"><span>{String(livingEnemies).padStart(2, '0')}</span> HOSTILES</span><button className="icon-button level-toggle" onClick={onToggleLevels} title={state.showUpper ? 'Obere Etagen ausblenden' : 'Obere Etagen einblenden'}><Layers3 size={17} /><span>{state.showUpper ? 'ALLE LEVEL' : 'LEVEL 0'}</span></button><button className="icon-button regenerate-button" onClick={onRequestRegenerate} title="Karte neu generieren"><RotateCcw size={16} /></button></div>
       </header>
       {state.phase === 'enemy' && <div className="enemy-turn-banner" role="status" aria-live="polite"><Radio size={15} /> ENEMY TURN</div>}
 
@@ -102,7 +102,7 @@ export function TacticalHud({ state, selected, target, hasShootableEnemy, seedCo
         </div>
       </div>
 
-      <footer className="bottom-dock">
+      <footer className={`bottom-dock ${!selected?.ap && !pendingMove ? 'bottom-dock--compact' : ''}`}>
         <div className="dock-location"><span className="location-cross"><Move size={15} /></span><div><b>GRID {String(selected?.x ?? 0).padStart(2, '0')} : {String(selected?.z ?? 0).padStart(2, '0')}</b><small>DECK {selected?.level ?? 0} · {selected?.level > 0 ? 'ELEVATED' : 'GROUND'}</small></div></div>
         <div className="action-group">
           <ActionButton icon={Move} label="Bewegen" hint="M" active={moveMode} onClick={() => onAction({ type: 'toggle-move-mode' })} disabled={state.phase !== 'player' || !selected?.ap} />
@@ -124,6 +124,19 @@ export function TacticalHud({ state, selected, target, hasShootableEnemy, seedCo
             <div className="end-turn-warning-actions">
               <button className="warning-continue-button" onClick={onCancelEndTurn}>WEITER SPIELEN</button>
               <button className="warning-confirm-button" onClick={onConfirmEndTurn}><SkipForward size={15} /> ZUG BEENDEN</button>
+            </div>
+          </section>
+        </div>
+      )}
+      {showNewGameWarning && (
+        <div className="end-turn-warning-backdrop">
+          <section className="end-turn-warning" role="alertdialog" aria-modal="true" aria-labelledby="new-game-warning-title" aria-describedby="new-game-warning-copy">
+            <div className="end-turn-warning-icon"><AlertTriangle size={20} /></div>
+            <h2 id="new-game-warning-title">NEUES SPIEL STARTEN</h2>
+            <p id="new-game-warning-copy">Der aktuelle Einsatz geht verloren. Karte, Einheiten und Fortschritt werden neu generiert. Fortfahren?</p>
+            <div className="end-turn-warning-actions">
+              <button className="warning-continue-button" onClick={onCancelRegenerate}>WEITER SPIELEN</button>
+              <button className="warning-confirm-button" onClick={onConfirmRegenerate}><RotateCcw size={15} /> NEUES SPIEL</button>
             </div>
           </section>
         </div>

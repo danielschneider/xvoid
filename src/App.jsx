@@ -8,10 +8,20 @@ export default function App() {
   const [state, dispatch] = useReducer(gameReducer, undefined, () => createInitialState());
   const [pendingMove, setPendingMove] = useState(null);
   const [showEndTurnWarning, setShowEndTurnWarning] = useState(false);
+  const [showNewGameWarning, setShowNewGameWarning] = useState(false);
   const [seedCopied, setSeedCopied] = useState(false);
   const selected = state.units.find((unit) => unit.id === state.selectedId && unit.hp > 0);
   const target = state.units.find((unit) => unit.id === state.targetId && unit.hp > 0);
-  const visibleCellKeys = useMemo(() => getVisibleCells(state.map, state.units), [state.map, state.units]);
+  // While a player unit moves, fog of war follows its current path cell instead of its final position.
+  const observerUnits = useMemo(() => {
+    const movingPlayer = state.movement && state.units.find((unit) => unit.id === state.movement.unitId && unit.team === 'player');
+    const currentCell = movingPlayer && state.movement.path[state.movement.step];
+    if (!currentCell) return state.units;
+    return state.units.map((unit) => (unit.id === movingPlayer.id
+      ? { ...unit, x: currentCell.x, z: currentCell.z, level: currentCell.level }
+      : unit));
+  }, [state.movement, state.units]);
+  const visibleCellKeys = useMemo(() => getVisibleCells(state.map, observerUnits), [state.map, observerUnits]);
   const shootableEnemyIds = useMemo(() => {
     if (!selected || selected.ap < 1) return new Set();
     return new Set(state.units
@@ -66,13 +76,23 @@ export default function App() {
   }, [state.lastShot]);
 
   useEffect(() => {
-    if (state.phase !== 'enemy') return undefined;
+    if (state.phase !== 'enemy' || state.movement) return undefined;
     const finished = state.enemyTurnIndex >= state.enemyTurnOrder.length;
     const timer = window.setTimeout(() => {
       dispatch({ type: finished ? 'finish-enemy-turn' : 'enemy-step' });
     }, 1400);
     return () => window.clearTimeout(timer);
-  }, [state.enemyTurnIndex, state.enemyTurnOrder.length, state.phase]);
+  }, [state.enemyTurnIndex, state.enemyTurnOrder.length, state.phase, state.movement]);
+
+  useEffect(() => {
+    if (!state.movement) return undefined;
+    const movementId = state.movement.id;
+    const timer = window.setInterval(
+      () => dispatch({ type: 'advance-movement', id: movementId }),
+      220,
+    );
+    return () => window.clearInterval(timer);
+  }, [state.movement?.id]);
 
   useEffect(() => {
     if (!state.movement) return undefined;
@@ -88,8 +108,10 @@ export default function App() {
       if (event.key === 'Escape') {
         setPendingMove(null);
         setShowEndTurnWarning(false);
+        setShowNewGameWarning(false);
         return;
       }
+      if (showEndTurnWarning || showNewGameWarning) return;
       if (event.target instanceof HTMLElement && ['INPUT', 'TEXTAREA', 'BUTTON'].includes(event.target.tagName)) return;
       const key = event.key.toLowerCase();
       if (key === 'm') dispatch({ type: 'toggle-move-mode' });
@@ -99,7 +121,7 @@ export default function App() {
     };
     window.addEventListener('keydown', onKeyDown);
     return () => window.removeEventListener('keydown', onKeyDown);
-  }, [requestEndTurn, state.selectedId, target]);
+  }, [requestEndTurn, showEndTurnWarning, showNewGameWarning, state.selectedId, target]);
 
   const tapCell = (cell) => {
     if (state.phase !== 'player' || state.movement) return;
@@ -130,11 +152,15 @@ export default function App() {
     setPendingMove(null);
   };
 
-  const regenerate = () => dispatch({ type: 'regenerate', seed: Math.floor(Math.random() * 900000) + 100000 });
+  const regenerate = () => {
+    setShowNewGameWarning(false);
+    dispatch({ type: 'regenerate', seed: Math.floor(Math.random() * 900000) + 100000 });
+  };
+  const requestRegenerate = () => setShowNewGameWarning(true);
 
   return (
     <main className="game-shell">
-      <div className="scene-wrap"><GameScene state={state} selected={selected} focusUnit={focusUnit} focusToken={focusToken} target={target} paths={paths} pendingMove={pendingMove} visibleCellKeys={visibleCellKeys} shootableEnemyIds={shootableEnemyIds} onCellTap={tapCell} /></div>
+      <div className="scene-wrap"><GameScene state={state} selected={selected} focusUnit={focusUnit} focusToken={focusToken} target={target} paths={paths} pendingMove={pendingMove} visibleCellKeys={visibleCellKeys} shootableEnemyIds={shootableEnemyIds} onCellTap={tapCell} movingUnitId={state.movement?.unitId ?? null} /></div>
       <TacticalHud
         state={state}
         selected={selected}
@@ -151,8 +177,12 @@ export default function App() {
         onRequestEndTurn={requestEndTurn}
         onConfirmEndTurn={confirmEndTurn}
         onCancelEndTurn={() => setShowEndTurnWarning(false)}
+        showNewGameWarning={showNewGameWarning}
+        onRequestRegenerate={requestRegenerate}
+        onConfirmRegenerate={regenerate}
+        onCancelRegenerate={() => setShowNewGameWarning(false)}
         onAction={dispatch}
-        onRegenerate={regenerate}
+        onRegenerate={requestRegenerate}
         onToggleLevels={() => dispatch({ type: 'toggle-levels' })}
         onSelect={(id) => dispatch({ type: 'select', id })}
       />

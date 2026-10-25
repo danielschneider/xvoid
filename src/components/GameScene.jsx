@@ -29,7 +29,7 @@ function createTileTexture(image, column, row) {
   return texture;
 }
 
-function TilemapGround({ map }) {
+function TilemapGround({ map, visibleCellKeys }) {
   const atlas = useLoader(THREE.TextureLoader, ROGUELIKE_SHEET);
   const texture = useMemo(() => {
     const canvas = document.createElement('canvas');
@@ -63,20 +63,35 @@ function TilemapGround({ map }) {
           TILE_SIZE,
           TILE_SIZE,
         );
+        if (!visibleCellKeys.has(cellKey({ x, z, level: 0 }))) {
+          context.globalAlpha = 0.9;
+          context.fillStyle = '#080d0e';
+          context.fillRect(x * TILE_SIZE, z * TILE_SIZE, TILE_SIZE, TILE_SIZE);
+          context.globalAlpha = 1;
+        }
       }
     }
     const groundTexture = new THREE.CanvasTexture(canvas);
     groundTexture.magFilter = THREE.NearestFilter;
     groundTexture.minFilter = THREE.NearestFilter;
     groundTexture.colorSpace = THREE.SRGBColorSpace;
+    groundTexture.generateMipmaps = false;
+    groundTexture.anisotropy = 1;
     return groundTexture;
-  }, [atlas, map]);
+  }, [atlas, map, visibleCellKeys]);
 
   return (
-    <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, 0.008, 0]}>
-      <planeGeometry args={[map.size, map.size]} />
-      <meshBasicMaterial map={texture} toneMapped={false} />
-    </mesh>
+    <>
+      {/* Solid underlay: any pixel the textured plane misses shows tile color, not the scene background. */}
+      <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, 0.002, 0]}>
+        <planeGeometry args={[map.size + 0.1, map.size + 0.1]} />
+        <meshBasicMaterial color="#202b2b" toneMapped={false} />
+      </mesh>
+      <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, 0.008, 0]}>
+        <planeGeometry args={[map.size, map.size]} />
+        <meshBasicMaterial map={texture} toneMapped={false} />
+      </mesh>
+    </>
   );
 }
 
@@ -297,7 +312,7 @@ function AimBeam({ shooter, target, blocked }) {
 }
 
 function FogOfWar({ cells, visibleCellKeys }) {
-  const foggedCells = useMemo(() => cells.filter((cell) => !visibleCellKeys.has(cellKey(cell))), [cells, visibleCellKeys]);
+  const foggedCells = useMemo(() => cells.filter((cell) => cell.level > 0 && !visibleCellKeys.has(cellKey(cell))), [cells, visibleCellKeys]);
   return foggedCells.map((cell) => (
     <mesh key={`fog-${cellKey(cell)}`} position={[cell.x - 15.5, cell.level * LEVEL_HEIGHT + 0.026, cell.z - 15.5]} rotation={[-Math.PI / 2, 0, 0]}>
       <planeGeometry args={[1, 1]} />
@@ -399,7 +414,7 @@ function PixelUnit({ unit, selected, targeted, shootable, camera, movement, visi
     }
   });
   return (
-    <group ref={group}>
+    <group ref={group} name={`unit-${unit.id}`}>
       <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, 0.012, 0]}>
         <circleGeometry args={[0.35, 20]} />
         <meshBasicMaterial color="#020807" transparent opacity={0.45} depthWrite={false} />
@@ -512,14 +527,14 @@ function BeamEffect({ shot, camera }) {
   );
 }
 
-function CameraRig({ floorRef, cells, onCellTap, focusUnit, focusToken, mapOffset }) {
-  const { camera, gl, size } = useThree();
+function CameraRig({ floorRef, cells, onCellTap, focusUnit, focusToken, mapOffset, movingUnitId }) {
+  const { camera, gl, size, scene } = useThree();
   const raycaster = useMemo(() => new THREE.Raycaster(), []);
   const pointer = useMemo(() => new THREE.Vector2(), []);
   const focusId = focusUnit?.id;
 
   useEffect(() => {
-    if (!focusUnit) return;
+    if (!focusUnit || movingUnitId) return;
     const target = new THREE.Vector3(
       focusUnit.x - 15.5 + mapOffset,
       focusUnit.level * LEVEL_HEIGHT,
@@ -532,7 +547,26 @@ function CameraRig({ floorRef, cells, onCellTap, focusUnit, focusToken, mapOffse
     const center = camera.position.clone().addScaledVector(forward, t);
     camera.position.x += target.x - center.x;
     camera.position.z += target.z - center.z;
-  }, [focusId, focusToken]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [focusId, focusToken, movingUnitId]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  const worldPos = useMemo(() => new THREE.Vector3(), []);
+  const forward = useMemo(() => new THREE.Vector3(), []);
+
+  useFrame((_, delta) => {
+    if (!movingUnitId) return;
+    const obj = scene.getObjectByName(`unit-${movingUnitId}`);
+    if (obj) {
+      obj.getWorldPosition(worldPos);
+      camera.getWorldDirection(forward);
+      if (Math.abs(forward.y) > 1e-6) {
+        const t = (worldPos.y - camera.position.y) / forward.y;
+        const center = camera.position.clone().addScaledVector(forward, t);
+        const k = Math.min(1, delta * 10);
+        camera.position.x += (worldPos.x - center.x) * k;
+        camera.position.z += (worldPos.z - center.z) * k;
+      }
+    }
+  });
 
   useEffect(() => {
     const element = gl.domElement;
@@ -571,7 +605,7 @@ function CameraRig({ floorRef, cells, onCellTap, focusUnit, focusToken, mapOffse
       moved = false;
       if (pointers.size === 1) gesture = { last: { x: event.clientX, y: event.clientY }, origin: { x: event.clientX, y: event.clientY }, isPinch: false };
       if (pointers.size === 2) {
-        gesture = { ...distanceAndAngle(), isPinch: true, lastAngle: distanceAndAngle().angle };
+        gesture = { ...distanceAndAngle(), isPinch: true, lastAngle: distanceAndAngle().angle, rotationAcc: 0 };
       }
     };
     const pointerMove = (event) => {
@@ -585,9 +619,13 @@ function CameraRig({ floorRef, cells, onCellTap, focusUnit, focusToken, mapOffse
         let angleDelta = current.angle - gesture.lastAngle;
         if (angleDelta > Math.PI) angleDelta -= Math.PI * 2;
         if (angleDelta < -Math.PI) angleDelta += Math.PI * 2;
-        if (Math.abs(angleDelta) > Math.PI / 4) {
-          rotateCamera(Math.sign(angleDelta));
-          gesture.lastAngle = current.angle;
+        gesture.lastAngle = current.angle;
+        gesture.rotationAcc += angleDelta;
+        const STEP = Math.PI / 2;
+        while (Math.abs(gesture.rotationAcc) >= STEP / 2) {
+          const dir = Math.sign(gesture.rotationAcc);
+          rotateCamera(dir);
+          gesture.rotationAcc -= dir * STEP;
         }
         moved = true;
         camera.updateProjectionMatrix();
@@ -660,7 +698,7 @@ function CameraRig({ floorRef, cells, onCellTap, focusUnit, focusToken, mapOffse
   return null;
 }
 
-function Battlefield({ state, selected, focusUnit, focusToken, target, paths, pendingMove, visibleCellKeys, shootableEnemyIds, onCellTap }) {
+function Battlefield({ state, selected, focusUnit, focusToken, target, paths, pendingMove, visibleCellKeys, shootableEnemyIds, onCellTap, movingUnitId }) {
   const { camera } = useThree();
   const floorRef = useRef();
   const allCells = useMemo(() => Object.values(state.map.cells), [state.map]);
@@ -675,7 +713,7 @@ function Battlefield({ state, selected, focusUnit, focusToken, target, paths, pe
       <ambientLight intensity={1.1} />
       <directionalLight position={[8, 18, 7]} intensity={2.2} color="#d7eadb" />
       <directionalLight position={[-12, 8, -10]} intensity={0.55} color="#73bcb3" />
-      <TilemapGround map={state.map} />
+      <TilemapGround map={state.map} visibleCellKeys={visibleCellKeys} />
       <group position={[mapOffset, 0, mapOffset]}>
       <InstancedGround cells={allCells} visibleCells={visibleCells} meshRef={floorRef} />
       <WallField cells={revealedCells} selected={selected} />
@@ -686,16 +724,16 @@ function Battlefield({ state, selected, focusUnit, focusToken, target, paths, pe
       {pendingPath && selected && <MoveTrace path={pendingPath} start={selected} />}
       {selected && target && <AimBeam shooter={selected} target={target} blocked={!hasLineOfSight(state.map, selected, target)} />}
       {state.units.filter((unit) => unit.hp > 0 && (unit.team === 'player' || visibleCellKeys.has(cellKey(unit)))).map((unit) => (
-        <PixelUnit key={unit.id} unit={unit} selected={unit.id === state.selectedId} targeted={unit.id === state.targetId} shootable={shootableEnemyIds.has(unit.id)} camera={camera} movement={state.movement} visibleCellKeys={visibleCellKeys} />
+        <PixelUnit key={`${state.generation}:${unit.id}`} unit={unit} selected={unit.id === state.selectedId} targeted={unit.id === state.targetId} shootable={shootableEnemyIds.has(unit.id)} camera={camera} movement={state.movement} visibleCellKeys={visibleCellKeys} />
       ))}
       {state.lastShot && <BeamEffect key={state.lastShot.id} shot={state.lastShot} camera={camera} />}
       </group>
-      <CameraRig floorRef={floorRef} cells={groundData} onCellTap={onCellTap} focusUnit={focusUnit} focusToken={focusToken} mapOffset={mapOffset} />
+      <CameraRig floorRef={floorRef} cells={groundData} onCellTap={onCellTap} focusUnit={focusUnit} focusToken={focusToken} mapOffset={mapOffset} movingUnitId={movingUnitId} />
     </>
   );
 }
 
-export default function GameScene({ state, selected, focusUnit, focusToken, target, paths, pendingMove, visibleCellKeys, shootableEnemyIds, onCellTap }) {
+export default function GameScene({ state, selected, focusUnit, focusToken, target, paths, pendingMove, visibleCellKeys, shootableEnemyIds, onCellTap, movingUnitId }) {
   return (
     <Canvas
       orthographic
@@ -704,7 +742,7 @@ export default function GameScene({ state, selected, focusUnit, focusToken, targ
       gl={{ antialias: false, powerPreference: 'low-power', alpha: false }}
       style={{ touchAction: 'none' }}
     >
-      <Battlefield state={state} selected={selected} focusUnit={focusUnit} focusToken={focusToken} target={target} paths={paths} pendingMove={pendingMove} visibleCellKeys={visibleCellKeys} shootableEnemyIds={shootableEnemyIds} onCellTap={onCellTap} />
+      <Battlefield state={state} selected={selected} focusUnit={focusUnit} focusToken={focusToken} target={target} paths={paths} pendingMove={pendingMove} visibleCellKeys={visibleCellKeys} shootableEnemyIds={shootableEnemyIds} onCellTap={onCellTap} movingUnitId={movingUnitId} />
     </Canvas>
   );
 }
