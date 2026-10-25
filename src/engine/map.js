@@ -2,6 +2,12 @@ export const GRID_SIZES = [32, 40, 48];
 export const VISION_RANGE = 10;
 export const cellKey = ({ x, z, level = 0 }) => `${x},${z},${level}`;
 
+// Terrain that physically blocks movement. Boxes (pillar/console) are rendered as
+// solid cover objects, so they must never be walkable. Single source of truth for
+// movement, spawning, and map-connectivity checks.
+export const BLOCKING_TERRAIN = new Set(['wall', 'pillar', 'console']);
+export const isPassable = (cell) => Boolean(cell && cell.walkable && !BLOCKING_TERRAIN.has(cell.terrain));
+
 const makeRandom = (seed) => {
   let value = seed >>> 0;
   return () => {
@@ -9,6 +15,42 @@ const makeRandom = (seed) => {
     return value / 4294967296;
   };
 };
+
+const neighborsOf = (current, transitions) => [
+  { x: current.x + 1, z: current.z, level: current.level },
+  { x: current.x - 1, z: current.z, level: current.level },
+  { x: current.x, z: current.z + 1, level: current.level },
+  { x: current.x, z: current.z - 1, level: current.level },
+  ...(transitions[cellKey(current)] || []),
+];
+
+// True when every passable cell (all levels) can be reached from a corner anchor.
+// The anchor corner is never covered, so it is always passable.
+function allPassableReachable(cells, transitions) {
+  const total = Object.values(cells).filter(isPassable).length;
+  const anchor = cells[cellKey({ x: 0, z: 0 })];
+  if (!isPassable(anchor)) return false;
+  const seen = new Set([cellKey(anchor)]);
+  const queue = [anchor];
+  for (let cursor = 0; cursor < queue.length; cursor += 1) {
+    for (const next of neighborsOf(queue[cursor], transitions)) {
+      const key = cellKey(next);
+      const cell = cells[key];
+      if (seen.has(key) || !isPassable(cell)) continue;
+      seen.add(key);
+      queue.push(cell);
+    }
+  }
+  return seen.size === total;
+}
+
+// Places a box only if the battlefield stays fully connected; otherwise rolls back.
+function placeBox(cells, transitions, cell, cover) {
+  const previous = { cover: cell.cover, terrain: cell.terrain };
+  cell.cover = cover;
+  cell.terrain = cover === 2 ? 'pillar' : 'console';
+  if (!allPassableReachable(cells, transitions)) Object.assign(cell, previous);
+}
 
 export function createBattlefield(seed = Date.now()) {
   const random = makeRandom(seed);
@@ -39,6 +81,8 @@ export function createBattlefield(seed = Date.now()) {
     }
   }
 
+  const interiorBoxCandidates = [];
+
   rooms.forEach((room, roomIndex) => {
     for (let z = room.z; z < room.z + room.h; z += 1) {
       for (let x = room.x; x < room.x + room.w; x += 1) {
@@ -52,8 +96,7 @@ export function createBattlefield(seed = Date.now()) {
           cell.walkable = false;
           cell.cover = 2;
         } else if (!perimeter && random() < 0.12) {
-          cell.cover = random() > 0.45 ? 2 : 1;
-          cell.terrain = cell.cover === 2 ? 'pillar' : 'console';
+          interiorBoxCandidates.push(cell);
         }
       }
     }
@@ -88,13 +131,19 @@ export function createBattlefield(seed = Date.now()) {
     }
   });
 
+  // Boxes are placed only after all structure (stairs, platforms) exists, so the
+  // connectivity guard sees the real map and can never overwrite a stair.
+  for (const cell of interiorBoxCandidates) {
+    if (cell.terrain !== 'floor') continue;
+    placeBox(cells, transitions, cell, random() > 0.45 ? 2 : 1);
+  }
+
   for (let index = 0; index < Math.floor(size * size / 16); index += 1) {
     const x = 2 + Math.floor(random() * (size - 4));
     const z = 2 + Math.floor(random() * (size - 4));
     const cell = cells[cellKey({ x, z })];
     if (cell?.walkable && !cell.structure && cell.cover === 0 && (x + z) % 3 !== 0) {
-      cell.cover = random() > 0.68 ? 2 : 1;
-      cell.terrain = cell.cover === 2 ? 'pillar' : 'console';
+      placeBox(cells, transitions, cell, random() > 0.68 ? 2 : 1);
     }
   }
 
@@ -127,18 +176,11 @@ export function getReachable(map, start, blocked = new Set(), maxSteps = 10) {
     const current = queue[cursor];
     const currentKey = cellKey(current);
     const currentDistance = distance.get(currentKey);
-    const neighbors = [
-      { x: current.x + 1, z: current.z, level: current.level },
-      { x: current.x - 1, z: current.z, level: current.level },
-      { x: current.x, z: current.z + 1, level: current.level },
-      { x: current.x, z: current.z - 1, level: current.level },
-      ...(map.transitions[currentKey] || []),
-    ];
 
-    for (const next of neighbors) {
+    for (const next of neighborsOf(current, map.transitions)) {
       const nextKey = cellKey(next);
       const cell = map.cells[nextKey];
-      if (!cell?.walkable || blocked.has(nextKey) || distance.has(nextKey) || currentDistance >= maxSteps) continue;
+      if (!isPassable(cell) || blocked.has(nextKey) || distance.has(nextKey) || currentDistance >= maxSteps) continue;
       distance.set(nextKey, currentDistance + 1);
       previous.set(nextKey, currentKey);
       queue.push(next);

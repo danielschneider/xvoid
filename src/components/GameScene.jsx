@@ -658,9 +658,9 @@ function Battlefield({ state, selected, target, paths, pendingMove, visibleCellK
       <ambientLight intensity={1.1} />
       <directionalLight position={[8, 18, 7]} intensity={2.2} color="#d7eadb" />
       <directionalLight position={[-12, 8, -10]} intensity={0.55} color="#73bcb3" />
+      <TilemapGround map={state.map} />
       <group position={[mapOffset, 0, mapOffset]}>
       <InstancedGround cells={allCells} visibleCells={visibleCells} meshRef={floorRef} />
-      <TilemapGround map={state.map} />
       <WallField cells={revealedCells} selected={selected} />
       <CoverField cells={revealedCells} selected={selected} />
       <FogOfWar cells={visibleCells} visibleCellKeys={visibleCellKeys} />

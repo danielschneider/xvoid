@@ -1,4 +1,4 @@
-import { cellKey, createBattlefield, getReachable, getVisibleCells, hasLineOfSight, VISION_RANGE } from './map.js';
+import { cellKey, createBattlefield, getReachable, getVisibleCells, hasLineOfSight, isPassable, VISION_RANGE } from './map.js';
 
 export const ENEMY_SHOT_RANGE = 13;
 
@@ -36,7 +36,7 @@ function createStartingUnits(map, seed) {
   const random = makeRandom(seed ^ 0x9e3779b9);
   const middle = Math.floor(map.size / 2);
   const openGround = Object.values(map.cells).filter((cell) => (
-    cell.level === 0 && cell.walkable && !cell.structure && cell.terrain !== 'wall'
+    isPassable(cell) && cell.level === 0 && !cell.structure
   ));
   const enemyCount = map.size >= 48 ? 20 : map.size >= 40 ? 10 : 5;
   const safeCells = openGround.filter((cell) => (
