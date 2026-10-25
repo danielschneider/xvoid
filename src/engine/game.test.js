@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { createInitialState, gameReducer } from './game.js';
+import { computeHitChance, createInitialState, gameReducer, HUNKER_COVER_BONUS } from './game.js';
 import { cellKey, getReachable, getVisibleCells, hasLineOfSight, isPassable, VISION_RANGE } from './map.js';
 
 function adjacentWalkableCell(map, unit) {
@@ -333,6 +333,145 @@ test('selected player turns toward the targeted enemy', () => {
   const aimed = gameReducer(encounter, { type: 'target', id: enemy.id });
   assert.equal(aimed.units[0].facing, 0);
 });
+function withRandom(value, fn) {
+  const original = Math.random;
+  Math.random = () => value;
+  try {
+    return fn();
+  } finally {
+    Math.random = original;
+  }
+}
+
+function isolateEncounter(state, keep) {
+  return { ...state, units: state.units.map((unit) => (keep[unit.id] ? { ...unit, ...keep[unit.id] } : { ...unit, hp: 0 })) };
+}
+
+test('overwatch fires at a visible enemy that ends its move in range, without spending the watcher AP', () => {
+  const state = createInitialState(42);
+  const vanguard = state.units.find((unit) => unit.id === 'vanguard');
+  const nearby = adjacentWalkableCell(state.map, vanguard);
+  assert.ok(nearby);
+  const enemy = state.units.find((unit) => unit.id === 'raider-01');
+  const placed = isolateEncounter({ ...state, phase: 'enemy' }, {
+    vanguard: { status: 'overwatch', ap: 0 },
+    [enemy.id]: { x: nearby.x, z: nearby.z, level: nearby.level, ap: 1 },
+  });
+  const moving = { ...placed, movement: { id: 7, unitId: enemy.id, path: [enemy], step: 0 } };
+  const result = withRandom(0, () => gameReducer(moving, { type: 'complete-movement', id: 7 }));
+  assert.equal(result.movement, null);
+  assert.equal(result.lastShot?.enemyShot, false);
+  assert.equal(result.units.find((unit) => unit.id === 'vanguard').status, null);
+  assert.equal(result.units.find((unit) => unit.id === 'vanguard').ap, 0);
+  assert.match(result.logs[0].text, /^Overwatch: /);
+});
+
+test('overwatch does not fire at enemies hidden in fog of war', () => {
+  const state = createInitialState(42);
+  const enemy = state.units.find((unit) => unit.id === 'raider-01');
+  const placed = isolateEncounter({ ...state, phase: 'enemy' }, {
+    vanguard: { status: 'overwatch' },
+    [enemy.id]: { x: 1, z: 1, level: 0 },
+  });
+  const moving = { ...placed, movement: { id: 8, unitId: enemy.id, path: [enemy], step: 0 } };
+  const result = withRandom(0, () => gameReducer(moving, { type: 'complete-movement', id: 8 }));
+  assert.equal(result.lastShot, null);
+  assert.equal(result.units.find((unit) => unit.id === 'vanguard').status, 'overwatch');
+});
+
+test('a single overwatch reaction shot consumes the watcher stance', () => {
+  const state = createInitialState(42);
+  const vanguard = state.units.find((unit) => unit.id === 'vanguard');
+  const nearby = adjacentWalkableCell(state.map, vanguard);
+  assert.ok(nearby);
+  const enemy = state.units.find((unit) => unit.id === 'raider-01');
+  const placed = isolateEncounter({ ...state, phase: 'enemy' }, {
+    vanguard: { status: 'overwatch' },
+    [enemy.id]: { x: nearby.x, z: nearby.z, level: nearby.level },
+  });
+  const moving = { ...placed, movement: { id: 9, unitId: enemy.id, path: [enemy], step: 0 } };
+  const first = withRandom(0, () => gameReducer(moving, { type: 'complete-movement', id: 9 }));
+  assert.equal(first.units.find((unit) => unit.id === 'vanguard').status, null);
+  const again = { ...first, movement: { id: 10, unitId: enemy.id, path: [enemy], step: 0 } };
+  const second = withRandom(0, () => gameReducer(again, { type: 'complete-movement', id: 10 }));
+  assert.equal(second.lastShot?.id, first.lastShot?.id);
+});
+
+test('deckung activation faces the nearest visible enemy and enemies also use cover', () => {
+  const state = createInitialState(42);
+  const vanguard = state.units.find((unit) => unit.id === 'vanguard');
+  const nearby = adjacentWalkableCell(state.map, vanguard);
+  assert.ok(nearby);
+  const enemy = state.units.find((unit) => unit.id === 'raider-01');
+  const placed = isolateEncounter(state, {
+    vanguard: {},
+    [enemy.id]: { x: nearby.x, z: nearby.z, level: nearby.level },
+  });
+  const hunkered = gameReducer(placed, { type: 'ability', name: 'hunker' });
+  const unit = hunkered.units.find((entry) => entry.id === 'vanguard');
+  assert.equal(unit.status, 'hunker');
+  assert.equal(unit.coverFacing, Math.atan2(nearby.x - vanguard.x, nearby.z - vanguard.z));
+});
+
+test('hunkering lowers the hit chance by the Deckung bonus on open ground', () => {
+  const state = createInitialState(42);
+  const shooter = { x: 10, z: 10, level: 0 };
+  // Target faces the shooter head-on, so the shot is frontal and the full Deckung bonus applies.
+  const target = { x: 10, z: 13, level: 0, status: null, coverFacing: Math.atan2(shooter.x - 10, shooter.z - 13), id: 'x' };
+  state.map.cells[cellKey(target)].cover = 0;
+  const open = computeHitChance(state, shooter, target, false);
+  const hunker = computeHitChance(state, shooter, { ...target, status: 'hunker' }, false);
+  assert.ok(Math.abs((open - hunker) - HUNKER_COVER_BONUS) < 1e-9);
+});
+
+test('a flank bypasses part of the Deckung penalty', () => {
+  const state = createInitialState(42);
+  const target = { x: 10, z: 10, level: 0, status: 'hunker', coverFacing: 0, id: 'x' };
+  state.map.cells[cellKey(target)].cover = 0;
+  const frontal = computeHitChance(state, { x: 10, z: 13, level: 0 }, target, false);
+  const flank = computeHitChance(state, { x: 13, z: 10, level: 0 }, target, false);
+  assert.ok(flank > frontal);
+});
+
+test('flanking has no effect when the target is not in Deckung', () => {
+  const state = createInitialState(42);
+  const target = { x: 10, z: 10, level: 0, status: null, coverFacing: 0, id: 'x' };
+  state.map.cells[cellKey(target)].cover = 0;
+  const frontal = computeHitChance(state, { x: 10, z: 13, level: 0 }, target, false);
+  const flank = computeHitChance(state, { x: 13, z: 10, level: 0 }, target, false);
+  assert.equal(flank, frontal);
+});
+
+test('the target action changes facing but not Deckung facing', () => {
+  const state = createInitialState(42);
+  const vanguard = state.units.find((unit) => unit.id === 'vanguard');
+  const enemy = { ...state.units.find((unit) => unit.id === 'raider-01'), x: vanguard.x + 1, z: vanguard.z };
+  const encounter = { ...state, units: state.units.map((unit) => (unit.id === enemy.id ? enemy : { ...unit, coverFacing: 0.5 })) };
+  const aimed = gameReducer(encounter, { type: 'target', id: enemy.id });
+  const aimedVanguard = aimed.units.find((unit) => unit.id === 'vanguard');
+  assert.equal(aimedVanguard.coverFacing, 0.5);
+});
+
+test('moving clears stance and Deckung facing', () => {
+  const state = createInitialState(42);
+  const unit = state.units[0];
+  const blocked = new Set(state.units.filter((entry) => entry.id !== unit.id && entry.hp > 0).map(cellKey));
+  const destination = [...getReachable(state.map, unit, blocked).values()].find((path) => path.apCost === 1)?.path.at(-1);
+  assert.ok(destination);
+  const stanced = { ...state, units: state.units.map((entry) => (entry.id === unit.id ? { ...entry, status: 'hunker', coverFacing: 1 } : entry)) };
+  const moved = gameReducer(stanced, { type: 'move', destination });
+  const movedUnit = moved.units.find((entry) => entry.id === unit.id);
+  assert.equal(movedUnit.status, null);
+  assert.equal(movedUnit.coverFacing, null);
+});
+
+test('ending the enemy turn clears all stances', () => {
+  const state = createInitialState(42);
+  const stanced = { ...state, phase: 'enemy', enemyTurnOrder: [], enemyTurnIndex: 0, units: state.units.map((unit) => ({ ...unit, status: 'hunker', coverFacing: 1 })) };
+  const finished = gameReducer(stanced, { type: 'finish-enemy-turn' });
+  assert.ok(finished.units.every((unit) => unit.status === null && unit.coverFacing === null));
+});
+
 test('regenerate increments the generation so views remount units on level reset', () => {
   const state = createInitialState(42);
   assert.equal(state.generation, 0);

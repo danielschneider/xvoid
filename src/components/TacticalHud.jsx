@@ -37,6 +37,7 @@ export function UnitPanel({ unit, onSelect, units }) {
       <div className="stat-row"><span><HeartPulse size={13} /> VITALITÄT</span><HealthBar value={unit.hp} total={unit.maxHp} /><b>{unit.hp}/{unit.maxHp}</b></div>
       <div className="stat-row"><span><Shield size={13} /> SCHILD</span><HealthBar value={unit.shield} total={2} tone="blue" /><b>{unit.shield}/2</b></div>
       <div className="ap-row"><span>AKTIONS-PUNKTE</span><div>{[0, 1].map((point) => <i key={point} className={point < unit.ap ? 'ap-filled' : ''}><Zap size={12} fill="currentColor" /></i>)}</div></div>
+      {unit.status && <div className="stance-badge"><Eye size={12} /> {unit.status === 'overwatch' ? 'OVERWATCH' : 'DECKUNG'}</div>}
     </section>
   );
 }

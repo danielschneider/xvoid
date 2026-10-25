@@ -1,6 +1,11 @@
 import { cellKey, createBattlefield, getReachable, getVisibleCells, hasLineOfSight, isPassable, VISION_RANGE } from './map.js';
 
 export const ENEMY_SHOT_RANGE = 13;
+export const OVERWATCH_RANGE = 8;
+export const HUNKER_COVER_BONUS = 0.15;
+export const FLANK_ANGLE = Math.PI / 3;
+export const FLANK_COVER_BYPASS = 0.5;
+export const ENEMY_COVER_FACTOR = 0.5;
 
 const playerTemplates = [
   { id: 'vanguard', name: 'Vanguard', className: 'BREACHER', team: 'player', hp: 6, maxHp: 6, shield: 2, ap: 2, color: '#62e6c4' },
@@ -182,32 +187,51 @@ function moveUnit(state, destination) {
     ...state,
     movement: { id: Date.now(), unitId: unit.id, path: [unit, ...pathData.path], step: 0 },
     units: state.units.map((entry) => entry.id === unit.id
-      ? { ...entry, x: last.x, z: last.z, level: last.level, ap: entry.ap - pathData.apCost, facing }
+      ? { ...entry, x: last.x, z: last.z, level: last.level, ap: entry.ap - pathData.apCost, facing, status: null, coverFacing: null }
       : entry),
     targetId: null,
     logs: addLog(state, `${unit.name} rückt ${pathData.steps} Felder vor.`, 'move'),
   };
 }
 
-function fireAt(state, targetId, shooterId = state.selectedId, enemyShot = false) {
+const clamp = (value, low, high) => Math.max(low, Math.min(high, value));
+
+const normalizeAngle = (angle) => Math.atan2(Math.sin(angle), Math.cos(angle));
+
+// A shot is a flank when it arrives >= FLANK_ANGLE away from the side the defender's Deckung faces.
+function isFlank(shooter, target) {
+  if (target.coverFacing == null) return false;
+  const attackAngle = Math.atan2(shooter.x - target.x, shooter.z - target.z);
+  return Math.abs(normalizeAngle(attackAngle - target.coverFacing)) >= FLANK_ANGLE;
+}
+
+export function computeHitChance(state, shooter, target, enemyShot = false) {
+  const targetCell = state.map.cells[cellKey(target)];
+  const inDeckung = target.status === 'hunker';
+  let cover = (targetCell?.cover === 2 ? 0.4 : targetCell?.cover === 1 ? 0.2 : 0)
+    + (inDeckung ? HUNKER_COVER_BONUS : 0);
+  if (inDeckung && isFlank(shooter, target)) cover *= 1 - FLANK_COVER_BYPASS;
+  if (enemyShot) return clamp(0.52 - cover * ENEMY_COVER_FACTOR, 0.05, 0.95);
+  const distance = Math.hypot(shooter.x - target.x, shooter.z - target.z);
+  const elevationBonus = shooter.level > target.level ? 0.15 : 0;
+  const distancePenalty = Math.max(0, distance - 8) * 0.015;
+  return clamp(0.7 + elevationBonus - cover - distancePenalty, 0.05, 0.95);
+}
+
+function fireAt(state, targetId, shooterId = state.selectedId, enemyShot = false, reaction = false) {
   const shooter = state.units.find((unit) => unit.id === shooterId);
   const target = state.units.find((unit) => unit.id === targetId);
-  if (!shooter || !target || shooter.team === target.team || shooter.ap < 1 || target.hp <= 0) return state;
+  if (!shooter || !target || shooter.team === target.team || (!reaction && shooter.ap < 1) || target.hp <= 0) return state;
   const visible = hasLineOfSight(state.map, shooter, target);
   if (!visible) {
     return { ...state, targetId, logs: addLog(state, 'Schusslinie blockiert.', 'combat') };
   }
-  const targetCell = state.map.cells[cellKey(target)];
-  const distance = Math.hypot(shooter.x - target.x, shooter.z - target.z);
-  const coverPenalty = targetCell?.cover === 2 ? 0.4 : targetCell?.cover === 1 ? 0.2 : 0;
-  const elevationBonus = shooter.level > target.level ? 0.15 : 0;
-  const distancePenalty = Math.max(0, distance - 8) * 0.015;
-  const hitChance = enemyShot ? 0.52 : Math.max(0.05, Math.min(0.95, 0.7 + elevationBonus - coverPenalty - distancePenalty));
+  const hitChance = computeHitChance(state, shooter, target, enemyShot);
   const hit = Math.random() < hitChance;
   const damage = hit ? enemyShot ? 1 + Math.floor(Math.random() * 2) : 2 + Math.floor(Math.random() * 3) : 0;
   const remainingDamage = Math.max(0, damage - target.shield);
   const nextUnits = state.units.map((unit) => {
-    if (unit.id === shooter.id) return { ...unit, ap: unit.ap - 1, facing: facingToward(shooter, target) };
+    if (unit.id === shooter.id) return { ...unit, ap: reaction ? unit.ap : unit.ap - 1, facing: facingToward(shooter, target) };
     if (unit.id === target.id && hit) {
       const shieldDamage = Math.min(unit.shield, damage);
       return { ...unit, shield: unit.shield - shieldDamage, hp: Math.max(0, unit.hp - remainingDamage) };
@@ -219,7 +243,26 @@ function fireAt(state, targetId, shooterId = state.selectedId, enemyShot = false
     units: nextUnits,
     targetId: enemyShot ? null : targetId,
     lastShot: { from: shooter, to: target, hit, damage, enemyShot, id: Date.now() },
-    logs: addLog(state, hit ? `${shooter.name} trifft ${target.name} für ${damage} Schaden.` : `${shooter.name} verfehlt ${target.name}.`, hit ? 'hit' : 'combat'),
+    logs: addLog(state, (reaction ? 'Overwatch: ' : '') + (hit ? `${shooter.name} trifft ${target.name} für ${damage} Schaden.` : `${shooter.name} verfehlt ${target.name}.`), hit ? 'hit' : 'combat'),
+  };
+}
+
+function resolveOverwatch(state, enemyId) {
+  const enemy = state.units.find((unit) => unit.id === enemyId);
+  if (!enemy || enemy.hp <= 0) return state;
+  const players = state.units.filter((unit) => unit.team === 'player' && unit.hp > 0);
+  if (!getVisibleCells(state.map, players).has(cellKey(enemy))) return state;
+  const distanceToEnemy = (unit) => Math.hypot(unit.x - enemy.x, unit.z - enemy.z);
+  const watcher = players
+    .filter((unit) => unit.status === 'overwatch'
+      && distanceToEnemy(unit) <= OVERWATCH_RANGE
+      && hasLineOfSight(state.map, unit, enemy))
+    .sort((a, b) => distanceToEnemy(a) - distanceToEnemy(b))[0];
+  if (!watcher) return state;
+  const shot = fireAt(state, enemy.id, watcher.id, false, true);
+  return {
+    ...shot,
+    units: shot.units.map((unit) => (unit.id === watcher.id ? { ...unit, status: null } : unit)),
   };
 }
 
@@ -227,9 +270,21 @@ function useAbility(state, ability) {
   const unit = state.units.find((entry) => entry.id === state.selectedId);
   if (!unit || unit.ap < 1 || unit.team !== 'player') return state;
   const name = ability === 'overwatch' ? 'Overwatch' : 'Deckung suchen';
+  // Deckung faces the nearest visible enemy; flanking is measured against this fixed side.
+  let coverFacing = unit.facing;
+  if (ability === 'hunker') {
+    const players = state.units.filter((entry) => entry.team === 'player' && entry.hp > 0);
+    const visible = getVisibleCells(state.map, players);
+    const nearest = state.units
+      .filter((entry) => entry.team === 'alien' && entry.hp > 0 && visible.has(cellKey(entry)))
+      .sort((a, b) => Math.hypot(a.x - unit.x, a.z - unit.z) - Math.hypot(b.x - unit.x, b.z - unit.z))[0];
+    if (nearest) coverFacing = facingToward(unit, nearest);
+  }
   return {
     ...state,
-    units: state.units.map((entry) => entry.id === unit.id ? { ...entry, ap: entry.ap - 1, status: ability } : entry),
+    units: state.units.map((entry) => entry.id === unit.id
+      ? { ...entry, ap: entry.ap - 1, status: ability, coverFacing }
+      : entry),
     logs: addLog(state, `${unit.name}: ${name}.`, 'system'),
   };
 }
@@ -341,7 +396,7 @@ function enemyStep(state) {
 function finishEnemyTurn(state) {
   if (state.phase !== 'enemy' || state.enemyTurnIndex < state.enemyTurnOrder.length) return state;
   const players = state.units.filter((unit) => unit.team === 'player' && unit.hp > 0);
-  const units = state.units.map((unit) => ({ ...unit, ap: unit.hp > 0 ? 2 : 0, status: null }));
+  const units = state.units.map((unit) => ({ ...unit, ap: unit.hp > 0 ? 2 : 0, status: null, coverFacing: null }));
   const selectedId = players.some((unit) => unit.id === state.selectedId)
     ? state.selectedId
     : players[0]?.id || null;
@@ -391,9 +446,14 @@ export function gameReducer(state, action) {
       if (!state.movement || state.movement.id !== action.id) return state;
       if (state.movement.step >= state.movement.path.length - 1) return state;
       return { ...state, movement: { ...state.movement, step: state.movement.step + 1 } };
-    case 'complete-movement':
+    case 'complete-movement': {
       if (state.movement?.id !== action.id) return state;
-      return { ...state, movement: null };
+      const mover = state.units.find((unit) => unit.id === state.movement.unitId);
+      const cleared = { ...state, movement: null };
+      return mover?.team === 'alien' && state.phase === 'enemy'
+        ? resolveOverwatch(cleared, mover.id)
+        : cleared;
+    }
     case 'enemy-step':
       return enemyStep(state);
     case 'finish-enemy-turn':
