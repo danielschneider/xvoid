@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { computeDistanceModifier, computeHitChance, createInitialState, gameReducer, HUNKER_COVER_BONUS } from './game.js';
+import { computeCritChance, computeDistanceModifier, computeHitChance, createInitialState, CRIT_CHANCE, CRIT_MULTIPLIER, gameReducer, HUNKER_COVER_BONUS } from './game.js';
 import { cellKey, getReachable, getVisibleCells, hasLineOfSight, isPassable, VISION_RANGE } from './map.js';
 
 function adjacentWalkableCell(map, unit) {
@@ -38,14 +38,12 @@ test('new seeds vary map size, squad size, and spawn positions deterministically
     assert.equal(new Set(state.units.map(cellKey)).size, state.units.length);
     assert.ok(state.units.every((unit) => state.map.cells[cellKey(unit)]?.walkable));
     assert.ok(players.every((player) => (
-      player.x > VISION_RANGE && player.z > VISION_RANGE
-      && player.x < state.map.size - VISION_RANGE - 1
-      && player.z < state.map.size - VISION_RANGE - 1
+      player.x === 0 || player.z === 0 || player.x === state.map.size - 1 || player.z === state.map.size - 1
     )));
     const visibleCells = getVisibleCells(state.map, players);
     assert.ok([...visibleCells].every((key) => {
       const cell = state.map.cells[key];
-      return cell.x > 0 && cell.z > 0 && cell.x < state.map.size - 1 && cell.z < state.map.size - 1;
+      return cell.x >= 0 && cell.z >= 0 && cell.x < state.map.size && cell.z < state.map.size;
     }));
 
     const reachable = new Set(getReachable(state.map, players[0], new Set(), state.map.size * 2).keys());
@@ -503,4 +501,80 @@ test('regenerate increments the generation so views remount units on level reset
   assert.equal(next.generation, 1);
   const again = gameReducer(next, { type: 'regenerate', seed: 778 });
   assert.equal(again.generation, 2);
+});
+
+test('initial selection is a player unit that can move, even when the squad boxes in the vanguard', () => {
+  const state = createInitialState(516104, 1);
+  const selected = state.units.find((unit) => unit.id === state.selectedId);
+  const blocked = new Set(state.units.filter((unit) => unit.id !== selected.id && unit.hp > 0).map(cellKey));
+  assert.equal(selected.team, 'player');
+  assert.ok(getReachable(state.map, selected, blocked, 10).size > 0);
+});
+
+function withRandomSequence(values, fn) {
+  const original = Math.random;
+  let index = 0;
+  Math.random = () => values[Math.min(index++, values.length - 1)];
+  try {
+    return fn();
+  } finally {
+    Math.random = original;
+  }
+}
+
+test('a critical hit doubles base damage and reports crit on the shot', () => {
+  const state = createInitialState(42);
+  const shooter = state.units.find((unit) => unit.id === 'vanguard');
+  const target = { ...state.units.find((unit) => unit.id === 'raider-01'), shield: 0, hp: 9, maxHp: 9 };
+  const encounter = {
+    ...isolateEncounter(state, { [shooter.id]: { ap: 2 }, [target.id]: target }),
+    units: state.units.map((unit) => (unit.id === shooter.id ? { ...unit, x: target.x, z: target.z + 1, level: 0, ap: 2 }
+      : unit.id === target.id ? target : { ...unit, hp: 0 })),
+  };
+  const shooterNow = encounter.units.find((unit) => unit.id === shooter.id);
+  const lineOpen = hasLineOfSight(encounter.map, shooterNow, target);
+  assert.ok(lineOpen, 'test setup needs an open line of sight');
+  // Roll sequence: hit (0), crit (0), damage roll (0 -> base 2) => crit damage 4.
+  const result = withRandomSequence([0, 0, 0], () => gameReducer(encounter, { type: 'attack', id: target.id }));
+  assert.equal(result.lastShot.hit, true);
+  assert.equal(result.lastShot.crit, true);
+  assert.equal(result.lastShot.damage, 2 * CRIT_MULTIPLIER);
+  assert.equal(result.units.find((unit) => unit.id === target.id).hp, 9 - 4);
+});
+
+test('a non-critical hit keeps base damage and reports crit as false', () => {
+  const state = createInitialState(42);
+  const shooter = state.units.find((unit) => unit.id === 'vanguard');
+  const target = { ...state.units.find((unit) => unit.id === 'raider-01'), shield: 0, hp: 9, maxHp: 9 };
+  const encounter = {
+    ...state,
+    units: state.units.map((unit) => (unit.id === shooter.id ? { ...unit, x: target.x, z: target.z + 1, level: 0, ap: 2 }
+      : unit.id === target.id ? target : { ...unit, hp: 0 })),
+  };
+  const result = withRandomSequence([0, 0.99, 0], () => gameReducer(encounter, { type: 'attack', id: target.id }));
+  assert.equal(result.lastShot.crit, false);
+  assert.equal(result.lastShot.damage, 2);
+});
+
+test('a miss never crits, so the crit roll is not consumed', () => {
+  const state = createInitialState(42);
+  const shooter = state.units.find((unit) => unit.id === 'vanguard');
+  const target = { ...state.units.find((unit) => unit.id === 'raider-01'), shield: 0, hp: 9, maxHp: 9 };
+  const encounter = {
+    ...state,
+    units: state.units.map((unit) => (unit.id === shooter.id ? { ...unit, x: target.x, z: target.z + 1, level: 0, ap: 2 }
+      : unit.id === target.id ? target : { ...unit, hp: 0 })),
+  };
+  const result = withRandomSequence([0.999, 0], () => gameReducer(encounter, { type: 'attack', id: target.id }));
+  assert.equal(result.lastShot.hit, false);
+  assert.equal(result.lastShot.crit, false);
+  assert.equal(result.lastShot.damage, 0);
+});
+
+test('enemy shots never crit', () => {
+  const state = createInitialState(42);
+  const target = state.units.find((unit) => unit.id === 'vanguard');
+  const enemy = state.units.find((unit) => unit.id === 'raider-01');
+  assert.equal(computeCritChance(state, enemy, target, true), 0);
+  assert.equal(computeCritChance(state, target, enemy, false), CRIT_CHANCE);
 });

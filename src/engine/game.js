@@ -7,6 +7,8 @@ export const HUNKER_COVER_BONUS = 0.15;
 export const FLANK_ANGLE = Math.PI / 3;
 export const FLANK_COVER_BYPASS = 0.5;
 export const ENEMY_COVER_FACTOR = 0.5;
+export const CRIT_CHANCE = 0.15;
+export const CRIT_MULTIPLIER = 2;
 
 const playerTemplates = [
   { id: 'vanguard', name: 'Vanguard', className: 'BREACHER', team: 'player', hp: 6, maxHp: 6, shield: 2, ap: 2, color: '#62e6c4' },
@@ -96,6 +98,10 @@ function createStartingUnits(map, seed) {
     cell.x > VISION_RANGE && cell.z > VISION_RANGE
     && cell.x < map.size - VISION_RANGE - 1 && cell.z < map.size - VISION_RANGE - 1
   ));
+  // The player squad always lands on the map border (the landing point).
+  const borderCells = openGround.filter((cell) => (
+    cell.x === 0 || cell.z === 0 || cell.x === map.size - 1 || cell.z === map.size - 1
+  ));
   const quadrants = [
     (cell) => cell.x < middle && cell.z < middle,
     (cell) => cell.x >= middle && cell.z < middle,
@@ -105,11 +111,11 @@ function createStartingUnits(map, seed) {
   let playerSpawns = null;
   let enemySpawns = null;
 
-  // Strict pass: squad starts in a random quadrant and no enemy is in its initial vision.
-  // Relaxed pass (fallback): squad anywhere, enemies only avoid the squad's cells.
+  // Strict pass: squad lands on a border cell of a random quadrant and no enemy is in its initial vision.
+  // Relaxed pass (fallback): squad anywhere on the border, enemies only avoid the squad's cells.
   const passes = [
-    ...shuffle(quadrants, random).map((inQuadrant) => ({ area: safeCells.filter(inQuadrant), strict: true })),
-    { area: safeCells, strict: false },
+    ...shuffle(quadrants, random).map((inQuadrant) => ({ area: borderCells.filter(inQuadrant), strict: true })),
+    { area: borderCells, strict: false },
   ];
   for (const { area, strict } of passes) {
     for (const cluster of squadClusters(map, area, random)) {
@@ -161,15 +167,27 @@ function createStartingUnits(map, seed) {
   return [...players, ...enemies];
 }
 
+// Squad placement can box a unit in with its own squadmates. Select the first
+// player unit that can actually move so that taps on the map produce a route.
+function initialSelection(map, units) {
+  const canMove = (unit) => {
+    const blocked = new Set(units.filter((other) => other.id !== unit.id && other.hp > 0).map(cellKey));
+    return getReachable(map, unit, blocked, unit.ap === 1 ? 5 : 10).size > 0;
+  };
+  const players = units.filter((unit) => unit.team === 'player' && unit.hp > 0);
+  return (players.find(canMove) ?? players[0]).id;
+}
+
 export function createInitialState(seed = 20261024, generation = 0) {
   const map = createBattlefield(seed);
+  const units = createStartingUnits(map, seed);
   return {
     // Increments on every level reset. Views key their per-unit components on it
     // so that a reset remounts them instead of reusing stale visual state.
     generation,
     map,
-    units: createStartingUnits(map, seed),
-    selectedId: 'vanguard',
+    units,
+    selectedId: initialSelection(map, units),
     targetId: null,
     moveMode: true,
     shootMode: false,
@@ -250,7 +268,13 @@ export function computeHitChance(state, shooter, target, enemyShot = false) {
   return clamp(0.7 + elevationBonus - cover + distanceModifier, 0.05, 0.95);
 }
 
-function fireAt(state, targetId, shooterId = state.selectedId, enemyShot = false, reaction = false) {
+// Crit chance applies only to player shots; enemy shots never crit.
+export function computeCritChance(state, shooter, target, enemyShot = false) {
+  if (enemyShot) return 0;
+  return CRIT_CHANCE;
+}
+
+function fireAt(state, targetId, shooterId = state.selectedId, enemyShot = false, reaction = false, random = Math.random) {
   const shooter = state.units.find((unit) => unit.id === shooterId);
   const target = state.units.find((unit) => unit.id === targetId);
   if (!shooter || !target || shooter.team === target.team || (!reaction && shooter.ap < 1) || target.hp <= 0) return state;
@@ -262,8 +286,10 @@ function fireAt(state, targetId, shooterId = state.selectedId, enemyShot = false
     return { ...state, targetId, logs: addLog(state, 'Ziel außer Reichweite.', 'combat') };
   }
   const hitChance = computeHitChance(state, shooter, target, enemyShot);
-  const hit = Math.random() < hitChance;
-  const damage = hit ? enemyShot ? 1 + Math.floor(Math.random() * 2) : 2 + Math.floor(Math.random() * 3) : 0;
+  const hit = random() < hitChance;
+  const crit = hit && random() < computeCritChance(state, shooter, target, enemyShot);
+  const baseDamage = enemyShot ? 1 + Math.floor(random() * 2) : 2 + Math.floor(random() * 3);
+  const damage = hit ? (crit ? baseDamage * CRIT_MULTIPLIER : baseDamage) : 0;
   const remainingDamage = Math.max(0, damage - target.shield);
   const nextUnits = state.units.map((unit) => {
     if (unit.id === shooter.id) return { ...unit, ap: reaction ? unit.ap : unit.ap - 1, facing: facingToward(shooter, target) };
@@ -277,8 +303,12 @@ function fireAt(state, targetId, shooterId = state.selectedId, enemyShot = false
     ...state,
     units: nextUnits,
     targetId: enemyShot ? null : targetId,
-    lastShot: { from: shooter, to: target, hit, damage, enemyShot, id: Date.now() },
-    logs: addLog(state, (reaction ? 'Overwatch: ' : '') + (hit ? `${shooter.name} trifft ${target.name} für ${damage} Schaden.` : `${shooter.name} verfehlt ${target.name}.`), hit ? 'hit' : 'combat'),
+    lastShot: { from: shooter, to: target, hit, crit, damage, enemyShot, id: Date.now() },
+    logs: addLog(state, (reaction ? 'Overwatch: ' : '') + (hit
+      ? crit
+        ? `${shooter.name} landet einen KRITISCHEN Treffer auf ${target.name} für ${damage} Schaden.`
+        : `${shooter.name} trifft ${target.name} für ${damage} Schaden.`
+      : `${shooter.name} verfehlt ${target.name}.`), hit ? 'hit' : 'combat'),
   };
 }
 
@@ -474,7 +504,8 @@ export function gameReducer(state, action) {
       return selectNextReadyPlayer(moveUnit(state, action.destination));
     case 'attack':
       if (state.phase !== 'player' || state.movement) return state;
-      return { ...selectNextReadyPlayer(fireAt(state, action.id)), shootMode: false };
+      // Selection moves on only after the shot has been shown (see finish-shot).
+      return { ...fireAt(state, action.id), shootMode: false };
     case 'ability':
       if (state.phase !== 'player' || state.movement) return state;
       return selectNextReadyPlayer(useAbility(state, action.name));
@@ -502,6 +533,12 @@ export function gameReducer(state, action) {
       return { ...state, showUpper: !state.showUpper };
     case 'clear-shot':
       return { ...state, lastShot: null };
+    case 'finish-shot': {
+      // Runs after the shot/death animation: clear the shot and hand over to the next ready player unit.
+      if (!state.lastShot || state.lastShot.id !== action.id) return state;
+      const cleared = { ...state, lastShot: null };
+      return state.lastShot.enemyShot ? cleared : selectNextReadyPlayer(cleared);
+    }
     default:
       return state;
   }

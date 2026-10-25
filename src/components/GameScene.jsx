@@ -347,13 +347,46 @@ function ObjectiveMarkers({ objectives, visibleCellKeys }) {
   ));
 }
 
-function PixelUnit({ unit, selected, targeted, shootable, hitChance, camera, movement, visibleCellKeys }) {
+const FIRE_DURATION = 0.3;
+const MUZZLE_DURATION = 0.08;
+const CRIT_DURATION = 0.9;
+
+function PixelUnit({ unit, selected, targeted, shootable, hitChance, camera, movement, visibleCellKeys, lastShot }) {
   const group = useRef();
   const bodyGroup = useRef();
   const billboard = useRef();
   const sprite = useRef();
   const outline = useRef();
+  const rifle = useRef();
+  const muzzle = useRef();
+  const muzzleMaterial = useRef();
+  const critMaterial = useRef();
+  const critOverlay = useRef();
+  const critShotId = useRef(lastShot?.crit && lastShot.to.id === unit.id ? lastShot.id : null);
+  const critElapsed = useRef(Infinity);
+  const fireElapsed = useRef(Infinity);
+  const muzzleElapsed = useRef(Infinity);
+  const playedShotId = useRef(lastShot?.id ?? null);
   const movementProgress = useRef({ id: null, elapsed: 0 });
+  const critTexture = useMemo(() => {
+    const canvas = document.createElement('canvas');
+    canvas.width = 128;
+    canvas.height = 64;
+    const context = canvas.getContext('2d');
+    context.font = 'bold 40px monospace';
+    context.textAlign = 'center';
+    context.textBaseline = 'middle';
+    context.lineWidth = 8;
+    context.strokeStyle = '#17201c';
+    context.fillStyle = '#ffd34d';
+    context.strokeText('CRIT', 64, 34);
+    context.fillText('CRIT', 64, 34);
+    const texture = new THREE.CanvasTexture(canvas);
+    texture.magFilter = THREE.NearestFilter;
+    texture.minFilter = THREE.NearestFilter;
+    texture.colorSpace = THREE.SRGBColorSpace;
+    return texture;
+  }, []);
   const routeStart = useMemo(() => new THREE.Vector3(), []);
   const routeEnd = useMemo(() => new THREE.Vector3(), []);
   const cameraDirection = useMemo(() => new THREE.Vector3(), []);
@@ -371,7 +404,50 @@ function PixelUnit({ unit, selected, targeted, shootable, hitChance, camera, mov
     : 0;
   const route = fullRoute && firstVisibleIndex >= 0 ? fullRoute.slice(firstVisibleIndex) : null;
   const initialized = useRef(false);
+  const dead = unit.hp <= 0;
+  // 0 = standing, 1 = fully lying on the ground. Animates when the unit dies.
+  const fall = useRef(dead ? 1 : 0);
+  const fallenOrientation = useMemo(() => new THREE.Quaternion().setFromEuler(new THREE.Euler(-Math.PI / 2, 0, 0)), []);
   useFrame((_, delta) => {
+    if (lastShot && lastShot.from.id === unit.id && lastShot.id !== playedShotId.current) {
+      playedShotId.current = lastShot.id;
+      fireElapsed.current = 0;
+      muzzleElapsed.current = 0;
+      if (muzzle.current) muzzle.current.rotation.z = Math.random() * Math.PI * 2;
+    }
+    if (lastShot && lastShot.crit && lastShot.to.id === unit.id && lastShot.id !== critShotId.current) {
+      critShotId.current = lastShot.id;
+      critElapsed.current = 0;
+    }
+    fireElapsed.current += delta;
+    muzzleElapsed.current += delta;
+    critElapsed.current += delta;
+    if (critMaterial.current) {
+      // Pops in, holds, then fades out over CRIT_DURATION.
+      const critT = critElapsed.current / CRIT_DURATION;
+      const critVisible = critT < 1;
+      critMaterial.current.opacity = critVisible ? Math.min(1, critT * 6) * (1 - Math.max(0, critT - 0.6) / 0.4) : 0;
+      if (critOverlay.current) {
+        critOverlay.current.visible = critVisible;
+        critOverlay.current.scale.setScalar(1 + Math.max(0, 0.35 - critT) * 1.5);
+      }
+    }
+    // Recoil envelope: sharp kick at the shot, ease back to rest over FIRE_DURATION.
+    const fireT = Math.min(1, fireElapsed.current / FIRE_DURATION);
+    const recoil = fireT < 1 ? Math.sin(Math.PI * fireT) * (1 - fireT * 0.5) : 0;
+    if (rifle.current) {
+      rifle.current.position.set(0.28, 0.91 + recoil * 0.05, 0.16 - recoil * 0.12);
+      rifle.current.rotation.x = 0.12 - recoil * 0.35;
+    }
+    if (muzzleMaterial.current && muzzle.current) {
+      const flashT = muzzleElapsed.current / MUZZLE_DURATION;
+      const flash = Math.max(0, 1 - flashT);
+      muzzle.current.visible = flash > 0;
+      muzzle.current.scale.setScalar(0.6 + flash * 0.6);
+      muzzleMaterial.current.opacity = flash;
+    }
+    fall.current = dead ? Math.min(1, fall.current + delta * 2.5) : 0;
+    const pose = fall.current * fall.current * (3 - 2 * fall.current);
     if (group.current) {
       if (!initialized.current) {
         const first = route?.[0];
@@ -394,8 +470,17 @@ function PixelUnit({ unit, selected, targeted, shootable, hitChance, camera, mov
         group.current.position.lerp(destination, 0.12);
       }
     }
-    if (bodyGroup.current) bodyGroup.current.rotation.y = visualFacing.current;
-    if (billboard.current) billboard.current.quaternion.copy(camera.quaternion);
+    if (bodyGroup.current) {
+      bodyGroup.current.rotation.y = visualFacing.current;
+      bodyGroup.current.rotation.x = -Math.PI / 2 * pose;
+      // Body rocks back slightly when firing; pushed along local -z (away from the aim direction).
+      bodyGroup.current.position.z = -recoil * 0.08 * (1 - pose);
+    }
+    if (billboard.current) {
+      billboard.current.quaternion.copy(camera.quaternion);
+      if (pose > 0) billboard.current.quaternion.slerp(fallenOrientation, pose);
+      billboard.current.position.y = THREE.MathUtils.lerp(0.82, 0.05, pose);
+    }
     if (sprite.current) {
       camera.getWorldDirection(cameraDirection);
       const cameraFacing = Math.atan2(-cameraDirection.x, -cameraDirection.z);
@@ -426,7 +511,7 @@ function PixelUnit({ unit, selected, targeted, shootable, hitChance, camera, mov
         <circleGeometry args={[0.35, 20]} />
         <meshBasicMaterial color="#020807" transparent opacity={0.45} depthWrite={false} />
       </mesh>
-      {(selected || targeted || shootable) && (
+      {!dead && (selected || targeted || shootable) && (
         <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, 0.022, 0]}>
           <ringGeometry args={shootable && !targeted ? [0.48, 0.54, 32] : [0.42, 0.49, 32]} />
           <meshBasicMaterial color={targeted ? '#ff786d' : shootable ? '#f3bd76' : '#69e7ca'} transparent opacity={0.92} side={THREE.DoubleSide} />
@@ -451,14 +536,20 @@ function PixelUnit({ unit, selected, targeted, shootable, hitChance, camera, mov
             <meshStandardMaterial color="#242f2a" roughness={0.9} />
           </mesh>
         ))}
-        <mesh position={[0.28, 0.91, 0.16]} rotation={[0.12, 0, -0.12]}>
-          <boxGeometry args={[0.14, 0.14, 0.5]} />
-          <meshStandardMaterial color="#202722" roughness={0.55} metalness={0.52} />
-        </mesh>
-        <mesh position={[0.28, 0.91, 0.49]}>
-          <boxGeometry args={[0.07, 0.07, 0.22]} />
-          <meshStandardMaterial color="#a39a7d" roughness={0.42} metalness={0.62} />
-        </mesh>
+        <group ref={rifle} position={[0.28, 0.91, 0.16]} rotation={[0.12, 0, -0.12]}>
+          <mesh>
+            <boxGeometry args={[0.14, 0.14, 0.5]} />
+            <meshStandardMaterial color="#202722" roughness={0.55} metalness={0.52} />
+          </mesh>
+          <mesh position={[0, 0, 0.33]}>
+            <boxGeometry args={[0.07, 0.07, 0.22]} />
+            <meshStandardMaterial color="#a39a7d" roughness={0.42} metalness={0.62} />
+          </mesh>
+          <mesh ref={muzzle} position={[0, 0, 0.5]} visible={false}>
+            <planeGeometry args={[0.42, 0.42]} />
+            <meshBasicMaterial ref={muzzleMaterial} color="#ffd27a" transparent opacity={0} depthWrite={false} side={THREE.DoubleSide} toneMapped={false} />
+          </mesh>
+        </group>
       </group>
       <group ref={billboard} position={[0, 0.82, 0]}>
         <mesh ref={outline} scale={[1.16, 1.14, 1]} position={[0, 0, -0.015]}>
@@ -469,13 +560,20 @@ function PixelUnit({ unit, selected, targeted, shootable, hitChance, camera, mov
           <planeGeometry args={[1.06, 1.52]} />
           <meshBasicMaterial map={spriteTextures.front} transparent alphaTest={0.22} depthWrite={false} side={THREE.DoubleSide} toneMapped={false} />
         </mesh>
+        <mesh ref={critOverlay} position={[0, 1.02, 0.05]} visible={false} renderOrder={12}>
+          <planeGeometry args={[0.9, 0.45]} />
+          <meshBasicMaterial ref={critMaterial} map={critTexture} transparent opacity={0} depthWrite={false} depthTest={false} toneMapped={false} />
+        </mesh>
       </group>
-      {unit.hp <= 0 && <mesh position={[0, 0.18, 0]} rotation={[0, 0, -0.4]}><boxGeometry args={[0.7, 0.09, 0.12]} /><meshBasicMaterial color="#9c4d4b" /></mesh>}
       {shootable && hitChance != null && (
         <Html position={[0, 1.95, 0]} center zIndexRange={[20, 0]} style={{ pointerEvents: 'none' }}>
           <span className="enemy-hit-chance">{hitChance}%</span>
         </Html>
       )}
+      <mesh ref={critOverlay} position={[0, 1.72, 0.05]} visible={false} renderOrder={12}>
+        <planeGeometry args={[0.9, 0.45]} />
+        <meshBasicMaterial ref={critMaterial} map={critTexture} transparent opacity={0} depthWrite={false} depthTest={false} toneMapped={false} />
+      </mesh>
     </group>
   );
 }
@@ -495,8 +593,8 @@ function BeamEffect({ shot, camera }) {
     context.textBaseline = 'middle';
     context.lineWidth = 12;
     context.strokeStyle = '#17201c';
-    context.fillStyle = shot.hit ? '#ff9580' : '#9ce3e3';
-    const label = shot.hit ? `-${shot.damage}` : 'MISS';
+    context.fillStyle = shot.hit ? (shot.crit ? '#ffd34d' : '#ff9580') : '#9ce3e3';
+    const label = shot.hit ? `${shot.crit ? 'CRIT ' : ''}-${shot.damage}` : 'MISS';
     context.strokeText(label, 128, 68);
     context.fillText(label, 128, 68);
     const texture = new THREE.CanvasTexture(canvas);
@@ -504,7 +602,7 @@ function BeamEffect({ shot, camera }) {
     texture.minFilter = THREE.NearestFilter;
     texture.colorSpace = THREE.SRGBColorSpace;
     return texture;
-  }, [shot.damage, shot.hit]);
+  }, [shot.damage, shot.hit, shot.crit]);
   const from = shot.from;
   const to = shot.to;
   const animationDuration = shot.enemyShot ? 1.15 : 0.65;
@@ -735,8 +833,8 @@ function Battlefield({ state, selected, focusUnit, focusToken, target, paths, pe
       {selected?.ap > 0 && <ReachableOverlay paths={paths} map={state.map} />}
       {pendingPath && selected && <MoveTrace path={pendingPath} start={selected} />}
       {selected && target && <AimBeam shooter={selected} target={target} blocked={!hasLineOfSight(state.map, selected, target)} />}
-      {state.units.filter((unit) => unit.hp > 0 && (unit.team === 'player' || visibleCellKeys.has(cellKey(unit)))).map((unit) => (
-        <PixelUnit key={`${state.generation}:${unit.id}`} unit={unit} selected={unit.id === state.selectedId} targeted={unit.id === state.targetId} shootable={shootableEnemyIds.has(unit.id)} hitChance={enemyHitChances?.get(unit.id)} camera={camera} movement={state.movement} visibleCellKeys={visibleCellKeys} />
+      {state.units.filter((unit) => unit.team === 'player' || visibleCellKeys.has(cellKey(unit))).map((unit) => (
+        <PixelUnit key={`${state.generation}:${unit.id}`} unit={unit} selected={unit.id === state.selectedId} targeted={unit.id === state.targetId} shootable={shootableEnemyIds.has(unit.id)} hitChance={enemyHitChances?.get(unit.id)} camera={camera} movement={state.movement} visibleCellKeys={visibleCellKeys} lastShot={state.lastShot} />
       ))}
       {state.lastShot && <BeamEffect key={state.lastShot.id} shot={state.lastShot} camera={camera} />}
       </group>

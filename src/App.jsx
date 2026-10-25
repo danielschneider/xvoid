@@ -43,6 +43,11 @@ export default function App() {
     ? (activeEnemy && visibleCellKeys.has(cellKey(activeEnemy)) ? activeEnemy : null)
     : selected;
   const focusToken = state.phase === 'enemy' ? state.enemyTurnIndex : 0;
+  // Hidden enemy actions have no visual output, so their timers can run without delay.
+  const activeEnemyHidden = state.phase === 'enemy'
+    && (!activeEnemy || !visibleCellKeys.has(cellKey(activeEnemy)));
+  const movementHidden = !!state.movement
+    && state.movement.path.every((cell) => !visibleCellKeys.has(cellKey(cell)));
   const playerUnits = state.units.filter((unit) => unit.team === 'player' && unit.hp > 0);
   // Other living player units that still have AP, in roster order after the currently selected unit.
   const readyUnits = useMemo(() => {
@@ -56,7 +61,7 @@ export default function App() {
   }, [playerUnits, state.selectedId]);
   const nextReadyUnit = readyUnits[0] ?? null;
   const requestEndTurn = () => {
-    if (state.phase !== 'player' || state.movement) return;
+    if (state.phase !== 'player' || state.movement || state.lastShot) return;
     if (nextReadyUnit) {
       setPendingMove(null);
       dispatch({ type: 'select', id: nextReadyUnit.id });
@@ -87,37 +92,42 @@ export default function App() {
 
   useEffect(() => {
     if (!state.lastShot) return undefined;
-    const timer = window.setTimeout(() => dispatch({ type: 'clear-shot' }), state.lastShot.enemyShot ? 1300 : 720);
+    // Player shots keep the shooter selected for a moment so the shot or death is visible before the next unit takes over.
+    const timer = window.setTimeout(
+      () => dispatch({ type: 'finish-shot', id: state.lastShot.id }),
+      state.lastShot.enemyShot ? 1300 : 1000,
+    );
     return () => window.clearTimeout(timer);
   }, [state.lastShot]);
 
   useEffect(() => {
     if (state.phase !== 'enemy' || state.movement) return undefined;
     const finished = state.enemyTurnIndex >= state.enemyTurnOrder.length;
+    const delay = !finished && activeEnemyHidden ? 0 : 1400;
     const timer = window.setTimeout(() => {
       dispatch({ type: finished ? 'finish-enemy-turn' : 'enemy-step' });
-    }, 1400);
+    }, delay);
     return () => window.clearTimeout(timer);
-  }, [state.enemyTurnIndex, state.enemyTurnOrder.length, state.phase, state.movement]);
+  }, [state.enemyTurnIndex, state.enemyTurnOrder.length, state.phase, state.movement, activeEnemyHidden]);
 
   useEffect(() => {
-    if (!state.movement) return undefined;
+    if (!state.movement || movementHidden) return undefined;
     const movementId = state.movement.id;
     const timer = window.setInterval(
       () => dispatch({ type: 'advance-movement', id: movementId }),
       220,
     );
     return () => window.clearInterval(timer);
-  }, [state.movement?.id]);
+  }, [state.movement?.id, movementHidden]);
 
   useEffect(() => {
     if (!state.movement) return undefined;
     const timer = window.setTimeout(
       () => dispatch({ type: 'complete-movement', id: state.movement.id }),
-      state.movement.path.length * 220 + 80,
+      movementHidden ? 0 : state.movement.path.length * 220 + 80,
     );
     return () => window.clearTimeout(timer);
-  }, [state.movement]);
+  }, [state.movement, movementHidden]);
 
   useEffect(() => {
     const onKeyDown = (event) => {
