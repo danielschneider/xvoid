@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import {
   Activity, AlertTriangle, Check, Copy, Crosshair, ChevronDown, Eye, Footprints, HeartPulse, Layers3, Move, Radio, RotateCcw,
-  Shield, ShieldCheck, SkipForward, Swords, Target, Zap,
+  Shield, ShieldCheck, SkipForward, Sparkles, Swords, Target, Zap,
 } from 'lucide-react';
 import { COVER_VALUE, computeCoverFor, computeDistanceModifier, getFlankedBy, SHOT_RANGE } from '../engine/game.js';
 import { hasLineOfSight } from '../engine/map.js';
@@ -24,24 +24,47 @@ function HealthBar({ value, total, tone = 'mint' }) {
   );
 }
 
-export function UnitPanel({ unit, onSelect, units, flankedBy }) {
-  const allies = units.filter((entry) => entry.team === 'player');
-  if (!unit) return <section className="unit-panel empty-panel">Keine Einheit ausgewählt</section>;
+// Single source for the squad: operative tabs for selection, detail stats for the selected unit.
+export function UnitPanel({ unit, onSelect, units, flankedBy, canSwitch }) {
+  const operatives = units.filter((entry) => entry.team === 'player');
+  const alive = operatives.filter((entry) => entry.hp > 0).length;
   return (
     <section className="unit-panel">
-      <div className="panel-eyebrow"><span className="status-dot" /> EINSATZTEAM <span className="panel-index">0{allies.indexOf(unit) + 1}</span></div>
-      <div className="unit-main">
-        <div className="unit-avatar" style={{ '--unit-color': unit.color }}>{unit.className.slice(0, 2)}</div>
-        <div className="unit-title"><h2>{unit.name}</h2><p>{unit.className} <span>· L{unit.level}</span></p></div>
-        <button className="icon-button switch-unit" title="Nächste Einheit" onClick={() => onSelect(allies[(allies.indexOf(unit) + 1) % allies.length].id)}><RotateCcw size={16} /></button>
+      <div className="panel-eyebrow"><span className="status-dot" /> EINSATZTEAM <span className="panel-index">{alive} / {operatives.length}</span></div>
+      <div className="operative-tabs" role="group" aria-label="Operative auswählen">
+        {operatives.map((operative, index) => (
+          <button
+            key={operative.id}
+            type="button"
+            onClick={() => onSelect(operative.id)}
+            disabled={!canSwitch || operative.hp <= 0}
+            aria-pressed={operative.id === unit?.id}
+            title={`${operative.name} · ${operative.className}`}
+            className={`operative-tab ${operative.id === unit?.id ? 'is-selected' : ''} ${operative.hp <= 0 ? 'is-fallen' : ''}`}
+          >
+            <span className="op-number">0{index + 1}</span>
+            <span className="op-avatar" style={{ '--unit-color': operative.color }}>{operative.className.slice(0, 1)}</span>
+            <span className="op-hp">{operative.hp}</span>
+          </button>
+        ))}
       </div>
-      <div className="stat-row"><span><HeartPulse size={13} /> VITALITÄT</span><HealthBar value={unit.hp} total={unit.maxHp} /><b>{unit.hp}/{unit.maxHp}</b></div>
-      <div className="stat-row"><span><Shield size={13} /> SCHILD</span><HealthBar value={unit.shield} total={2} tone="blue" /><b>{unit.shield}/2</b></div>
-      <div className="stat-row"><span><Crosshair size={13} /> FEUERKRAFT</span><b>{unit.power > 0 ? `+${unit.power}` : unit.power ?? 0}</b></div>
-      <div className="stat-row"><span><Footprints size={13} /> BEWEGUNG</span><b>{unit.moveRange ?? 10} Felder</b></div>
-      <div className="ap-row"><span>AKTIONS-PUNKTE</span><div>{[0, 1].map((point) => <i key={point} className={point < unit.ap ? 'ap-filled' : ''}><Zap size={12} fill="currentColor" /></i>)}</div></div>
-      {unit.status && <div className="stance-badge"><Eye size={12} /> OVERWATCH</div>}
-      {flankedBy?.length > 0 && <div className="flank-badge" role="status"><AlertTriangle size={12} /> FLANKIERT <span>{flankedBy.map((enemy) => enemy.name).join(', ')}</span></div>}
+      {unit ? (
+        <>
+          <div className="unit-main">
+            <div className="unit-avatar" style={{ '--unit-color': unit.color }}>{unit.className.slice(0, 2)}</div>
+            <div className="unit-title">
+              <h2>{unit.name}</h2>
+              <p>{unit.className} <span>· L{unit.level}</span></p>
+            </div>
+            <div className="ap-inline" aria-label={`${unit.ap} Aktionspunkte`} title="Aktions-Punkte">{[0, 1].map((point) => <i key={point} className={point < unit.ap ? 'ap-filled' : ''}><Zap size={11} fill="currentColor" /></i>)}</div>
+          </div>
+          <div className="stat-row"><span><HeartPulse size={13} /> VITAL</span><HealthBar value={unit.hp} total={unit.maxHp} /><b>{unit.hp}/{unit.maxHp}<em className="shield-value"><Shield size={10} /> {unit.shield}/2</em></b></div>
+          {unit.status && <div className="stance-badge"><Eye size={12} /> OVERWATCH</div>}
+          {flankedBy?.length > 0 && <div className="flank-badge" role="status"><AlertTriangle size={12} /> FLANKIERT <span>{flankedBy.map((enemy) => enemy.name).join(', ')}</span></div>}
+        </>
+      ) : (
+        <p className="empty-note">Keine Einheit ausgewählt</p>
+      )}
     </section>
   );
 }
@@ -88,6 +111,7 @@ export function PositionPanel({ cover, pendingMoveCost }) {
 
 export function TacticalHud({ state, selected, target, hasShootableEnemy, seedCopied, onCopySeed, moveMode, pendingMove, pendingMoveCost, pendingCover, nextReadyUnit, onConfirmMove, onRequestEndTurn, showNewGameWarning, onConfirmRegenerate, onCancelRegenerate, onAction, onRequestRegenerate, onToggleLevels, onSelect }) {
   const [stackOpen, setStackOpen] = useState(() => window.innerWidth > 900);
+  const [missionOpen, setMissionOpen] = useState(() => window.innerWidth > 900);
   const livingEnemies = state.units.filter((unit) => unit.team === 'alien' && unit.hp > 0).length;
   const totalEnemies = state.units.filter((unit) => unit.team === 'alien').length;
   const eliminatedEnemies = totalEnemies - livingEnemies;
@@ -97,22 +121,20 @@ export function TacticalHud({ state, selected, target, hasShootableEnemy, seedCo
       <header className="topbar">
         <div className="brand-lockup"><span className="brand-mark"><Activity size={17} /></span><span className="brand-name">XVOID</span><span className="brand-separator" /><span className="brand-mode">TACTICAL OPERATIONS</span></div>
         <div className="mission-meta"><span className="live-indicator" /> <span>SEKTOR 07 / NEMESIS</span><i /> <span>R-{String(state.turn).padStart(2, '0')}</span></div>
-        <div className="top-actions"><span className="enemy-count"><span>{String(livingEnemies).padStart(2, '0')}</span> HOSTILES</span><button className="icon-button level-toggle" onClick={onToggleLevels} title={state.showUpper ? 'Obere Etagen ausblenden' : 'Obere Etagen einblenden'}><Layers3 size={17} /><span>{state.showUpper ? 'ALLE LEVEL' : 'LEVEL 0'}</span></button><button className="icon-button regenerate-button" onClick={onRequestRegenerate} title="Karte neu generieren"><RotateCcw size={16} /></button></div>
+        <div className="top-actions"><span className="enemy-count"><span>{String(livingEnemies).padStart(2, '0')}</span> HOSTILES</span><button className="icon-button level-toggle" onClick={onToggleLevels} title={state.showUpper ? 'Obere Etagen ausblenden' : 'Obere Etagen einblenden'}><Layers3 size={17} /><span>{state.showUpper ? 'ALLE LEVEL' : 'LEVEL 0'}</span></button><button className="icon-button tablet-rotate-button" aria-label="Kamera drehen" title="Kamera drehen" onClick={() => window.dispatchEvent(new KeyboardEvent('keydown', { key: 'q' }))}><RotateCcw size={16} /></button><button className="icon-button regenerate-button" onClick={onRequestRegenerate} title="Karte neu generieren"><Sparkles size={16} /></button></div>
       </header>
       {state.phase === 'enemy' && <div className="enemy-turn-banner" role="status" aria-live="polite"><Radio size={15} /> ENEMY TURN</div>}
 
-      <aside className="left-rail">
-        <div className="rail-heading"><span>OPERATIVES</span><b>{state.units.filter((unit) => unit.team === 'player' && unit.hp > 0).length} / 3</b></div>
-        {state.units.filter((unit) => unit.team === 'player').map((unit, index) => (
-          <button key={unit.id} onClick={() => onSelect(unit.id)} disabled={state.phase !== 'player' || unit.hp <= 0} className={`roster-unit ${unit.id === selected?.id ? 'selected' : ''} ${unit.hp <= 0 ? 'fallen' : ''}`}>
-            <span className="roster-number">0{index + 1}</span><span className="roster-avatar" style={{ '--unit-color': unit.color }}>{unit.className.slice(0, 1)}</span><span className="roster-copy"><b>{unit.name}</b><small>{unit.className}</small></span><span className="roster-health">{unit.hp}<i>/ {unit.maxHp}</i></span>
-          </button>
-        ))}
-        <div className="rail-divider" />
-        <div className="mission-label"><Radio size={13} /><span>MISSION STATUS</span></div>
-        <p className="mission-objective">Eliminiere feindliche Kräfte.</p>
-        <div className="objective-meter"><i style={{ width: `${(eliminatedEnemies / totalEnemies) * 100}%` }} /></div>
-        <div className="objective-count"><span>HOSTILES ELIMINIERT</span><b>{eliminatedEnemies} / {totalEnemies}</b></div>
+      <aside className={`left-rail ${missionOpen ? '' : 'is-collapsed'}`}>
+        <button className="mission-toggle" aria-expanded={missionOpen} aria-controls="mission-status-body" onClick={() => setMissionOpen((open) => !open)}>
+          <span className="mission-label"><Radio size={13} /><span>MISSION STATUS</span></span>
+          <ChevronDown size={14} className="stack-chevron" />
+        </button>
+        <div id="mission-status-body" className="mission-body">
+          <p className="mission-objective">Eliminiere feindliche Kräfte.</p>
+          <div className="objective-meter"><i style={{ width: `${(eliminatedEnemies / totalEnemies) * 100}%` }} /></div>
+          <div className="objective-count"><span>HOSTILES ELIMINIERT</span><b>{eliminatedEnemies} / {totalEnemies}</b></div>
+        </div>
       </aside>
 
       <div className={`right-stack ${stackOpen ? '' : 'is-collapsed'}`}>
@@ -121,7 +143,7 @@ export function TacticalHud({ state, selected, target, hasShootableEnemy, seedCo
           <ChevronDown size={14} className="stack-chevron" />
         </button>
         <div id="einsatz-stack-body" className="stack-body">
-          <UnitPanel unit={selected} onSelect={onSelect} units={state.units} flankedBy={selected ? getFlankedBy(state, selected) : []} />
+          <UnitPanel unit={selected} onSelect={onSelect} units={state.units} flankedBy={selected ? getFlankedBy(state, selected) : []} canSwitch={state.phase === 'player'} />
           {pendingMove && <PositionPanel cover={pendingCover} pendingMoveCost={pendingMoveCost} />}
           <CombatPreview shooter={selected} target={target} state={state} hasShootableEnemy={hasShootableEnemy} />
           <section className="battle-log"><div className="log-heading"><span>COMMS LOG</span><span className="log-live">LIVE</span></div>{state.logs.slice(0, 3).map((entry) => <p key={entry.id} className={`log-entry ${entry.kind}`}><i />{entry.text}</p>)}</section>

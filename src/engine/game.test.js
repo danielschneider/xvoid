@@ -209,12 +209,47 @@ test('enemies advance toward the nearest player during their turn', () => {
   const enemy = state.units.find((unit) => unit.aiRole === 'raider');
   const target = state.units[0];
   const distanceBefore = Math.hypot(enemy.x - target.x, enemy.z - target.z);
-  const enemyTurn = { ...gameReducer(state, { type: 'end-turn' }), enemyTurnOrder: [enemy.id], enemyTurnIndex: 0 };
+  const enemyTurn = { ...gameReducer(state, { type: 'end-turn' }), enemyTurnOrder: [enemy.id], enemyTurnIndex: 0, alertedGroups: [enemy.groupId] };
   const afterAction = gameReducer(enemyTurn, { type: 'enemy-step' });
   const movedEnemy = afterAction.units.find((unit) => unit.id === enemy.id);
   const distanceAfter = Math.hypot(movedEnemy.x - target.x, movedEnemy.z - target.z);
   assert.equal(afterAction.lastShot, null);
   assert.ok(distanceAfter < distanceBefore);
+});
+
+test('unalerted enemies never approach or shoot, and stay near their post', () => {
+  const state = createInitialState(42);
+  const enemies = state.units.filter((unit) => unit.team === 'alien');
+  for (let round = 0; round < 20; round += 1) {
+    let turn = { ...state, phase: 'enemy', alertedGroups: [], enemyTurnOrder: enemies.map((unit) => unit.id), enemyTurnIndex: 0 };
+    while (turn.enemyTurnIndex < turn.enemyTurnOrder.length) {
+      turn = gameReducer(turn, { type: 'enemy-step' });
+      if (turn.movement) turn = gameReducer(turn, { type: 'complete-movement', id: turn.movement.id });
+    }
+    assert.equal(turn.lastShot, null);
+    for (const enemy of turn.units.filter((unit) => unit.team === 'alien')) {
+      assert.ok(Math.hypot(enemy.x - enemy.postX, enemy.z - enemy.postZ) <= 3 + 1e-9);
+    }
+  }
+});
+
+test('enemies in one spawn cluster share a group, and a sighting alerts the whole group', () => {
+  const state = createInitialState(42);
+  const enemies = state.units.filter((unit) => unit.team === 'alien');
+  for (const a of enemies) {
+    for (const b of enemies) {
+      if (Math.hypot(a.x - b.x, a.z - b.z) <= 2) assert.equal(a.groupId, b.groupId);
+    }
+  }
+  const spotted = enemies[0];
+  const groupMembers = enemies.filter((unit) => unit.groupId === spotted.groupId);
+  const player = state.units.find((unit) => unit.team === 'player');
+  const seen = { ...state, units: state.units.map((unit) => (
+    unit.id === spotted.id ? { ...unit, x: player.x, z: player.z, level: player.level } : unit
+  )) };
+  const refreshed = gameReducer(seen, { type: 'end-turn' });
+  assert.ok(refreshed.alertedGroups.includes(spotted.groupId));
+  assert.ok(groupMembers.every((unit) => refreshed.alertedGroups.includes(unit.groupId)));
 });
 
 test('guards hold their assigned post when no player is visible', () => {
@@ -229,7 +264,7 @@ test('guards hold their assigned post when no player is visible', () => {
     if (unit.id === guard.id) return { ...unit, x: guard.postX, z: guard.postZ };
     return { ...unit, hp: 0 };
   });
-  const enemyTurn = { ...state, units, phase: 'enemy', enemyTurnOrder: [guard.id], enemyTurnIndex: 0 };
+  const enemyTurn = { ...state, units, phase: 'enemy', enemyTurnOrder: [guard.id], enemyTurnIndex: 0, alertedGroups: [guard.groupId] };
   const afterAction = gameReducer(enemyTurn, { type: 'enemy-step' });
   const heldGuard = afterAction.units.find((unit) => unit.id === guard.id);
   assert.equal(heldGuard.x, guard.postX);
@@ -300,7 +335,7 @@ test('stalkers choose a concealed forward route when one is available', () => {
   ));
   assert.ok(visibleForwardPathExists);
 
-  const enemyTurn = { ...state, units, phase: 'enemy', enemyTurnOrder: [stalker.id], enemyTurnIndex: 0 };
+  const enemyTurn = { ...state, units, phase: 'enemy', enemyTurnOrder: [stalker.id], enemyTurnIndex: 0, alertedGroups: [stalker.groupId] };
   const afterAction = gameReducer(enemyTurn, { type: 'enemy-step' });
   const destination = afterAction.movement.path.at(-1);
   assert.ok(Math.hypot(destination.x - center, destination.z - center) < 6);

@@ -52,8 +52,40 @@ function shuffle(items, random) {
 
 const spawnDistance = (a, b) => Math.hypot(a.x - b.x, a.z - b.z);
 
+// Enemies within GROUP_RANGE of each other (chained) form one group. A group is
+// alerted once any member is visible to the squad; only alerted groups hunt or shoot.
+const GROUP_RANGE = 2;
+// Unalerted enemies drift around their post: at most WANDER_STEPS per move, never
+// further than WANDER_RADIUS from the post.
+const WANDER_STEPS = 2;
+const WANDER_RADIUS = 3;
+const WANDER_CHANCE = 0.6;
+
+function assignEnemyGroups(cells) {
+  const groupIds = cells.map(() => -1);
+  let nextGroup = 0;
+  cells.forEach((_, start) => {
+    if (groupIds[start] >= 0) return;
+    const stack = [start];
+    groupIds[start] = nextGroup;
+    while (stack.length > 0) {
+      const current = stack.pop();
+      cells.forEach((other, index) => {
+        if (groupIds[index] < 0 && spawnDistance(cells[current], other) <= GROUP_RANGE) {
+          groupIds[index] = nextGroup;
+          stack.push(index);
+        }
+      });
+    }
+    nextGroup += 1;
+  });
+  return groupIds;
+}
+
 // Player squad: all units within SQUAD_RADIUS of each other and mutually reachable.
 const SQUAD_RADIUS = 2;
+// Hard minimum distance between any enemy spawn and any player spawn, regardless of line of sight.
+const MIN_ENEMY_SPAWN_DISTANCE = ENEMY_SHOT_RANGE;
 
 function* squadClusters(map, candidates, random) {
   for (const center of shuffle(candidates, random)) {
@@ -74,27 +106,38 @@ function* squadClusters(map, candidates, random) {
   }
 }
 
-// Enemies spread across the map in groups of one or two. Every unit keeps at
-// least `spacing` distance from every unit of every other group; only the two
-// members of one group sit close together.
-function placeEnemyGroups(candidates, count, random, spacing) {
+// Enemies spread across the map in groups of one or two. Leaders are chosen by
+// farthest-point sampling: each new leader is one of the cells furthest from all
+// enemies placed so far, which covers every quadrant. A random pick among the
+// top candidates keeps layouts varied per seed. Only partners sit close together.
+const FARTHEST_POOL = 6;
+
+function placeEnemyGroups(candidates, count, random) {
   const placed = [];
-  const isFree = (cell, ignore = null) => !placed.some((other) => (
-    other !== ignore && spawnDistance(other, cell) < spacing
-  ));
-  for (const leader of shuffle(candidates, random)) {
-    if (placed.length >= count) break;
-    if (!isFree(leader)) continue;
+  const distanceToPlaced = (cell) => (
+    placed.length === 0 ? Infinity : Math.min(...placed.map((other) => spawnDistance(other, cell)))
+  );
+  const pickLeader = () => {
+    const ranked = shuffle(candidates, random)
+      .filter((cell) => !placed.some((unit) => spawnDistance(unit, cell) === 0))
+      .map((cell) => ({ cell, distance: distanceToPlaced(cell) }))
+      .sort((a, b) => b.distance - a.distance);
+    if (ranked.length === 0) return null;
+    return ranked[Math.floor(random() * Math.min(FARTHEST_POOL, ranked.length))].cell;
+  };
+  while (placed.length < count) {
+    const leader = pickLeader();
+    if (!leader) return null;
     placed.push(leader);
     if (placed.length < count && random() < 0.5) {
       const partner = shuffle(
         candidates.filter((other) => spawnDistance(other, leader) >= 1 && spawnDistance(other, leader) <= 2),
         random,
-      ).find((other) => !placed.some((unit) => spawnDistance(unit, other) === 0) && isFree(other, leader));
+      ).find((other) => !placed.some((unit) => spawnDistance(unit, other) === 0));
       if (partner) placed.push(partner);
     }
   }
-  return placed.length >= count ? placed.slice(0, count) : null;
+  return placed.slice(0, count);
 }
 
 function createStartingUnits(map, seed) {
@@ -132,17 +175,15 @@ function createStartingUnits(map, seed) {
       if (enemySpawns) break;
       const enemyCandidates = safeCells.filter((cell) => (
         cluster.reachable.has(cellKey(cell))
-        && !cluster.squad.some((player) => spawnDistance(player, cell) === 0)
+        && cluster.squad.every((player) => spawnDistance(player, cell) > MIN_ENEMY_SPAWN_DISTANCE)
         && (!strict || cluster.squad.every((player) => (
           spawnDistance(cell, player) > VISION_RANGE || !hasLineOfSight(map, player, cell)
         )))
       ));
-      for (let spacing = Math.floor(map.size * 0.3); spacing >= 2 && !enemySpawns; spacing -= 1) {
-        const placed = placeEnemyGroups(enemyCandidates, enemyCount, random, spacing);
-        if (placed) {
-          playerSpawns = cluster.squad;
-          enemySpawns = placed;
-        }
+      const placed = placeEnemyGroups(enemyCandidates, enemyCount, random);
+      if (placed) {
+        playerSpawns = cluster.squad;
+        enemySpawns = placed;
       }
     }
     if (enemySpawns) break;
@@ -158,6 +199,7 @@ function createStartingUnits(map, seed) {
     z: playerSpawns[index].z,
     level: 0,
   }));
+  const groupIds = assignEnemyGroups(enemySpawns);
   const enemies = enemySpawns.map((spawn, index) => {
     const template = randomizedRoles[index % randomizedRoles.length];
     return {
@@ -165,6 +207,7 @@ function createStartingUnits(map, seed) {
       id: `raider-${String(index + 1).padStart(2, '0')}`,
       team: 'alien',
       aiRole: template.role,
+      groupId: groupIds[index],
       x: spawn.x,
       z: spawn.z,
       level: 0,
@@ -204,6 +247,8 @@ export function createInitialState(seed = 20261024, generation = 0) {
     shootMode: false,
     enemyTurnOrder: [],
     enemyTurnIndex: 0,
+    // Enemy group ids that the squad has revealed. Alerted groups stay alerted.
+    alertedGroups: [],
     movement: null,
     turn: 1,
     phase: 'player',
@@ -362,8 +407,9 @@ function useAbility(state) {
   };
 }
 
-function endTurn(state) {
-  if (state.phase !== 'player' || state.movement) return state;
+function endTurn(stateIn) {
+  if (stateIn.phase !== 'player' || stateIn.movement) return stateIn;
+  const state = refreshAlerts(stateIn);
   const enemyTurnOrder = state.units.filter((unit) => unit.team === 'alien' && unit.hp > 0).map((unit) => unit.id);
   return {
     ...state,
@@ -376,7 +422,51 @@ function endTurn(state) {
   };
 }
 
-function enemyStep(state) {
+// Marks every enemy group that has a member inside the squad's vision as alerted.
+function refreshAlerts(state) {
+  const players = state.units.filter((unit) => unit.team === 'player' && unit.hp > 0);
+  const visibleCells = getVisibleCells(state.map, players);
+  const alerted = new Set(state.alertedGroups ?? []);
+  for (const unit of state.units) {
+    if (unit.team === 'alien' && unit.hp > 0 && visibleCells.has(cellKey(unit))) alerted.add(unit.groupId);
+  }
+  return { ...state, alertedGroups: [...alerted] };
+}
+
+function moveEnemy(state, enemy, destination, logText) {
+  const last = destination.path[destination.path.length - 1];
+  const previous = destination.path.length > 1 ? destination.path[destination.path.length - 2] : enemy;
+  const facing = facingToward(previous, last);
+  return {
+    ...state,
+    movement: { id: Date.now(), unitId: enemy.id, path: [enemy, ...destination.path], step: 0 },
+    units: state.units.map((unit) => unit.id === enemy.id
+      ? { ...unit, x: last.x, z: last.z, level: last.level, ap: unit.ap - 1, facing }
+      : unit),
+    enemyTurnIndex: state.enemyTurnIndex + 1,
+    logs: addLog(state, logText, 'move'),
+  };
+}
+
+// Unalerted enemy: drifts randomly around its post without knowing where the squad is.
+function wanderEnemy(state, enemy, random = Math.random) {
+  const skip = (text) => ({
+    ...state,
+    enemyTurnIndex: state.enemyTurnIndex + 1,
+    logs: text ? addLog(state, text, 'combat') : state.logs,
+  });
+  if (enemy.ap < 1 || random() > WANDER_CHANCE) return skip(null);
+  const blocked = new Set(state.units.filter((unit) => unit.id !== enemy.id && unit.hp > 0).map(cellKey));
+  const options = [...getReachable(state.map, enemy, blocked, WANDER_STEPS).values()]
+    .map((path) => ({ ...path, cell: path.path[path.path.length - 1] }))
+    .filter(({ cell }) => Math.hypot(cell.x - enemy.postX, cell.z - enemy.postZ) <= WANDER_RADIUS);
+  if (options.length === 0) return skip(null);
+  const destination = options[Math.floor(random() * options.length)];
+  return moveEnemy(state, enemy, destination, `${enemy.name} patrouilliert.`);
+}
+
+function enemyStep(stateIn) {
+  const state = refreshAlerts(stateIn);
   if (state.phase !== 'enemy' || state.enemyTurnIndex >= state.enemyTurnOrder.length) return state;
   const enemy = state.units.find((unit) => unit.id === state.enemyTurnOrder[state.enemyTurnIndex] && unit.hp > 0);
   if (!enemy) return { ...state, enemyTurnIndex: state.enemyTurnIndex + 1 };
@@ -386,6 +476,8 @@ function enemyStep(state) {
     Math.hypot(a.x - enemy.x, a.z - enemy.z) - Math.hypot(b.x - enemy.x, b.z - enemy.z)
   ))[0];
   if (!target) return { ...state, enemyTurnIndex: state.enemyTurnIndex + 1 };
+
+  if (!state.alertedGroups.includes(enemy.groupId)) return wanderEnemy(state, enemy);
 
   const distance = Math.hypot(target.x - enemy.x, target.z - enemy.z);
   const visibleCells = getVisibleCells(state.map, players);
@@ -452,18 +544,12 @@ function enemyStep(state) {
       logs: addLog(state, `${enemy.name} ${decision}.`, 'combat'),
     };
   }
-  const last = destination.path[destination.path.length - 1];
-  const previous = destination.path.length > 1 ? destination.path[destination.path.length - 2] : enemy;
-  const facing = facingToward(previous, last);
-  return {
-    ...state,
-    movement: { id: Date.now(), unitId: enemy.id, path: [enemy, ...destination.path], step: 0 },
-    units: state.units.map((unit) => unit.id === enemy.id
-      ? { ...unit, x: last.x, z: last.z, level: last.level, ap: unit.ap - 1, facing }
-      : unit),
-    enemyTurnIndex: state.enemyTurnIndex + 1,
-    logs: addLog(state, `${enemy.name} ${retreating ? 'zieht sich zurück' : role === 'guard' ? 'kehrt zum Posten zurück' : 'rückt vor'}.`, 'move'),
-  };
+  return moveEnemy(
+    state,
+    enemy,
+    destination,
+    `${enemy.name} ${retreating ? 'zieht sich zurück' : role === 'guard' ? 'kehrt zum Posten zurück' : 'rückt vor'}.`,
+  );
 }
 
 function finishEnemyTurn(state) {
@@ -511,11 +597,11 @@ export function gameReducer(state, action) {
       return { ...state, moveMode: !state.moveMode, shootMode: false, targetId: null };
     case 'move':
       if (state.phase !== 'player' || state.movement) return state;
-      return selectNextReadyPlayer(moveUnit(state, action.destination));
+      return selectNextReadyPlayer(refreshAlerts(moveUnit(state, action.destination)));
     case 'attack':
       if (state.phase !== 'player' || state.movement) return state;
       // Selection moves on only after the shot has been shown (see finish-shot).
-      return { ...fireAt(state, action.id), shootMode: false };
+      return { ...refreshAlerts(fireAt(state, action.id)), shootMode: false };
     case 'ability':
       if (state.phase !== 'player' || state.movement) return state;
       return selectNextReadyPlayer(useAbility(state));
@@ -530,7 +616,7 @@ export function gameReducer(state, action) {
       const mover = state.units.find((unit) => unit.id === state.movement.unitId);
       const cleared = { ...state, movement: null };
       return mover?.team === 'alien' && state.phase === 'enemy'
-        ? resolveOverwatch(cleared, mover.id)
+        ? resolveOverwatch(refreshAlerts(cleared), mover.id)
         : cleared;
     }
     case 'enemy-step':
