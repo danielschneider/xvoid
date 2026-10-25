@@ -50,14 +50,6 @@ test('new seeds vary map size, squad size, and spawn positions deterministically
     reachable.add(cellKey(players[0]));
     assert.ok(state.units.every((unit) => reachable.has(cellKey(unit))));
 
-    assert.equal(state.map.objectives.length, 3);
-    assert.equal(new Set(state.map.objectives.map(cellKey)).size, 3);
-    assert.ok(state.map.objectives.every((objective) => state.map.cells[cellKey(objective)]?.walkable));
-    for (let objectiveIndex = 1; objectiveIndex < state.map.objectives.length; objectiveIndex += 1) {
-      const previous = state.map.objectives[objectiveIndex - 1];
-      const objective = state.map.objectives[objectiveIndex];
-      assert.ok(Math.hypot(objective.x - previous.x, objective.z - previous.z) >= state.map.size * 0.1);
-    }
 
     const middle = state.map.size / 2;
     const quadrants = [

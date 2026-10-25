@@ -268,6 +268,19 @@ function WallField({ cells, selected }) {
   });
 }
 
+// Flat shield glyph lying on the ground, centred on the cell (shape Y maps to world -Z).
+const SHIELD_GEOMETRY = (() => {
+  const shape = new THREE.Shape();
+  shape.moveTo(-0.17, 0.2);
+  shape.lineTo(0.17, 0.2);
+  shape.lineTo(0.17, 0.02);
+  shape.quadraticCurveTo(0.17, -0.14, 0, -0.22);
+  shape.quadraticCurveTo(-0.17, -0.14, -0.17, 0.02);
+  shape.closePath();
+  return new THREE.ShapeGeometry(shape);
+})();
+const SHIELD_COLOR = { 1: '#ffd34d', 2: '#7fe08a' };
+
 function ReachableOverlay({ paths, map, coverProfiles }) {
   const entries = useMemo(() => [...paths.entries()].map(([key, value]) => {
     const cell = map.cells[key];
@@ -290,7 +303,6 @@ function ReachableOverlay({ paths, map, coverProfiles }) {
     // Tile color is the AP cost (cyan = 1 AP, orange = 2 AP). Cover on that cell is a separate inner marker.
     const color = apCost === 1 ? '#00cfff' : '#ffc247';
     const tier = coverProfiles?.get(cellKey(cell))?.tier ?? 0;
-    const coverColor = tier === 2 ? '#ffffff' : '#7fe08a';
     const y = cell.level * LEVEL_HEIGHT;
     return (
       <group key={cellKey(cell)}>
@@ -299,9 +311,8 @@ function ReachableOverlay({ paths, map, coverProfiles }) {
           <meshBasicMaterial color={color} transparent opacity={steps <= 5 ? 0.4 : 0.5} depthWrite={false} toneMapped={false} />
         </mesh>
         {tier > 0 && (
-          <mesh position={[cell.x - 15.5, y + 0.024, cell.z - 15.5]} rotation={[-Math.PI / 2, 0, 0]}>
-            <planeGeometry args={[0.3, 0.3]} />
-            <meshBasicMaterial color={coverColor} transparent opacity={0.95} depthWrite={false} toneMapped={false} />
+          <mesh geometry={SHIELD_GEOMETRY} position={[cell.x - 15.5, y + 0.024, cell.z - 15.5]} rotation={[-Math.PI / 2, 0, 0]}>
+            <meshBasicMaterial color={SHIELD_COLOR[tier]} transparent opacity={0.95} depthWrite={false} toneMapped={false} side={THREE.DoubleSide} />
           </mesh>
         )}
         <Line points={outline} color={color} lineWidth={1.2} transparent opacity={0.95} />
@@ -371,25 +382,6 @@ function FogOfWar({ cells, visibleCellKeys }) {
       <planeGeometry args={[1, 1]} />
       <meshBasicMaterial color="#080d0e" transparent opacity={0.9} depthWrite={false} />
     </mesh>
-  ));
-}
-
-function ObjectiveMarkers({ objectives, visibleCellKeys }) {
-  return objectives.filter((objective) => visibleCellKeys.has(cellKey(objective))).map((objective) => (
-    <group key={objective.id} position={[objective.x - 15.5, objective.level * LEVEL_HEIGHT, objective.z - 15.5]}>
-      <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, 0.055, 0]}>
-        <ringGeometry args={[0.34, 0.4, 24]} />
-        <meshBasicMaterial color="#f0c66e" transparent opacity={0.82} side={THREE.DoubleSide} />
-      </mesh>
-      <mesh position={[0, 0.22, 0]}>
-        <cylinderGeometry args={[0.045, 0.09, 0.34, 6]} />
-        <meshStandardMaterial color="#8f7846" roughness={0.62} metalness={0.48} />
-      </mesh>
-      <mesh position={[0, 0.43, 0]}>
-        <octahedronGeometry args={[0.11, 0]} />
-        <meshBasicMaterial color="#f0c66e" />
-      </mesh>
-    </group>
   ));
 }
 
@@ -875,7 +867,6 @@ function Battlefield({ state, selected, coverProfiles, focusUnit, focusToken, ta
       <WallField cells={revealedCells} selected={selected} />
       <CoverField cells={revealedCells} selected={selected} />
       <FogOfWar cells={visibleCells} visibleCellKeys={visibleCellKeys} />
-      <ObjectiveMarkers objectives={state.map.objectives} visibleCellKeys={visibleCellKeys} />
       {selected?.ap > 0 && <ReachableOverlay paths={paths} map={state.map} coverProfiles={coverProfiles} />}
       {pendingPath && selected && <MoveTrace path={pendingPath} start={selected} />}
       {pendingMove && <SideCoverMarkers state={state} unit={pendingMove} />}

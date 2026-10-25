@@ -55,10 +55,9 @@ Alle Rollen greifen weiterhin nur aufgedeckte Spieler mit freier Sichtlinie an. 
 - Spieler- und Gegnerspawns liegen auf begehbaren Feldern und sind weiter als die gegnerische Erstschussreichweite voneinander entfernt.
 - Jeder Spawn ist über das begehbare Wegenetz mit dem anderen Team verbunden.
 - Jeder Kartenquadrant enthält Deckung und erhöhte Positionen.
-- Drei seedstabile Kontrollpunkt-Markierungen liegen auf begehbaren Feldern entlang der Kartenmitte und bleiben im Nebel verborgen, bis sie aufgedeckt sind.
 - Der vollständige Seed ist im HUD sichtbar und lässt sich kopieren.
 
-Ein Test prüft diese Eigenschaften über 60 Seeds. Die Kontrollpunkte sind derzeit strategische Wegmarken; Capture-, Extraktions- und Siegbedingungen bleiben Teil der Missionslogik aus Priorität 1.
+Ein Test prüft diese Eigenschaften über 60 Seeds. Das Ziel der Mission ist die Eliminierung aller feindlichen Kräfte.
 
 ## Priorität 6: Große Gefechte flüssig halten
 

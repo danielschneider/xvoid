@@ -108,7 +108,7 @@ export function TacticalHud({ state, selected, target, hasShootableEnemy, seedCo
         ))}
         <div className="rail-divider" />
         <div className="mission-label"><Radio size={13} /><span>MISSION STATUS</span></div>
-        <p className="mission-objective">Nutze die Kontrollpunkte als Wegmarken.<br />Eliminiere feindliche Kräfte.</p>
+        <p className="mission-objective">Eliminiere feindliche Kräfte.</p>
         <div className="objective-meter"><i style={{ width: `${(eliminatedEnemies / totalEnemies) * 100}%` }} /></div>
         <div className="objective-count"><span>HOSTILES ELIMINIERT</span><b>{eliminatedEnemies} / {totalEnemies}</b></div>
       </aside>

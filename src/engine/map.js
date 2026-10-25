@@ -232,23 +232,7 @@ export function createBattlefield(seed = Date.now()) {
     }
   }
 
-  const objectiveTargets = [0.35, 0.5, 0.65].map((ratio) => ({ x: middle, z: Math.round(size * ratio) }));
-  const objectiveCandidates = Object.values(cells).filter((cell) => (
-    cell.level === 0 && cell.terrain === 'floor' && cell.walkable && !cell.structure
-  ));
-  const usedObjectiveCells = new Set();
-  const objectives = objectiveTargets.map((target, index) => {
-    const candidates = objectiveCandidates
-      .filter((cell) => !usedObjectiveCells.has(cellKey(cell)))
-      .sort((a, b) => (
-        Math.hypot(a.x - target.x, a.z - target.z) - Math.hypot(b.x - target.x, b.z - target.z)
-      ));
-    const cell = candidates[0];
-    usedObjectiveCells.add(cellKey(cell));
-    return { id: `control-${index + 1}`, x: cell.x, z: cell.z, level: 0 };
-  });
-
-  return { seed, size, cells, transitions, rooms: buildings, objectives };
+  return { seed, size, cells, transitions, rooms: buildings };
 }
 
 export function getReachable(map, start, blocked = new Set(), maxSteps = 10) {
