@@ -20,8 +20,8 @@ Das Spiel braucht ein klares Ziel über das Ausschalten aller Gegner hinaus. Ein
 Overwatch und Deckung sollten mehr sein als AP-verbrauchende Statuswerte.
 
 - **Overwatch:** Die Einheit gibt AP aus und reagiert einmal mit einem Schuss, wenn ein sichtbarer Gegner eine definierte Reichweite betritt oder sich darin bewegt.
-- **Deckung suchen:** Verringert bis zum nächsten Spielerzug eingehenden Schaden oder verbessert die Deckungsstufe.
-- **Flankieren:** Schüsse von der Seite oder von hinten umgehen einen Teil des Deckungsbonus.
+- **Deckung:** Jede Seite eines Feldes ist durch den Nachbarn voll (Wand, Pfeiler), halb (Konsole) oder gar nicht gedeckt. Die Deckung gilt je nach Angriffsseite.
+- **Flankieren:** Greift ein Gegner von einer ungedeckten Seite an, während das Ziel auf einer anderen Seite gedeckt ist, entfällt die Deckung für diesen Schuss. Flankierte Einheiten werden im HUD und auf der Karte markiert.
 - **Höhe:** Erhöht Sichtweite oder Trefferchance, während niedrige Deckung weniger schützt.
 
 Fähigkeiten brauchen klare Dauer, Auslöser und Kosten. Der HUD sollte vor dem Einsatz anzeigen, was sich ändert.
@@ -76,7 +76,7 @@ Wenn der taktische Kern stabil ist, können kurze Kampagnen den Wiederspielwert 
 ## Empfohlene Reihenfolge
 
 1. Missionsziel, Extraktion sowie Sieg- und Niederlagebedingungen.
-2. Overwatch, Deckung und Flankieren als funktionierende Regeln.
+2. Overwatch, seitenbezogene Deckung und Flankieren als funktionierende Regeln.
 3. Treffer-, Gefahren- und Sichtvorschauen.
 4. Rollenbasierte Gegner-KI und erklärbare Aktionen.
 5. Qualitätsprüfungen für prozedurale Karten und große Spawnzahlen.

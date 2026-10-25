@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { computeCritChance, computeDistanceModifier, computeHitChance, createInitialState, CRIT_CHANCE, CRIT_MULTIPLIER, gameReducer, HUNKER_COVER_BONUS } from './game.js';
-import { cellKey, getReachable, getVisibleCells, hasLineOfSight, isPassable, VISION_RANGE } from './map.js';
+import { computeCoverFor, computeCritChance, computeDistanceModifier, computeHitChance, createInitialState, CRIT_CHANCE, CRIT_MULTIPLIER, gameReducer, getFlankedBy } from './game.js';
+import { cellKey, getCoverProfile, getReachable, getSideCover, getVisibleCells, hasLineOfSight, isPassable, VISION_RANGE } from './map.js';
 
 function adjacentWalkableCell(map, unit) {
   return Object.values(map.cells).find((cell) => (
@@ -403,33 +403,6 @@ test('a single overwatch reaction shot consumes the watcher stance', () => {
   assert.equal(second.lastShot?.id, first.lastShot?.id);
 });
 
-test('deckung activation faces the nearest visible enemy and enemies also use cover', () => {
-  const state = createInitialState(42);
-  const vanguard = state.units.find((unit) => unit.id === 'vanguard');
-  const nearby = adjacentWalkableCell(state.map, vanguard);
-  assert.ok(nearby);
-  const enemy = state.units.find((unit) => unit.id === 'raider-01');
-  const placed = isolateEncounter(state, {
-    vanguard: {},
-    [enemy.id]: { x: nearby.x, z: nearby.z, level: nearby.level },
-  });
-  const hunkered = gameReducer(placed, { type: 'ability', name: 'hunker' });
-  const unit = hunkered.units.find((entry) => entry.id === 'vanguard');
-  assert.equal(unit.status, 'hunker');
-  assert.equal(unit.coverFacing, Math.atan2(nearby.x - vanguard.x, nearby.z - vanguard.z));
-});
-
-test('hunkering lowers the hit chance by the Deckung bonus on open ground', () => {
-  const state = createInitialState(42);
-  const shooter = { x: 10, z: 10, level: 0 };
-  // Target faces the shooter head-on, so the shot is frontal and the full Deckung bonus applies.
-  const target = { x: 10, z: 13, level: 0, status: null, coverFacing: Math.atan2(shooter.x - 10, shooter.z - 13), id: 'x' };
-  state.map.cells[cellKey(target)].cover = 0;
-  const open = computeHitChance(state, shooter, target, false);
-  const hunker = computeHitChance(state, shooter, { ...target, status: 'hunker' }, false);
-  assert.ok(Math.abs((open - hunker) - HUNKER_COVER_BONUS) < 1e-9);
-});
-
 test('shooting at close range gets a distance bonus while long range keeps its penalty', () => {
   assert.ok(Math.abs(computeDistanceModifier(3) - 0.2) < 1e-9);
   assert.equal(computeDistanceModifier(5), 0);
@@ -446,52 +419,99 @@ test('shooting at close range gets a distance bonus while long range keeps its p
   assert.ok(neutral > far);
 });
 
-test('a flank bypasses part of the Deckung penalty', () => {
+test('side cover reads the four neighbouring cells on the same level', () => {
   const state = createInitialState(42);
-  const target = { x: 10, z: 10, level: 0, status: 'hunker', coverFacing: 0, id: 'x' };
-  state.map.cells[cellKey(target)].cover = 0;
-  const frontal = computeHitChance(state, { x: 10, z: 13, level: 0 }, target, false);
-  const flank = computeHitChance(state, { x: 13, z: 10, level: 0 }, target, false);
-  assert.ok(flank > frontal);
+  const cell = { x: 10, z: 10, level: 0 };
+  const cells = state.map.cells;
+  for (const key of Object.keys(cells)) if (cells[key].x >= 8 && cells[key].x <= 12 && cells[key].z >= 8 && cells[key].z <= 12) cells[key].cover = 0;
+  cells[cellKey({ x: 10, z: 9, level: 0 })].cover = 2;
+  cells[cellKey({ x: 11, z: 10, level: 0 })].cover = 1;
+  assert.deepEqual(getSideCover(state.map, cell), { N: 2, E: 1, S: 0, W: 0 });
 });
 
-test('flanking has no effect when the target is not in Deckung', () => {
+test('cover profile of a destination reports the strongest side and labels it', () => {
   const state = createInitialState(42);
-  const target = { x: 10, z: 10, level: 0, status: null, coverFacing: 0, id: 'x' };
-  state.map.cells[cellKey(target)].cover = 0;
-  const frontal = computeHitChance(state, { x: 10, z: 13, level: 0 }, target, false);
-  const flank = computeHitChance(state, { x: 13, z: 10, level: 0 }, target, false);
-  assert.equal(flank, frontal);
+  const cell = { x: 10, z: 10, level: 0 };
+  setSides(state, cell, { N: 2, E: 1 });
+  const profile = getCoverProfile(state.map, cell);
+  assert.equal(profile.tier, 2);
+  assert.equal(profile.label, 'full');
+  assert.deepEqual(profile.sides, { N: 2, E: 1, S: 0, W: 0 });
+  setSides(state, cell, { E: 1 });
+  assert.equal(getCoverProfile(state.map, cell).label, 'half');
+  setSides(state, cell, {});
+  assert.equal(getCoverProfile(state.map, cell).label, 'open');
 });
 
-test('the target action changes facing but not Deckung facing', () => {
+test('a shot from a covered side meets that side cover', () => {
   const state = createInitialState(42);
-  const vanguard = state.units.find((unit) => unit.id === 'vanguard');
-  const enemy = { ...state.units.find((unit) => unit.id === 'raider-01'), x: vanguard.x + 1, z: vanguard.z };
-  const encounter = { ...state, units: state.units.map((unit) => (unit.id === enemy.id ? enemy : { ...unit, coverFacing: 0.5 })) };
-  const aimed = gameReducer(encounter, { type: 'target', id: enemy.id });
-  const aimedVanguard = aimed.units.find((unit) => unit.id === 'vanguard');
-  assert.equal(aimedVanguard.coverFacing, 0.5);
+  const target = { x: 10, z: 10, level: 0 };
+  state.map.cells[cellKey({ x: 10, z: 9, level: 0 })].cover = 2;
+  state.map.cells[cellKey({ x: 9, z: 10, level: 0 })].cover = 0;
+  state.map.cells[cellKey({ x: 11, z: 10, level: 0 })].cover = 0;
+  state.map.cells[cellKey({ x: 10, z: 11, level: 0 })].cover = 0;
+  assert.equal(computeCoverFor(state, { x: 10, z: 7, level: 0 }, target).cover, 2);
 });
 
-test('moving clears stance and Deckung facing', () => {
+const setSides = (state, { x, z }, sides) => {
+  const offsets = { N: [0, -1], E: [1, 0], S: [0, 1], W: [-1, 0] };
+  for (const [side, [dx, dz]] of Object.entries(offsets)) {
+    state.map.cells[cellKey({ x: x + dx, z: z + dz, level: 0 })].cover = sides[side] ?? 0;
+  }
+};
+
+test('a shot from an open side next to cover is a flank and gets no cover', () => {
+  const state = createInitialState(42);
+  const target = { x: 10, z: 10, level: 0 };
+  setSides(state, target, { N: 2 });
+  assert.deepEqual(computeCoverFor(state, { x: 13, z: 10, level: 0 }, target), { cover: 0, flanked: true });
+  const covered = computeHitChance(state, { x: 10, z: 7, level: 0 }, target, false);
+  const flankShot = computeHitChance(state, { x: 13, z: 10, level: 0 }, target, false);
+  assert.ok(flankShot > covered);
+});
+
+test('an open target is never flanked', () => {
+  const state = createInitialState(42);
+  const target = { x: 10, z: 10, level: 0 };
+  setSides(state, target, {});
+  assert.deepEqual(computeCoverFor(state, { x: 13, z: 10, level: 0 }, target), { cover: 0, flanked: false });
+});
+
+test('a diagonal attacker gets the weaker of its two sides', () => {
+  const state = createInitialState(42);
+  const target = { x: 10, z: 10, level: 0 };
+  setSides(state, target, { N: 2, E: 1 });
+  // Attacker at NE: sides N (full) and E (half) -> weaker side applies.
+  assert.equal(computeCoverFor(state, { x: 13, z: 7, level: 0 }, target).cover, 1);
+});
+
+test('getFlankedBy reports enemies that flank a covered player', () => {
+  const state = createInitialState(42);
+  const player = { x: 10, z: 10, level: 0, team: 'player', hp: 5, id: 'p' };
+  setSides(state, player, { N: 2 });
+  for (const x of [11, 12]) Object.assign(state.map.cells[cellKey({ x, z: 10, level: 0 })], { terrain: 'floor', walkable: true, cover: 0 });
+  const flanker = { x: 13, z: 10, level: 0, team: 'alien', hp: 3, id: 'e' };
+  const frontal = { x: 10, z: 7, level: 0, team: 'alien', hp: 3, id: 'f' };
+  const withUnits = { ...state, units: [player, flanker, frontal] };
+  assert.deepEqual(getFlankedBy(withUnits, player).map((unit) => unit.id), ['e']);
+});
+
+test('ending the enemy turn clears all stances', () => {
+  const state = createInitialState(42);
+  const stanced = { ...state, phase: 'enemy', enemyTurnOrder: [], enemyTurnIndex: 0, units: state.units.map((unit) => ({ ...unit, status: 'overwatch' })) };
+  const finished = gameReducer(stanced, { type: 'finish-enemy-turn' });
+  assert.ok(finished.units.every((unit) => unit.status === null));
+});
+
+test('moving clears stance', () => {
   const state = createInitialState(42);
   const unit = state.units[0];
   const blocked = new Set(state.units.filter((entry) => entry.id !== unit.id && entry.hp > 0).map(cellKey));
   const destination = [...getReachable(state.map, unit, blocked).values()].find((path) => path.apCost === 1)?.path.at(-1);
   assert.ok(destination);
-  const stanced = { ...state, units: state.units.map((entry) => (entry.id === unit.id ? { ...entry, status: 'hunker', coverFacing: 1 } : entry)) };
+  const stanced = { ...state, units: state.units.map((entry) => (entry.id === unit.id ? { ...entry, status: 'overwatch' } : entry)) };
   const moved = gameReducer(stanced, { type: 'move', destination });
-  const movedUnit = moved.units.find((entry) => entry.id === unit.id);
-  assert.equal(movedUnit.status, null);
-  assert.equal(movedUnit.coverFacing, null);
-});
-
-test('ending the enemy turn clears all stances', () => {
-  const state = createInitialState(42);
-  const stanced = { ...state, phase: 'enemy', enemyTurnOrder: [], enemyTurnIndex: 0, units: state.units.map((unit) => ({ ...unit, status: 'hunker', coverFacing: 1 })) };
-  const finished = gameReducer(stanced, { type: 'finish-enemy-turn' });
-  assert.ok(finished.units.every((unit) => unit.status === null && unit.coverFacing === null));
+  assert.equal(moved.units.find((entry) => entry.id === unit.id).status, null);
 });
 
 test('regenerate increments the generation so views remount units on level reset', () => {

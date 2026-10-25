@@ -1,12 +1,11 @@
-import { cellKey, createBattlefield, getReachable, getVisibleCells, hasLineOfSight, isPassable, VISION_RANGE } from './map.js';
+import { cellKey, createBattlefield, getCoverAgainst, getReachable, getVisibleCells, hasLineOfSight, isPassable, VISION_RANGE } from './map.js';
 
 export const SHOT_RANGE = 10;
 export const ENEMY_SHOT_RANGE = SHOT_RANGE;
 export const OVERWATCH_RANGE = 8;
-export const HUNKER_COVER_BONUS = 0.15;
-export const FLANK_ANGLE = Math.PI / 3;
-export const FLANK_COVER_BYPASS = 0.5;
 export const ENEMY_COVER_FACTOR = 0.5;
+// Cover penalty per tier: 2 = full (wall, pillar), 1 = half (console).
+export const COVER_VALUE = { 0: 0, 1: 0.2, 2: 0.4 };
 export const CRIT_CHANCE = 0.15;
 export const CRIT_MULTIPLIER = 2;
 
@@ -233,7 +232,7 @@ function moveUnit(state, destination) {
     ...state,
     movement: { id: Date.now(), unitId: unit.id, path: [unit, ...pathData.path], step: 0 },
     units: state.units.map((entry) => entry.id === unit.id
-      ? { ...entry, x: last.x, z: last.z, level: last.level, ap: entry.ap - pathData.apCost, facing, status: null, coverFacing: null }
+      ? { ...entry, x: last.x, z: last.z, level: last.level, ap: entry.ap - pathData.apCost, facing, status: null }
       : entry),
     targetId: null,
     logs: addLog(state, `${unit.name} rückt ${pathData.steps} Felder vor.`, 'move'),
@@ -242,25 +241,30 @@ function moveUnit(state, destination) {
 
 const clamp = (value, low, high) => Math.max(low, Math.min(high, value));
 
-const normalizeAngle = (angle) => Math.atan2(Math.sin(angle), Math.cos(angle));
-
 export function computeDistanceModifier(distance) {
   return (5 - distance) * 0.1;
 }
 
-// A shot is a flank when it arrives >= FLANK_ANGLE away from the side the defender's Deckung faces.
-function isFlank(shooter, target) {
-  if (target.coverFacing == null) return false;
-  const attackAngle = Math.atan2(shooter.x - target.x, shooter.z - target.z);
-  return Math.abs(normalizeAngle(attackAngle - target.coverFacing)) >= FLANK_ANGLE;
+// Cover from the side the shot arrives at. A flanking shot gets no cover.
+export function computeCoverFor(state, shooter, target) {
+  return getCoverAgainst(state.map, target, shooter);
+}
+
+// Living enemies that currently flank `target`: they have a clear shot within range
+// and arrive from a side without cover while the target is covered elsewhere.
+export function getFlankedBy(state, target) {
+  if (target.hp <= 0) return [];
+  return state.units.filter((unit) => (
+    unit.team !== target.team && unit.hp > 0
+    && Math.hypot(unit.x - target.x, unit.z - target.z) <= SHOT_RANGE
+    && hasLineOfSight(state.map, unit, target)
+    && computeCoverFor(state, unit, target).flanked
+  ));
 }
 
 export function computeHitChance(state, shooter, target, enemyShot = false) {
-  const targetCell = state.map.cells[cellKey(target)];
-  const inDeckung = target.status === 'hunker';
-  let cover = (targetCell?.cover === 2 ? 0.4 : targetCell?.cover === 1 ? 0.2 : 0)
-    + (inDeckung ? HUNKER_COVER_BONUS : 0);
-  if (inDeckung && isFlank(shooter, target)) cover *= 1 - FLANK_COVER_BYPASS;
+  const { cover: tier } = computeCoverFor(state, shooter, target);
+  const cover = COVER_VALUE[tier];
   const distance = Math.hypot(shooter.x - target.x, shooter.z - target.z);
   const distanceModifier = computeDistanceModifier(distance);
   if (enemyShot) return clamp(0.52 - cover * ENEMY_COVER_FACTOR + distanceModifier, 0.05, 0.95);
@@ -331,26 +335,15 @@ function resolveOverwatch(state, enemyId) {
   };
 }
 
-function useAbility(state, ability) {
+function useAbility(state) {
   const unit = state.units.find((entry) => entry.id === state.selectedId);
   if (!unit || unit.ap < 1 || unit.team !== 'player') return state;
-  const name = ability === 'overwatch' ? 'Overwatch' : 'Deckung suchen';
-  // Deckung faces the nearest visible enemy; flanking is measured against this fixed side.
-  let coverFacing = unit.facing;
-  if (ability === 'hunker') {
-    const players = state.units.filter((entry) => entry.team === 'player' && entry.hp > 0);
-    const visible = getVisibleCells(state.map, players);
-    const nearest = state.units
-      .filter((entry) => entry.team === 'alien' && entry.hp > 0 && visible.has(cellKey(entry)))
-      .sort((a, b) => Math.hypot(a.x - unit.x, a.z - unit.z) - Math.hypot(b.x - unit.x, b.z - unit.z))[0];
-    if (nearest) coverFacing = facingToward(unit, nearest);
-  }
   return {
     ...state,
     units: state.units.map((entry) => entry.id === unit.id
-      ? { ...entry, ap: entry.ap - 1, status: ability, coverFacing }
+      ? { ...entry, ap: entry.ap - 1, status: 'overwatch' }
       : entry),
-    logs: addLog(state, `${unit.name}: ${name}.`, 'system'),
+    logs: addLog(state, `${unit.name}: Overwatch.`, 'system'),
   };
 }
 
@@ -391,8 +384,8 @@ function enemyStep(state) {
   if (!retreating && enemy.ap > 0 && revealedTargets.length > 0) {
     const targetToShoot = role === 'raider'
       ? [...revealedTargets].sort((a, b) => {
-        const coverA = state.map.cells[cellKey(a)]?.cover || 0;
-        const coverB = state.map.cells[cellKey(b)]?.cover || 0;
+        const coverA = computeCoverFor(state, enemy, a).cover;
+        const coverB = computeCoverFor(state, enemy, b).cover;
         return (Math.hypot(a.x - enemy.x, a.z - enemy.z) + coverA * 2)
           - (Math.hypot(b.x - enemy.x, b.z - enemy.z) + coverB * 2);
       })[0]
@@ -461,10 +454,9 @@ function enemyStep(state) {
 function finishEnemyTurn(state) {
   if (state.phase !== 'enemy' || state.enemyTurnIndex < state.enemyTurnOrder.length) return state;
   const players = state.units.filter((unit) => unit.team === 'player' && unit.hp > 0);
-  const units = state.units.map((unit) => ({ ...unit, ap: unit.hp > 0 ? 2 : 0, status: null, coverFacing: null }));
-  const selectedId = players.some((unit) => unit.id === state.selectedId)
-    ? state.selectedId
-    : players[0]?.id || null;
+  const units = state.units.map((unit) => ({ ...unit, ap: unit.hp > 0 ? 2 : 0, status: null }));
+  // Every new round starts with the first living player unit in roster order.
+  const selectedId = players[0]?.id || null;
   const turn = state.turn + 1;
   return {
     ...state,
@@ -508,7 +500,7 @@ export function gameReducer(state, action) {
       return { ...fireAt(state, action.id), shootMode: false };
     case 'ability':
       if (state.phase !== 'player' || state.movement) return state;
-      return selectNextReadyPlayer(useAbility(state, action.name));
+      return selectNextReadyPlayer(useAbility(state));
     case 'end-turn':
       return endTurn(state);
     case 'advance-movement':

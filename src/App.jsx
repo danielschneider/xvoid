@@ -2,7 +2,7 @@ import { useEffect, useMemo, useReducer, useState } from 'react';
 import GameScene from './components/GameScene.jsx';
 import { TacticalHud } from './components/TacticalHud.jsx';
 import { cellKey, computeHitChance, createInitialState, gameReducer, getReachable, SHOT_RANGE } from './engine/game.js';
-import { getVisibleCells, hasLineOfSight } from './engine/map.js';
+import { getCoverProfile, getVisibleCells, hasLineOfSight } from './engine/map.js';
 
 export default function App() {
   const [state, dispatch] = useReducer(gameReducer, undefined, () => createInitialState());
@@ -84,7 +84,15 @@ export default function App() {
     const blocked = new Set(state.units.filter((unit) => unit.id !== selected.id && unit.hp > 0).map(cellKey));
     return getReachable(state.map, selected, blocked, selected.ap === 1 ? 5 : 10);
   }, [selected, state.map, state.moveMode, state.movement, state.phase, state.units]);
+  // Protection of every cell the selected unit could move to, shown as ground tint.
+  const coverProfiles = useMemo(() => {
+    const profiles = new Map();
+    if (!selected || selected.ap < 1) return profiles;
+    paths.forEach((_, key) => profiles.set(key, getCoverProfile(state.map, state.map.cells[key])));
+    return profiles;
+  }, [paths, selected, state.map]);
   const pendingPath = pendingMove ? paths.get(cellKey(pendingMove)) : null;
+  const pendingCover = pendingMove ? getCoverProfile(state.map, pendingMove) : null;
 
   useEffect(() => {
     if (pendingMove && !pendingPath) setPendingMove(null);
@@ -141,7 +149,6 @@ export default function App() {
       const key = event.key.toLowerCase();
       if (key === 'm') dispatch({ type: 'toggle-move-mode' });
       if (key === 'o') dispatch({ type: 'ability', name: 'overwatch' });
-      if (key === 'h') dispatch({ type: 'ability', name: 'hunker' });
       if (event.key === 'Enter') requestEndTurn();
     };
     window.addEventListener('keydown', onKeyDown);
@@ -185,7 +192,7 @@ export default function App() {
 
   return (
     <main className="game-shell">
-      <div className="scene-wrap"><GameScene state={state} selected={selected} focusUnit={focusUnit} focusToken={focusToken} target={target} paths={paths} pendingMove={pendingMove} visibleCellKeys={visibleCellKeys} shootableEnemyIds={shootableEnemyIds} enemyHitChances={enemyHitChances} onCellTap={tapCell} movingUnitId={state.movement?.unitId ?? null} /></div>
+      <div className="scene-wrap"><GameScene state={state} selected={selected} coverProfiles={coverProfiles} focusUnit={focusUnit} focusToken={focusToken} target={target} paths={paths} pendingMove={pendingMove} visibleCellKeys={visibleCellKeys} shootableEnemyIds={shootableEnemyIds} enemyHitChances={enemyHitChances} onCellTap={tapCell} movingUnitId={state.movement?.unitId ?? null} /></div>
       <TacticalHud
         state={state}
         selected={selected}
@@ -196,6 +203,7 @@ export default function App() {
         moveMode={state.moveMode}
         pendingMove={pendingMove}
         pendingMoveCost={pendingPath?.apCost}
+        pendingCover={pendingCover}
         nextReadyUnit={nextReadyUnit}
         onConfirmMove={confirmMove}
         onRequestEndTurn={requestEndTurn}

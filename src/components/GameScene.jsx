@@ -2,7 +2,8 @@ import { useEffect, useMemo, useRef } from 'react';
 import { Canvas, useFrame, useLoader, useThree } from '@react-three/fiber';
 import { Html, Line } from '@react-three/drei';
 import * as THREE from 'three';
-import { cellKey, hasLineOfSight } from '../engine/map.js';
+import { getFlankedBy } from '../engine/game.js';
+import { cellKey, getSideCover, hasLineOfSight } from '../engine/map.js';
 
 const LEVEL_HEIGHT = 1.5;
 const TILE_SIZE = 16;
@@ -172,6 +173,8 @@ function InstancedGround({ cells, visibleCells, meshRef }) {
     });
     meshRef.current.instanceMatrix.needsUpdate = true;
     if (meshRef.current.instanceColor) meshRef.current.instanceColor.needsUpdate = true;
+    // Raycasts use the bounding sphere; recompute it so taps on the instances are not culled.
+    meshRef.current.computeBoundingSphere();
   }, [data, dummy, meshRef]);
 
   return (
@@ -265,7 +268,7 @@ function WallField({ cells, selected }) {
   });
 }
 
-function ReachableOverlay({ paths, map }) {
+function ReachableOverlay({ paths, map, coverProfiles }) {
   const entries = useMemo(() => [...paths.entries()].map(([key, value]) => {
     const cell = map.cells[key];
     const x = cell.x - 15.5;
@@ -284,13 +287,23 @@ function ReachableOverlay({ paths, map }) {
     };
   }), [map, paths]);
   return entries.map(({ cell, apCost, steps, outline }) => {
+    // Tile color is the AP cost (cyan = 1 AP, orange = 2 AP). Cover on that cell is a separate inner marker.
     const color = apCost === 1 ? '#00cfff' : '#ffc247';
+    const tier = coverProfiles?.get(cellKey(cell))?.tier ?? 0;
+    const coverColor = tier === 2 ? '#ffffff' : '#7fe08a';
+    const y = cell.level * LEVEL_HEIGHT;
     return (
       <group key={cellKey(cell)}>
-        <mesh position={[cell.x - 15.5, cell.level * LEVEL_HEIGHT + 0.018, cell.z - 15.5]} rotation={[-Math.PI / 2, 0, 0]}>
+        <mesh position={[cell.x - 15.5, y + 0.018, cell.z - 15.5]} rotation={[-Math.PI / 2, 0, 0]}>
           <planeGeometry args={[0.86, 0.86]} />
           <meshBasicMaterial color={color} transparent opacity={steps <= 5 ? 0.4 : 0.5} depthWrite={false} toneMapped={false} />
         </mesh>
+        {tier > 0 && (
+          <mesh position={[cell.x - 15.5, y + 0.024, cell.z - 15.5]} rotation={[-Math.PI / 2, 0, 0]}>
+            <planeGeometry args={[0.3, 0.3]} />
+            <meshBasicMaterial color={coverColor} transparent opacity={0.95} depthWrite={false} toneMapped={false} />
+          </mesh>
+        )}
         <Line points={outline} color={color} lineWidth={1.2} transparent opacity={0.95} />
       </group>
     );
@@ -316,6 +329,39 @@ function AimBeam({ shooter, target, blocked }) {
       <Line points={points} color={color} lineWidth={5} transparent opacity={1} depthTest={false} renderOrder={999} />
     </group>
   );
+}
+
+// Flat strips on the edge of a unit's cell, one per side that has cover.
+// Full cover (wall/pillar) is blue, half cover (console) is green.
+const SIDE_STRIPS = {
+  N: { offset: [0, -0.44], size: [0.7, 0.1] },
+  S: { offset: [0, 0.44], size: [0.7, 0.1] },
+  E: { offset: [0.44, 0], size: [0.1, 0.7] },
+  W: { offset: [-0.44, 0], size: [0.1, 0.7] },
+};
+
+function SideCoverMarkers({ state, unit }) {
+  const sides = getSideCover(state.map, unit);
+  const base = [unit.x - 15.5, unit.level * LEVEL_HEIGHT + 0.07, unit.z - 15.5];
+  return Object.entries(SIDE_STRIPS).filter(([side]) => sides[side] > 0).map(([side, { offset, size }]) => (
+    <mesh key={side} position={[base[0] + offset[0], base[1], base[2] + offset[1]]} rotation={[-Math.PI / 2, 0, 0]}>
+      <planeGeometry args={size} />
+      <meshBasicMaterial color={sides[side] === 2 ? '#8fd3ff' : '#a7e3b8'} transparent opacity={0.85} depthWrite={false} />
+    </mesh>
+  ));
+}
+
+// Red lines from every enemy that flanks a player unit to that unit.
+function FlankLines({ state, visibleCellKeys }) {
+  const pairs = useMemo(() => state.units
+    .filter((unit) => unit.team === 'player' && unit.hp > 0)
+    .flatMap((unit) => getFlankedBy(state, unit)
+      .filter((enemy) => visibleCellKeys.has(cellKey(enemy)))
+      .map((enemy) => ({ key: `${unit.id}-${enemy.id}`, from: enemy, to: unit }))), [state, visibleCellKeys]);
+  return pairs.map(({ key, from, to }) => {
+    const points = [from, to].map((cell) => new THREE.Vector3(cell.x - 15.5, cell.level * LEVEL_HEIGHT + 0.9, cell.z - 15.5));
+    return <Line key={key} points={points} color="#ff4d42" lineWidth={3} dashed dashSize={0.25} gapSize={0.15} depthTest={false} renderOrder={997} />;
+  });
 }
 
 function FogOfWar({ cells, visibleCellKeys }) {
@@ -808,7 +854,7 @@ function CameraRig({ floorRef, cells, onCellTap, focusUnit, focusToken, mapOffse
   return null;
 }
 
-function Battlefield({ state, selected, focusUnit, focusToken, target, paths, pendingMove, visibleCellKeys, shootableEnemyIds, enemyHitChances, onCellTap, movingUnitId }) {
+function Battlefield({ state, selected, coverProfiles, focusUnit, focusToken, target, paths, pendingMove, visibleCellKeys, shootableEnemyIds, enemyHitChances, onCellTap, movingUnitId }) {
   const { camera } = useThree();
   const floorRef = useRef();
   const allCells = useMemo(() => Object.values(state.map.cells), [state.map]);
@@ -830,8 +876,11 @@ function Battlefield({ state, selected, focusUnit, focusToken, target, paths, pe
       <CoverField cells={revealedCells} selected={selected} />
       <FogOfWar cells={visibleCells} visibleCellKeys={visibleCellKeys} />
       <ObjectiveMarkers objectives={state.map.objectives} visibleCellKeys={visibleCellKeys} />
-      {selected?.ap > 0 && <ReachableOverlay paths={paths} map={state.map} />}
+      {selected?.ap > 0 && <ReachableOverlay paths={paths} map={state.map} coverProfiles={coverProfiles} />}
       {pendingPath && selected && <MoveTrace path={pendingPath} start={selected} />}
+      {pendingMove && <SideCoverMarkers state={state} unit={pendingMove} />}
+      {state.units.filter((unit) => unit.team === 'player' && unit.hp > 0).map((unit) => <SideCoverMarkers key={`cover-${unit.id}`} state={state} unit={unit} />)}
+      <FlankLines state={state} visibleCellKeys={visibleCellKeys} />
       {selected && target && <AimBeam shooter={selected} target={target} blocked={!hasLineOfSight(state.map, selected, target)} />}
       {state.units.filter((unit) => unit.team === 'player' || visibleCellKeys.has(cellKey(unit))).map((unit) => (
         <PixelUnit key={`${state.generation}:${unit.id}`} unit={unit} selected={unit.id === state.selectedId} targeted={unit.id === state.targetId} shootable={shootableEnemyIds.has(unit.id)} hitChance={enemyHitChances?.get(unit.id)} camera={camera} movement={state.movement} visibleCellKeys={visibleCellKeys} lastShot={state.lastShot} />
@@ -843,7 +892,7 @@ function Battlefield({ state, selected, focusUnit, focusToken, target, paths, pe
   );
 }
 
-export default function GameScene({ state, selected, focusUnit, focusToken, target, paths, pendingMove, visibleCellKeys, shootableEnemyIds, enemyHitChances, onCellTap, movingUnitId }) {
+export default function GameScene({ state, selected, coverProfiles, focusUnit, focusToken, target, paths, pendingMove, visibleCellKeys, shootableEnemyIds, enemyHitChances, onCellTap, movingUnitId }) {
   return (
     <Canvas
       orthographic
@@ -852,7 +901,7 @@ export default function GameScene({ state, selected, focusUnit, focusToken, targ
       gl={{ antialias: false, powerPreference: 'low-power', alpha: false }}
       style={{ touchAction: 'none' }}
     >
-      <Battlefield state={state} selected={selected} focusUnit={focusUnit} focusToken={focusToken} target={target} paths={paths} pendingMove={pendingMove} visibleCellKeys={visibleCellKeys} shootableEnemyIds={shootableEnemyIds} enemyHitChances={enemyHitChances} onCellTap={onCellTap} movingUnitId={movingUnitId} />
+      <Battlefield state={state} selected={selected} coverProfiles={coverProfiles} focusUnit={focusUnit} focusToken={focusToken} target={target} paths={paths} pendingMove={pendingMove} visibleCellKeys={visibleCellKeys} shootableEnemyIds={shootableEnemyIds} enemyHitChances={enemyHitChances} onCellTap={onCellTap} movingUnitId={movingUnitId} />
     </Canvas>
   );
 }

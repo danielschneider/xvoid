@@ -23,7 +23,7 @@ Vite schreibt die statischen Dateien nach `dist/`. Die relative Asset-Basis (`ba
 - Maus/Touch: Spielereinheit antippen zum Auswählen. Ein erreichbares Feld antippen, Route prüfen und mit **Bestätigen** bewegen.
 - Sichtbaren Gegner antippen, um ihn anzuvisieren. Der Feuern-Button löst den Schuss aus; ein Tap oder Doppeltap feuert nicht.
 - Ein Finger zieht die Karte; zwei Finger zoomen und drehen. Mausrad zoomt.
-- WASD/Pfeiltasten bewegen die Kamera, Q/E drehen sie. M schaltet den Bewegungsmodus, O aktiviert Overwatch, H sucht Deckung, Enter beendet den Zug.
+- WASD/Pfeiltasten bewegen die Kamera, Q/E drehen sie. M schaltet den Bewegungsmodus, O aktiviert Overwatch, Enter beendet den Zug. Deckung entsteht automatisch durch Wände, Pfeiler und Konsolen an jeder Seite eines Feldes; wer von einer ungedeckten Seite schießt, flankiert und umgeht die Deckung.
 - Escape verwirft die Bewegungsroute oder schließt die Warnung vor einem Zugende mit verbleibenden Aktionspunkten.
 
 ## Gegner-KI und Sicht
@@ -34,7 +34,7 @@ Während des Feindzugs handelt jeder lebende Gegner einmal. Er wählt zunächst 
 
 Die Zuglogik und Gegnerentscheidungen liegen in `src/engine/game.js`; Sichtbereich, Sichtlinie und Pfadfinder liegen in `src/engine/map.js`. `npm test` führt die Engine-Tests aus.
 
-Die Sprites werden lokal als Pixel-Art-Texturen erzeugt. Die Spiel-Engine für Karte, BFS-Pfadfinder, Ebenenwechsel, Sichtlinie, Deckung und Zuglogik liegt in `src/engine/`.
+Die Sprites werden lokal als Pixel-Art-Texturen erzeugt. Die Spiel-Engine für Karte, BFS-Pfadfinder, Ebenenwechsel, Sichtlinie, seitenbezogene Deckung, Flankierung und Zuglogik liegt in `src/engine/`.
 
 ## Grafikassets
 
