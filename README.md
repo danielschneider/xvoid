@@ -35,3 +35,7 @@ Während des Feindzugs handelt jeder lebende Gegner einmal. Er wählt zunächst 
 Die Zuglogik und Gegnerentscheidungen liegen in `src/engine/game.js`; Sichtbereich, Sichtlinie und Pfadfinder liegen in `src/engine/map.js`. `npm test` führt die Engine-Tests aus.
 
 Die Sprites werden lokal als Pixel-Art-Texturen erzeugt. Die Spiel-Engine für Karte, BFS-Pfadfinder, Ebenenwechsel, Sichtlinie, Deckung und Zuglogik liegt in `src/engine/`.
+
+## Grafikassets
+
+Die Roguelike-Umgebungstiles stammen aus Kenneys [Roguelike/RPG pack](https://kenney.nl/assets/roguelike-rpg-pack) und stehen unter CC0. Die Lizenz liegt bei `public/assets/kenney-roguelike/License.txt`. Das Paket enthält Umgebungskacheln, aber keine passenden Spielfiguren; die Einheiten-Sprites werden weiterhin lokal erzeugt.

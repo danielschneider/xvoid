@@ -1,4 +1,4 @@
-import { cellKey, createBattlefield, getReachable, getVisibleCells, hasLineOfSight } from './map.js';
+import { cellKey, createBattlefield, getReachable, getVisibleCells, hasLineOfSight, VISION_RANGE } from './map.js';
 
 export const ENEMY_SHOT_RANGE = 13;
 
@@ -34,23 +34,75 @@ function shuffle(items, random) {
 
 function createStartingUnits(map, seed) {
   const random = makeRandom(seed ^ 0x9e3779b9);
-  const axis = random() < 0.5 ? 'x' : 'z';
-  const playerStartsLow = random() < 0.5;
-  const lowBoundary = Math.floor(map.size * 0.24);
-  const highBoundary = Math.ceil(map.size * 0.76);
-  const onSide = (cell, low) => low ? cell[axis] <= lowBoundary : cell[axis] >= highBoundary;
+  const middle = Math.floor(map.size / 2);
   const openGround = Object.values(map.cells).filter((cell) => (
-    cell.level === 0 && cell.terrain === 'floor' && cell.walkable && !cell.structure
+    cell.level === 0 && cell.walkable && !cell.structure && cell.terrain !== 'wall'
   ));
-  const playerSpawns = shuffle(openGround.filter((cell) => onSide(cell, playerStartsLow)), random).slice(0, playerTemplates.length);
   const enemyCount = map.size >= 48 ? 20 : map.size >= 40 ? 10 : 5;
-  const reachableFromPlayers = new Set(getReachable(map, playerSpawns[0], new Set(), map.size * 2).keys());
-  const enemyCandidates = openGround.filter((cell) => (
-    onSide(cell, !playerStartsLow)
-    && reachableFromPlayers.has(cellKey(cell))
-    && playerSpawns.every((spawn) => Math.hypot(cell.x - spawn.x, cell.z - spawn.z) > ENEMY_SHOT_RANGE)
+  const safeCells = openGround.filter((cell) => (
+    cell.x > VISION_RANGE && cell.z > VISION_RANGE
+    && cell.x < map.size - VISION_RANGE - 1 && cell.z < map.size - VISION_RANGE - 1
   ));
-  const enemySpawns = shuffle(enemyCandidates, random).slice(0, enemyCount);
+  const quadrants = [
+    (cell) => cell.x < middle && cell.z < middle,
+    (cell) => cell.x >= middle && cell.z < middle,
+    (cell) => cell.x < middle && cell.z >= middle,
+    (cell) => cell.x >= middle && cell.z >= middle,
+  ];
+  const reachableFromMap = new Set(getReachable(map, safeCells[0], new Set(), map.size * 2).keys());
+  reachableFromMap.add(cellKey(safeCells[0]));
+  const randomizedQuadrants = shuffle(quadrants, random);
+  let playerSpawns = [];
+  let enemySpawns = [];
+  let bestSpawnSet = null;
+
+  for (const inCorner of randomizedQuadrants) {
+    const playerCandidates = shuffle(safeCells.filter(inCorner), random);
+    const enemyCandidates = safeCells.filter((cell) => reachableFromMap.has(cellKey(cell)));
+    for (let first = 0; first < playerCandidates.length - 2; first += 1) {
+      for (let second = first + 1; second < playerCandidates.length - 1; second += 1) {
+        for (let third = second + 1; third < playerCandidates.length; third += 1) {
+          const players = [playerCandidates[first], playerCandidates[second], playerCandidates[third]];
+          const enemies = enemyCandidates.filter((cell) => players.every((spawn) => (
+            Math.hypot(cell.x - spawn.x, cell.z - spawn.z) > VISION_RANGE
+            || !hasLineOfSight(map, spawn, cell)
+          )));
+          if (!bestSpawnSet || enemies.length > bestSpawnSet.enemyCandidates.length) {
+            bestSpawnSet = { players, enemyCandidates: enemies };
+          }
+          if (enemies.length >= enemyCount) {
+            playerSpawns = players;
+            enemySpawns = shuffle(enemies, random).slice(0, enemyCount);
+            break;
+          }
+        }
+        if (enemySpawns.length >= enemyCount) break;
+      }
+      if (enemySpawns.length >= enemyCount) break;
+    }
+    if (enemySpawns.length >= enemyCount) break;
+  }
+
+  if (enemySpawns.length < enemyCount && bestSpawnSet) {
+    playerSpawns = bestSpawnSet.players;
+    const selectedPlayerCells = new Set(playerSpawns.map(cellKey));
+    const reachableFromPlayer = new Set(getReachable(map, playerSpawns[0], new Set(), map.size * 2).keys());
+    reachableFromPlayer.add(cellKey(playerSpawns[0]));
+    const fallbackCandidates = safeCells
+      .filter((cell) => !selectedPlayerCells.has(cellKey(cell)) && reachableFromPlayer.has(cellKey(cell)))
+      .sort((a, b) => {
+        const distanceA = Math.min(...playerSpawns.map((player) => Math.hypot(a.x - player.x, a.z - player.z)));
+        const distanceB = Math.min(...playerSpawns.map((player) => Math.hypot(b.x - player.x, b.z - player.z)));
+        return distanceB - distanceA;
+      });
+    enemySpawns = [
+      ...shuffle(bestSpawnSet.enemyCandidates, random),
+      ...shuffle(fallbackCandidates, random),
+    ].slice(0, enemyCount);
+  }
+  if (playerSpawns.length < playerTemplates.length || enemySpawns.length < enemyCount) {
+    throw new Error(`Unable to place a fair ${map.size}x${map.size} starting force`);
+  }
   const randomizedRoles = shuffle(enemyTemplates, random);
   const players = playerTemplates.map((unit, index) => ({
     ...unit,

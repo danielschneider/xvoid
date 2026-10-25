@@ -1,15 +1,83 @@
 import { useEffect, useMemo, useRef } from 'react';
-import { Canvas, useFrame, useThree } from '@react-three/fiber';
+import { Canvas, useFrame, useLoader, useThree } from '@react-three/fiber';
 import { Line } from '@react-three/drei';
 import * as THREE from 'three';
 import { cellKey, hasLineOfSight } from '../engine/map.js';
 
 const LEVEL_HEIGHT = 1.5;
+const TILE_SIZE = 16;
+const TILE_PITCH = 17;
+const ROGUELIKE_SHEET = `${import.meta.env.BASE_URL}assets/kenney-roguelike/Spritesheet/roguelikeSheet_transparent.png`;
 
 function seededNoise(seed, x, z, salt = 0) {
   let value = (seed ^ Math.imul(x, 374761393) ^ Math.imul(z, 668265263) ^ Math.imul(salt, 2246822519)) >>> 0;
   value = Math.imul(value ^ (value >>> 13), 1274126177) >>> 0;
   return ((value ^ (value >>> 16)) >>> 0) / 4294967296;
+}
+
+function createTileTexture(image, column, row) {
+  const canvas = document.createElement('canvas');
+  canvas.width = TILE_SIZE;
+  canvas.height = TILE_SIZE;
+  const context = canvas.getContext('2d');
+  context.imageSmoothingEnabled = false;
+  context.drawImage(image, column * TILE_PITCH, row * TILE_PITCH, TILE_SIZE, TILE_SIZE, 0, 0, TILE_SIZE, TILE_SIZE);
+  const texture = new THREE.CanvasTexture(canvas);
+  texture.magFilter = THREE.NearestFilter;
+  texture.minFilter = THREE.NearestFilter;
+  texture.colorSpace = THREE.SRGBColorSpace;
+  return texture;
+}
+
+function TilemapGround({ map }) {
+  const atlas = useLoader(THREE.TextureLoader, ROGUELIKE_SHEET);
+  const texture = useMemo(() => {
+    const canvas = document.createElement('canvas');
+    canvas.width = map.size * TILE_SIZE;
+    canvas.height = map.size * TILE_SIZE;
+    const context = canvas.getContext('2d');
+    context.imageSmoothingEnabled = false;
+    for (let z = 0; z < map.size; z += 1) {
+      for (let x = 0; x < map.size; x += 1) {
+        const cell = map.cells[cellKey({ x, z, level: 0 })];
+        const variation = seededNoise(map.seed, x, z, 47);
+        const tile = cell.structure
+          ? (variation < 0.5 ? [6, 14] : [7, 14])
+          : cell.corridor
+            ? (variation < 0.5 ? [5, 8] : [6, 8])
+            : cell.cover > 0
+              ? [5, 14]
+              : variation < 0.055
+                ? [0, 9]
+                : variation < 0.16 ? [1, 15] : [0, 15];
+        context.fillStyle = cell.corridor ? '#263332' : cell.structure ? '#303c39' : '#202b2b';
+        context.fillRect(x * TILE_SIZE, z * TILE_SIZE, TILE_SIZE, TILE_SIZE);
+        context.drawImage(
+          atlas.image,
+          tile[0] * TILE_PITCH,
+          tile[1] * TILE_PITCH,
+          TILE_SIZE,
+          TILE_SIZE,
+          x * TILE_SIZE,
+          z * TILE_SIZE,
+          TILE_SIZE,
+          TILE_SIZE,
+        );
+      }
+    }
+    const groundTexture = new THREE.CanvasTexture(canvas);
+    groundTexture.magFilter = THREE.NearestFilter;
+    groundTexture.minFilter = THREE.NearestFilter;
+    groundTexture.colorSpace = THREE.SRGBColorSpace;
+    return groundTexture;
+  }, [atlas, map]);
+
+  return (
+    <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, 0.008, 0]}>
+      <planeGeometry args={[map.size, map.size]} />
+      <meshBasicMaterial map={texture} toneMapped={false} />
+    </mesh>
+  );
 }
 
 function createSpriteTexture(team, color, className, view) {
@@ -93,82 +161,15 @@ function InstancedGround({ cells, visibleCells, meshRef }) {
 
   return (
     <instancedMesh ref={meshRef} args={[undefined, material, data.length]} receiveShadow={false}>
-      <boxGeometry args={[0.98, 0.16, 0.98]} />
+      <boxGeometry args={[1.02, 0.16, 1.02]} />
     </instancedMesh>
   );
 }
 
-function EnvironmentDetails({ cells, seed }) {
-  const grassRef = useRef();
-  const stoneRef = useRef();
-  const dummy = useMemo(() => new THREE.Object3D(), []);
-  const grassMaterial = useMemo(() => new THREE.MeshStandardMaterial({ roughness: 1, flatShading: true }), []);
-  const stoneMaterial = useMemo(() => new THREE.MeshStandardMaterial({ color: '#777c73', roughness: 0.94, flatShading: true }), []);
-  const grass = useMemo(() => cells
-    .filter((cell) => cell.level === 0 && cell.walkable && !cell.structure && !cell.corridor && cell.cover === 0 && seededNoise(seed, cell.x, cell.z, 1) < 0.19)
-    .flatMap((cell) => Array.from({ length: 3 }, (_, index) => {
-      const height = 0.16 + seededNoise(seed, cell.x, cell.z, index + 2) * 0.18;
-      return {
-        x: cell.x - 15.5 + (seededNoise(seed, cell.x, cell.z, index + 5) - 0.5) * 0.62,
-        z: cell.z - 15.5 + (seededNoise(seed, cell.x, cell.z, index + 8) - 0.5) * 0.62,
-        height,
-        rotation: seededNoise(seed, cell.x, cell.z, index + 11) * Math.PI,
-        lightness: 0.24 + seededNoise(seed, cell.x, cell.z, index + 14) * 0.16,
-      };
-    })), [cells, seed]);
-  const stones = useMemo(() => cells
-    .filter((cell) => cell.level === 0 && cell.walkable && !cell.structure && !cell.corridor && cell.cover === 0 && seededNoise(seed, cell.x, cell.z, 21) < 0.055)
-    .map((cell) => ({
-      x: cell.x - 15.5 + (seededNoise(seed, cell.x, cell.z, 22) - 0.5) * 0.42,
-      z: cell.z - 15.5 + (seededNoise(seed, cell.x, cell.z, 23) - 0.5) * 0.42,
-      scale: 0.65 + seededNoise(seed, cell.x, cell.z, 24) * 0.65,
-      rotation: seededNoise(seed, cell.x, cell.z, 25) * Math.PI,
-    })), [cells, seed]);
-
-  useEffect(() => {
-    if (grassRef.current) {
-      grass.forEach((blade, index) => {
-        dummy.position.set(blade.x, blade.height / 2, blade.z);
-        dummy.rotation.set(0, blade.rotation, 0);
-        dummy.scale.set(1, blade.height / 0.34, 1);
-        dummy.updateMatrix();
-        grassRef.current.setMatrixAt(index, dummy.matrix);
-        grassRef.current.setColorAt(index, new THREE.Color().setHSL(0.25, 0.42, blade.lightness));
-      });
-      grassRef.current.instanceMatrix.needsUpdate = true;
-      if (grassRef.current.instanceColor) grassRef.current.instanceColor.needsUpdate = true;
-    }
-    if (stoneRef.current) {
-      stones.forEach((stone, index) => {
-        dummy.position.set(stone.x, 0.07, stone.z);
-        dummy.rotation.set(stone.rotation * 0.4, stone.rotation, stone.rotation * 0.7);
-        dummy.scale.setScalar(stone.scale);
-        dummy.updateMatrix();
-        stoneRef.current.setMatrixAt(index, dummy.matrix);
-        stoneRef.current.setColorAt(index, new THREE.Color().setHSL(0.24, 0.06, 0.38 + stone.scale * 0.08));
-      });
-      stoneRef.current.instanceMatrix.needsUpdate = true;
-      if (stoneRef.current.instanceColor) stoneRef.current.instanceColor.needsUpdate = true;
-    }
-  }, [dummy, grass, stones]);
-
-  return (
-    <>
-      {grass.length > 0 && (
-        <instancedMesh ref={grassRef} args={[undefined, grassMaterial, grass.length]}>
-          <coneGeometry args={[0.055, 0.34, 4]} />
-        </instancedMesh>
-      )}
-      {stones.length > 0 && (
-        <instancedMesh ref={stoneRef} args={[undefined, stoneMaterial, stones.length]}>
-          <dodecahedronGeometry args={[0.16, 0]} />
-        </instancedMesh>
-      )}
-    </>
-  );
-}
-
 function CoverField({ cells, selected }) {
+  const atlas = useLoader(THREE.TextureLoader, ROGUELIKE_SHEET);
+  const stoneTexture = useMemo(() => createTileTexture(atlas.image, 5, 14), [atlas]);
+  const earthTexture = useMemo(() => createTileTexture(atlas.image, 5, 8), [atlas]);
   const data = useMemo(() => cells.filter((cell) => cell.terrain === 'console' || cell.terrain === 'pillar'), [cells]);
   return data.map((cell) => {
     const height = cell.terrain === 'pillar' ? 1.14 : 0.46;
@@ -181,7 +182,7 @@ function CoverField({ cells, selected }) {
         </mesh>
         <mesh castShadow={false}>
           <boxGeometry args={cell.terrain === 'pillar' ? [0.64, height, 0.64] : [0.82, height, 0.56]} />
-          <meshStandardMaterial color={cell.terrain === 'pillar' ? '#708078' : '#57716b'} roughness={0.7} metalness={0.36} />
+          <meshStandardMaterial map={cell.terrain === 'pillar' ? stoneTexture : earthTexture} color="#ffffff" roughness={0.94} flatShading />
         </mesh>
         <mesh position={[0, height * 0.14, cell.terrain === 'pillar' ? 0.331 : 0.29]}>
           <boxGeometry args={cell.terrain === 'pillar' ? [0.34, 0.48, 0.035] : [0.54, 0.17, 0.035]} />
@@ -202,13 +203,15 @@ function CoverField({ cells, selected }) {
 }
 
 function WallField({ cells, selected }) {
+  const atlas = useLoader(THREE.TextureLoader, ROGUELIKE_SHEET);
+  const wallTexture = useMemo(() => createTileTexture(atlas.image, 13, 27), [atlas]);
   return cells.filter((cell) => cell.terrain === 'wall').map((cell) => {
     const nearby = selected && Math.hypot(selected.x - cell.x, selected.z - cell.z) < 5;
     return (
       <group key={cellKey(cell)} position={[cell.x - 15.5, 0.74, cell.z - 15.5]}>
         <mesh>
           <boxGeometry args={[0.92, 1.42, 0.92]} />
-          <meshStandardMaterial color="#5c6c65" roughness={0.78} metalness={0.3} transparent={nearby} opacity={nearby ? 0.34 : 1} />
+          <meshStandardMaterial map={wallTexture} color="#ffffff" roughness={0.94} transparent={nearby} opacity={nearby ? 0.34 : 1} />
         </mesh>
         <mesh position={[0, -0.57, 0]}>
           <boxGeometry args={[1, 0.2, 1]} />
@@ -248,13 +251,35 @@ function WallField({ cells, selected }) {
 }
 
 function ReachableOverlay({ paths, map }) {
-  const entries = useMemo(() => [...paths.entries()].map(([key, value]) => ({ cell: map.cells[key], ...value })), [map, paths]);
-  return entries.map(({ cell, apCost, steps }) => (
-    <mesh key={cellKey(cell)} position={[cell.x - 15.5, cell.level * LEVEL_HEIGHT + 0.018, cell.z - 15.5]} rotation={[-Math.PI / 2, 0, 0]}>
-      <planeGeometry args={[0.8, 0.8]} />
-      <meshBasicMaterial color={apCost === 1 ? '#52b9ee' : '#efc451'} transparent opacity={steps <= 5 ? 0.23 : 0.28} depthWrite={false} />
-    </mesh>
-  ));
+  const entries = useMemo(() => [...paths.entries()].map(([key, value]) => {
+    const cell = map.cells[key];
+    const x = cell.x - 15.5;
+    const z = cell.z - 15.5;
+    const y = cell.level * LEVEL_HEIGHT + 0.026;
+    return {
+      cell,
+      ...value,
+      outline: [
+        new THREE.Vector3(x - 0.45, y, z - 0.45),
+        new THREE.Vector3(x + 0.45, y, z - 0.45),
+        new THREE.Vector3(x + 0.45, y, z + 0.45),
+        new THREE.Vector3(x - 0.45, y, z + 0.45),
+        new THREE.Vector3(x - 0.45, y, z - 0.45),
+      ],
+    };
+  }), [map, paths]);
+  return entries.map(({ cell, apCost, steps, outline }) => {
+    const color = apCost === 1 ? '#00cfff' : '#ffc247';
+    return (
+      <group key={cellKey(cell)}>
+        <mesh position={[cell.x - 15.5, cell.level * LEVEL_HEIGHT + 0.018, cell.z - 15.5]} rotation={[-Math.PI / 2, 0, 0]}>
+          <planeGeometry args={[0.86, 0.86]} />
+          <meshBasicMaterial color={color} transparent opacity={steps <= 5 ? 0.4 : 0.5} depthWrite={false} toneMapped={false} />
+        </mesh>
+        <Line points={outline} color={color} lineWidth={1.2} transparent opacity={0.95} />
+      </group>
+    );
+  });
 }
 
 function MoveTrace({ path, start }) {
@@ -302,13 +327,15 @@ function ObjectiveMarkers({ objectives, visibleCellKeys }) {
 
 function PixelUnit({ unit, selected, targeted, shootable, camera, movement, visibleCellKeys }) {
   const group = useRef();
+  const bodyGroup = useRef();
+  const billboard = useRef();
   const sprite = useRef();
+  const outline = useRef();
   const movementProgress = useRef({ id: null, elapsed: 0 });
   const routeStart = useMemo(() => new THREE.Vector3(), []);
   const routeEnd = useMemo(() => new THREE.Vector3(), []);
   const cameraDirection = useMemo(() => new THREE.Vector3(), []);
-  const worldUp = useMemo(() => new THREE.Vector3(0, 1, 0), []);
-  const facingQuaternion = useMemo(() => new THREE.Quaternion(), []);
+  const armorColor = unit.team === 'alien' ? '#492b35' : '#324c43';
   const spriteTextures = useMemo(() => Object.fromEntries(
     ['front', 'right', 'back', 'left'].map((view) => [view, createSpriteTexture(unit.team, unit.color, unit.className, view)]),
   ), [unit.team, unit.color, unit.className]);
@@ -345,6 +372,8 @@ function PixelUnit({ unit, selected, targeted, shootable, camera, movement, visi
         group.current.position.lerp(destination, 0.12);
       }
     }
+    if (bodyGroup.current) bodyGroup.current.rotation.y = visualFacing.current;
+    if (billboard.current) billboard.current.quaternion.copy(camera.quaternion);
     if (sprite.current) {
       camera.getWorldDirection(cameraDirection);
       const cameraFacing = Math.atan2(-cameraDirection.x, -cameraDirection.z);
@@ -363,11 +392,10 @@ function PixelUnit({ unit, selected, targeted, shootable, camera, movement, visi
       if (spriteView.current !== view) {
         sprite.current.material.map = spriteTextures[view];
         sprite.current.material.needsUpdate = true;
+        outline.current.material.map = spriteTextures[view];
+        outline.current.material.needsUpdate = true;
         spriteView.current = view;
       }
-      facingQuaternion.setFromAxisAngle(worldUp, visualFacing.current - cameraFacing);
-      facingQuaternion.premultiply(camera.quaternion);
-      sprite.current.quaternion.slerp(facingQuaternion, Math.min(1, delta * 6));
     }
   });
   return (
@@ -382,10 +410,44 @@ function PixelUnit({ unit, selected, targeted, shootable, camera, movement, visi
           <meshBasicMaterial color={targeted ? '#ff786d' : shootable ? '#f3bd76' : '#69e7ca'} transparent opacity={0.92} side={THREE.DoubleSide} />
         </mesh>
       )}
-      <mesh ref={sprite} position={[0, 0.82, 0]}>
-        <planeGeometry args={[0.9, 1.32]} />
-        <meshBasicMaterial map={spriteTextures.front} transparent alphaTest={0.25} depthWrite side={THREE.DoubleSide} toneMapped={false} />
-      </mesh>
+      <group ref={bodyGroup}>
+        <mesh position={[0, 0.79, 0]}>
+          <boxGeometry args={[0.48, 0.58, 0.32]} />
+          <meshStandardMaterial color={armorColor} roughness={0.78} metalness={0.24} />
+        </mesh>
+        <mesh position={[0, 1.05, 0]}>
+          <boxGeometry args={[0.7, 0.2, 0.38]} />
+          <meshStandardMaterial color={unit.color} roughness={0.68} metalness={0.28} />
+        </mesh>
+        <mesh position={[0, 1.31, 0]}>
+          <boxGeometry args={[0.34, 0.34, 0.34]} />
+          <meshStandardMaterial color="#b7b5a2" roughness={0.82} metalness={0.12} />
+        </mesh>
+        {[-1, 1].map((side) => (
+          <mesh key={side} position={[side * 0.17, 0.31, 0]}>
+            <boxGeometry args={[0.2, 0.42, 0.25]} />
+            <meshStandardMaterial color="#242f2a" roughness={0.9} />
+          </mesh>
+        ))}
+        <mesh position={[0.28, 0.91, 0.16]} rotation={[0.12, 0, -0.12]}>
+          <boxGeometry args={[0.14, 0.14, 0.5]} />
+          <meshStandardMaterial color="#202722" roughness={0.55} metalness={0.52} />
+        </mesh>
+        <mesh position={[0.28, 0.91, 0.49]}>
+          <boxGeometry args={[0.07, 0.07, 0.22]} />
+          <meshStandardMaterial color="#a39a7d" roughness={0.42} metalness={0.62} />
+        </mesh>
+      </group>
+      <group ref={billboard} position={[0, 0.82, 0]}>
+        <mesh ref={outline} scale={[1.16, 1.14, 1]} position={[0, 0, -0.015]}>
+          <planeGeometry args={[0.92, 1.38]} />
+          <meshBasicMaterial map={spriteTextures.front} color={unit.team === 'alien' ? '#29151c' : '#10231e'} transparent alphaTest={0.2} depthWrite={false} side={THREE.DoubleSide} toneMapped={false} />
+        </mesh>
+        <mesh ref={sprite}>
+          <planeGeometry args={[1.06, 1.52]} />
+          <meshBasicMaterial map={spriteTextures.front} transparent alphaTest={0.22} depthWrite={false} side={THREE.DoubleSide} toneMapped={false} />
+        </mesh>
+      </group>
       {unit.hp <= 0 && <mesh position={[0, 0.18, 0]} rotation={[0, 0, -0.4]}><boxGeometry args={[0.7, 0.09, 0.12]} /><meshBasicMaterial color="#9c4d4b" /></mesh>}
     </group>
   );
@@ -598,12 +660,9 @@ function Battlefield({ state, selected, target, paths, pendingMove, visibleCellK
       <directionalLight position={[-12, 8, -10]} intensity={0.55} color="#73bcb3" />
       <group position={[mapOffset, 0, mapOffset]}>
       <InstancedGround cells={allCells} visibleCells={visibleCells} meshRef={floorRef} />
-      {[0, 1, 2].map((level) => (level === 0 || state.showUpper) && (
-        <gridHelper key={level} args={[state.map.size, state.map.size, '#43504a', '#313d39']} position={[0, level * LEVEL_HEIGHT + 0.008, 0]} />
-      ))}
+      <TilemapGround map={state.map} />
       <WallField cells={revealedCells} selected={selected} />
       <CoverField cells={revealedCells} selected={selected} />
-      <EnvironmentDetails cells={revealedCells} seed={state.map.seed} />
       <FogOfWar cells={visibleCells} visibleCellKeys={visibleCellKeys} />
       <ObjectiveMarkers objectives={state.map.objectives} visibleCellKeys={visibleCellKeys} />
       {selected?.ap > 0 && <ReachableOverlay paths={paths} map={state.map} />}

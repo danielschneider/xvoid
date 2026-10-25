@@ -1,7 +1,16 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { createInitialState, ENEMY_SHOT_RANGE, gameReducer } from './game.js';
-import { cellKey, getReachable, getVisibleCells, hasLineOfSight } from './map.js';
+import { createInitialState, gameReducer } from './game.js';
+import { cellKey, getReachable, getVisibleCells, hasLineOfSight, VISION_RANGE } from './map.js';
+
+function adjacentWalkableCell(map, unit) {
+  return Object.values(map.cells).find((cell) => (
+    cell.level === unit.level
+    && cell.walkable
+    && Math.abs(cell.x - unit.x) + Math.abs(cell.z - unit.z) === 1
+    && hasLineOfSight(map, unit, cell)
+  ));
+}
 
 test('creates a seeded 32x32 battlefield with traversable upper levels', () => {
   const state = createInitialState(42);
@@ -28,9 +37,16 @@ test('new seeds vary map size, squad size, and spawn positions deterministically
     assert.equal(enemies.length, state.map.size === 32 ? 5 : state.map.size === 40 ? 10 : 20);
     assert.equal(new Set(state.units.map(cellKey)).size, state.units.length);
     assert.ok(state.units.every((unit) => state.map.cells[cellKey(unit)]?.walkable));
-    assert.ok(players.every((player) => enemies.every((enemy) => (
-      Math.hypot(player.x - enemy.x, player.z - enemy.z) > ENEMY_SHOT_RANGE
-    ))));
+    assert.ok(players.every((player) => (
+      player.x > VISION_RANGE && player.z > VISION_RANGE
+      && player.x < state.map.size - VISION_RANGE - 1
+      && player.z < state.map.size - VISION_RANGE - 1
+    )));
+    const visibleCells = getVisibleCells(state.map, players);
+    assert.ok([...visibleCells].every((key) => {
+      const cell = state.map.cells[key];
+      return cell.x > 0 && cell.z > 0 && cell.x < state.map.size - 1 && cell.z < state.map.size - 1;
+    }));
 
     const reachable = new Set(getReachable(state.map, players[0], new Set(), state.map.size * 2).keys());
     reachable.add(cellKey(players[0]));
@@ -244,14 +260,18 @@ test('player vision reveals nearby enemies but leaves distant enemies in fog', (
   assert.ok(visible.has(cellKey(state.units[0])));
   assert.ok(!visible.has(cellKey(enemy)));
 
-  const revealedEnemy = { ...enemy, x: 3, z: 6 };
+  const nearbyCell = adjacentWalkableCell(state.map, state.units[0]);
+  assert.ok(nearbyCell);
+  const revealedEnemy = { ...enemy, x: nearbyCell.x, z: nearbyCell.z, level: nearbyCell.level };
   const revealedState = { ...state, units: state.units.map((unit) => unit.id === enemy.id ? revealedEnemy : unit) };
   assert.ok(getVisibleCells(revealedState.map, revealedState.units).has(cellKey(revealedEnemy)));
 });
 
 test('a revealed enemy can fire at a player in line of sight', () => {
   const state = createInitialState(42);
-  const enemy = { ...state.units[3], x: 3, z: 6 };
+  const nearbyCell = adjacentWalkableCell(state.map, state.units[0]);
+  assert.ok(nearbyCell);
+  const enemy = { ...state.units[3], x: nearbyCell.x, z: nearbyCell.z, level: nearbyCell.level };
   const encounter = { ...state, units: state.units.map((unit) => unit.id === enemy.id ? enemy : unit) };
   const enemyTurn = gameReducer(encounter, { type: 'end-turn' });
   const afterAction = gameReducer(enemyTurn, { type: 'enemy-step' });
