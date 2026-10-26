@@ -1,5 +1,23 @@
 # XVoid: Refactoring Proposals
 
+## Status
+
+Read this first in every session. Work one chunk per session; stop when its acceptance check passes.
+
+- [~] Chunk 1: Commit Phase 0 and add a safety net (in progress)
+  - Phase 0 code committed as `c816ce0` ("refa1"); golden test and `test/fixtures/golden-hashes.json` are in that commit
+  - `npm run check` (test + build) added
+- [ ] Chunk 2: Phase 1, single source of truth (D2, D3, D4, D6)
+- [ ] Chunk 3: Phase 2a, split `map.js` (no behavior change)
+- [ ] Chunk 4: Phase 2b, split `game.js`, roles table (D10)
+- [ ] Chunk 5: Phase 3, events and director (riskiest)
+- [ ] Chunk 6: Phase 4, split `GameScene.jsx` and `game.test.js`
+- [ ] Chunk 7: Phase 5, HUD, copy, CSS, tooling (ESLint, JSDoc `checkJs`, Prettier)
+
+Golden hashes: generated from the code in `c816ce0`, so they guard against changes after that point. They are not a pre-refactor baseline.
+
+Note: `npm run check` runs test and build only. Lint and typecheck will be added in chunk 7.
+
 Goal: a codebase that stays correct and easy to change over many iterations, including iterations done by AI agents. That means small files with one responsibility, a pure and deterministic rules engine, one source of truth per rule, explicit data contracts, and checks an agent can run itself.
 
 Baseline (measured, not estimated):
