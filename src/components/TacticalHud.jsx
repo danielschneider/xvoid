@@ -3,7 +3,8 @@ import {
   Activity, AlertTriangle, Check, Copy, Crosshair, ChevronDown, Eye, Footprints, HeartPulse, Layers3, Radio, RotateCcw,
   Shield, ShieldCheck, SkipForward, Sparkles, Swords, Target, Zap,
 } from 'lucide-react';
-import { COVER_VALUE, computeCoverFor, computeDistanceModifier, getFlankedBy, SHOT_RANGE } from '../engine/game.js';
+import { getFlankedBy, SHOT_RANGE } from '../engine/game.js';
+import { selectCombatPreview } from '../selectors/combatPreview.js';
 import { hasLineOfSight } from '../engine/map.js';
 
 function ActionButton({ icon: Icon, label, hint, onClick, disabled = false, active = false, kind = '', title }) {
@@ -70,20 +71,16 @@ export function UnitPanel({ unit, onSelect, units, flankedBy, canSwitch }) {
 }
 
 export function CombatPreview({ shooter, target, state, hasShootableEnemy }) {
-  if (!shooter || !target) return <section className={`combat-preview idle-preview ${hasShootableEnemy ? 'shootable-preview' : ''}`}><div className="preview-reticle"><Crosshair size={19} /></div><div><strong>{hasShootableEnemy ? 'FEIND IM SCHUSSFELD' : 'KEIN ZIEL ERFASST'}</strong><span>{hasShootableEnemy ? 'Gegner antippen, dann Feuern drücken' : 'Wähle eine feindliche Einheit'}</span></div></section>;
-  const distance = Math.hypot(shooter.x - target.x, shooter.z - target.z);
-  const visible = hasLineOfSight(state.map, shooter, target) && distance <= SHOT_RANGE;
-  const { cover, flanked } = computeCoverFor(state, shooter, target);
-  const coverPenalty = Math.round(COVER_VALUE[cover] * 100);
-  const elevation = shooter.level > target.level ? 15 : 0;
-  const distanceModifier = Math.round(computeDistanceModifier(distance) * 100);
-  const hit = visible ? Math.max(5, Math.min(95, 70 + elevation - coverPenalty + distanceModifier)) : 0;
+  const preview = selectCombatPreview(state, shooter, target);
+  if (!preview) return <section className={`combat-preview idle-preview ${hasShootableEnemy ? 'shootable-preview' : ''}`}><div className="preview-reticle"><Crosshair size={19} /></div><div><strong>{hasShootableEnemy ? 'FEIND IM SCHUSSFELD' : 'KEIN ZIEL ERFASST'}</strong><span>{hasShootableEnemy ? 'Gegner antippen, dann Feuern drücken' : 'Wähle eine feindliche Einheit'}</span></div></section>;
+  const { visible, flanked, inRange, distance, hitPercent: hit, coverPercent, elevationPercent: elevation, distancePercent: distanceModifier, basePercent } = preview;
+  const coverPenalty = coverPercent;
   return (
     <section className="combat-preview">
-      <div className="preview-target"><span className="target-icon"><Target size={17} /></span><div><strong>{target.name}</strong><span>{visible ? `${target.className} · ${Math.round(distance)} M` : distance > SHOT_RANGE ? 'AUSSER REICHWEITE' : 'SCHUSSLINIE BLOCKIERT'}</span></div><b>{visible ? `${hit}%` : '—'}</b></div>
+      <div className="preview-target"><span className="target-icon"><Target size={17} /></span><div><strong>{target.name}</strong><span>{visible ? `${target.className} · ${Math.round(distance)} M` : inRange ? 'SCHUSSLINIE BLOCKIERT' : 'AUSSER REICHWEITE'}</span></div><b>{visible ? `${hit}%` : '—'}</b></div>
       <div className="chance-track"><i style={{ width: `${hit}%` }} /></div>
       {visible && flanked && <div className="flank-warning" role="status"><AlertTriangle size={12} /> Flankiert: Deckung entfällt für diesen Schuss</div>}
-      <div className="chance-breakdown"><span>Basis <b>70%</b></span><span>Deckung <b className={coverPenalty ? 'negative' : ''}>{flanked ? 'FLANKIERT' : `−${coverPenalty}%`}</b></span><span>Höhe <b className="positive">+{elevation}%</b></span><span>Distanz <b className={distanceModifier > 0 ? 'positive' : distanceModifier < 0 ? 'negative' : ''}>{distanceModifier > 0 ? '+' : ''}{distanceModifier}%</b></span></div>
+      <div className="chance-breakdown"><span>Basis <b>{basePercent}%</b></span><span>Deckung <b className={coverPenalty ? 'negative' : ''}>{flanked ? 'FLANKIERT' : `−${coverPenalty}%`}</b></span><span>Höhe <b className="positive">+{elevation}%</b></span><span>Distanz <b className={distanceModifier > 0 ? 'positive' : distanceModifier < 0 ? 'negative' : ''}>{distanceModifier > 0 ? '+' : ''}{distanceModifier}%</b></span></div>
     </section>
   );
 }

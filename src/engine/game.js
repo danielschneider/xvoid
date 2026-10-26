@@ -298,14 +298,29 @@ export function getFlankedBy(state, target) {
   ));
 }
 
-export function computeHitChance(state, shooter, target, enemyShot = false) {
-  const { cover: tier } = computeCoverFor(state, shooter, target);
-  const cover = COVER_VALUE[tier];
+// Terms of the player-shot hit chance, shown one-to-one in the combat preview.
+export function computePlayerHitParts(state, shooter, target) {
+  const { cover: tier, flanked } = computeCoverFor(state, shooter, target);
   const distance = Math.hypot(shooter.x - target.x, shooter.z - target.z);
-  const distanceModifier = computeDistanceModifier(distance);
-  if (enemyShot) return clamp(0.52 - cover * ENEMY_COVER_FACTOR + distanceModifier, 0.05, 0.95);
-  const elevationBonus = shooter.level > target.level ? 0.15 : 0;
-  return clamp(0.7 + elevationBonus - cover + distanceModifier, 0.05, 0.95);
+  return {
+    base: 0.7,
+    elevation: shooter.level > target.level ? 0.15 : 0,
+    cover: COVER_VALUE[tier],
+    coverTier: tier,
+    flanked,
+    distance,
+    distanceModifier: computeDistanceModifier(distance),
+  };
+}
+
+export function computeHitChance(state, shooter, target, enemyShot = false) {
+  if (enemyShot) {
+    const { cover: tier } = computeCoverFor(state, shooter, target);
+    const distance = Math.hypot(shooter.x - target.x, shooter.z - target.z);
+    return clamp(0.52 - COVER_VALUE[tier] * ENEMY_COVER_FACTOR + computeDistanceModifier(distance), 0.05, 0.95);
+  }
+  const parts = computePlayerHitParts(state, shooter, target);
+  return clamp(parts.base + parts.elevation - parts.cover + parts.distanceModifier, 0.05, 0.95);
 }
 
 // Crit chance applies only to player shots; enemy shots never crit.
