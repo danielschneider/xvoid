@@ -1,4 +1,4 @@
-import { cellKey, createBattlefield, getCoverAgainst, getReachable, getVisibleCells, hasLineOfSight, isPassable, VISION_RANGE } from './map.js';
+import { cellKey, createBattlefield, getCoverAgainst, getReachable, getVisibleCells, hasLineOfSight, isPassable, makeRandom, VISION_RANGE } from './map.js';
 
 export const SHOT_RANGE = 10;
 export const ENEMY_SHOT_RANGE = SHOT_RANGE;
@@ -32,14 +32,6 @@ const enemyTemplates = [
   { role: 'scout', name: 'Void Scout', className: 'SCOUT', hp: 4, shield: 0, color: '#ff9b70' },
   { role: 'guard', name: 'Void Guard', className: 'GUARD', hp: 7, shield: 2, color: '#d47682' },
 ];
-
-function makeRandom(seed) {
-  let value = seed >>> 0;
-  return () => {
-    value = (value * 1664525 + 1013904223) >>> 0;
-    return value / 4294967296;
-  };
-}
 
 function shuffle(items, random) {
   const result = [...items];
@@ -331,7 +323,7 @@ export function computeHitChance(state, shooter, target, enemyShot = false) {
 }
 
 // Crit chance applies only to player shots; enemy shots never crit.
-export function computeCritChance(state, shooter, target, enemyShot = false) {
+export function computeCritChance(enemyShot = false) {
   if (enemyShot) return 0;
   return CRIT_CHANCE;
 }
@@ -349,7 +341,7 @@ function fireAt(state, targetId, shooterId = state.selectedId, enemyShot = false
   }
   const hitChance = computeHitChance(state, shooter, target, enemyShot);
   const hit = random() < hitChance;
-  const crit = hit && random() < computeCritChance(state, shooter, target, enemyShot);
+  const crit = hit && random() < computeCritChance(enemyShot);
   const baseDamage = enemyShot
     ? 1 + Math.floor(random() * 2)
     : 2 + Math.floor(random() * 3) + (shooter.power ?? 0);

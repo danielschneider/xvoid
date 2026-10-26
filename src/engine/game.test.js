@@ -631,8 +631,8 @@ test('enemy shots never crit', () => {
   const state = createInitialState(42);
   const target = state.units.find((unit) => unit.id === 'vanguard');
   const enemy = state.units.find((unit) => unit.id === 'raider-01');
-  assert.equal(computeCritChance(state, enemy, target, true), 0);
-  assert.equal(computeCritChance(state, target, enemy, false), CRIT_CHANCE);
+  assert.equal(computeCritChance(true), 0);
+  assert.equal(computeCritChance(false), CRIT_CHANCE);
 });
 
 test('the three player types differ in HP, movement range and shooting power', () => {

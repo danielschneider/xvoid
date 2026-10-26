@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useReducer, useState } from 'react';
+import { useCallback, useEffect, useMemo, useReducer, useRef, useState } from 'react';
 import GameScene from './components/GameScene.jsx';
 import { TacticalHud } from './components/TacticalHud.jsx';
 import { cellKey, computeHitChance, createInitialState, gameReducer, getReachable, movementLimits, SHOT_RANGE } from './engine/game.js';
@@ -9,6 +9,9 @@ export default function App() {
   const [pendingMove, setPendingMove] = useState(null);
   const [showNewGameWarning, setShowNewGameWarning] = useState(false);
   const [seedCopied, setSeedCopied] = useState(false);
+  // Each camera quarter-turn request bumps the token; GameScene rotates once per change.
+  const [rotateToken, setRotateToken] = useState(null);
+  const rotateCamera = useCallback((direction) => setRotateToken((previous) => ({ direction, n: (previous?.n ?? 0) + 1 })), []);
   const selected = state.units.find((unit) => unit.id === state.selectedId && unit.hp > 0);
   const target = state.units.find((unit) => unit.id === state.targetId && unit.hp > 0);
   // While a player unit moves, fog of war follows its current path cell instead of its final position.
@@ -60,15 +63,19 @@ export default function App() {
     });
   }, [playerUnits, state.selectedId]);
   const nextReadyUnit = readyUnits[0] ?? null;
-  const requestEndTurn = () => {
-    if (state.phase !== 'player' || state.movement || state.lastShot) return;
-    if (nextReadyUnit) {
+  // Latest turn state for callbacks that must not be re-created on every render (D8).
+  const turnRef = useRef({});
+  turnRef.current = { phase: state.phase, movement: state.movement, lastShot: state.lastShot, nextReadyUnit };
+  const requestEndTurn = useCallback(() => {
+    const { phase, movement, lastShot, nextReadyUnit: next } = turnRef.current;
+    if (phase !== 'player' || movement || lastShot) return;
+    if (next) {
       setPendingMove(null);
-      dispatch({ type: 'select', id: nextReadyUnit.id });
+      dispatch({ type: 'select', id: next.id });
       return;
     }
     dispatch({ type: 'end-turn' });
-  };
+  }, []);
   const copySeed = async () => {
     try {
       await navigator.clipboard.writeText(String(state.map.seed));
@@ -154,7 +161,7 @@ export default function App() {
     };
     window.addEventListener('keydown', onKeyDown);
     return () => window.removeEventListener('keydown', onKeyDown);
-  }, [requestEndTurn, showNewGameWarning, state.selectedId, target]);
+  }, [requestEndTurn, showNewGameWarning]);
 
   const tapCell = (cell) => {
     if (state.phase !== 'player' || state.movement) return;
@@ -198,7 +205,7 @@ export default function App() {
 
   return (
     <main className="game-shell">
-      <div className="scene-wrap"><GameScene state={state} selected={selected} coverProfiles={coverProfiles} focusUnit={focusUnit} focusToken={focusToken} target={target} paths={paths} pendingMove={pendingMove} visibleCellKeys={visibleCellKeys} shootableEnemyIds={shootableEnemyIds} enemyHitChances={enemyHitChances} onCellTap={tapCell} movingUnitId={state.movement?.unitId ?? null} /></div>
+      <div className="scene-wrap"><GameScene state={state} selected={selected} coverProfiles={coverProfiles} focusUnit={focusUnit} focusToken={focusToken} target={target} paths={paths} pendingMove={pendingMove} visibleCellKeys={visibleCellKeys} shootableEnemyIds={shootableEnemyIds} enemyHitChances={enemyHitChances} onCellTap={tapCell} movingUnitId={state.movement?.unitId ?? null} rotateToken={rotateToken} /></div>
       <TacticalHud
         state={state}
         selected={selected}
@@ -206,7 +213,6 @@ export default function App() {
         seedCopied={seedCopied}
         onCopySeed={copySeed}
         hasShootableEnemy={shootableEnemyIds.size > 0}
-        moveMode={state.moveMode}
         pendingMove={pendingMove}
         pendingMoveCost={pendingPath?.apCost}
         pendingCover={pendingCover}
@@ -218,7 +224,7 @@ export default function App() {
         onConfirmRegenerate={regenerate}
         onCancelRegenerate={() => setShowNewGameWarning(false)}
         onAction={dispatch}
-        onRegenerate={requestRegenerate}
+        onRotateCamera={rotateCamera}
         onToggleLevels={() => dispatch({ type: 'toggle-levels' })}
         onSelect={(id) => dispatch({ type: 'select', id })}
       />

@@ -109,7 +109,7 @@ export function PositionPanel({ cover, pendingMoveCost }) {
   );
 }
 
-export function TacticalHud({ state, selected, target, hasShootableEnemy, seedCopied, onCopySeed, moveMode, pendingMove, pendingMoveCost, pendingCover, nextReadyUnit, onConfirmMove, onRequestEndTurn, showNewGameWarning, onConfirmRegenerate, onCancelRegenerate, onAction, onRequestRegenerate, onToggleLevels, onSelect }) {
+export function TacticalHud({ state, selected, target, hasShootableEnemy, seedCopied, onCopySeed, pendingMove, pendingMoveCost, pendingCover, nextReadyUnit, onConfirmMove, onRequestEndTurn, showNewGameWarning, onConfirmRegenerate, onCancelRegenerate, onAction, onRequestRegenerate, onRotateCamera, onToggleLevels, onSelect }) {
   const [stackOpen, setStackOpen] = useState(() => window.innerWidth > 900);
   const [missionOpen, setMissionOpen] = useState(() => window.innerWidth > 900);
   const livingEnemies = state.units.filter((unit) => unit.team === 'alien' && unit.hp > 0).length;
@@ -129,7 +129,7 @@ export function TacticalHud({ state, selected, target, hasShootableEnemy, seedCo
       <header className="topbar">
         <div className="brand-lockup"><span className="brand-mark"><Activity size={17} /></span><span className="brand-name">XVOID</span><span className="brand-separator" /><span className="brand-mode">TACTICAL OPERATIONS</span></div>
         <div className="mission-meta"><span className="live-indicator" /> <span>SEKTOR 07 / NEMESIS</span><i /> <span>R-{String(state.turn).padStart(2, '0')}</span></div>
-        <div className="top-actions"><span className="enemy-count"><span>{String(livingEnemies).padStart(2, '0')}</span> HOSTILES</span><button className="icon-button level-toggle" onClick={onToggleLevels} title={state.showUpper ? 'Obere Etagen ausblenden' : 'Obere Etagen einblenden'}><Layers3 size={17} /><span>{state.showUpper ? 'ALLE LEVEL' : 'LEVEL 0'}</span></button><button className="icon-button tablet-rotate-button" aria-label="Kamera drehen" title="Kamera drehen" onClick={() => window.dispatchEvent(new KeyboardEvent('keydown', { key: 'q' }))}><RotateCcw size={16} /></button><button className="icon-button regenerate-button" onClick={onRequestRegenerate} title="Karte neu generieren"><Sparkles size={16} /></button></div>
+        <div className="top-actions"><span className="enemy-count"><span>{String(livingEnemies).padStart(2, '0')}</span> HOSTILES</span><button className="icon-button level-toggle" onClick={onToggleLevels} title={state.showUpper ? 'Obere Etagen ausblenden' : 'Obere Etagen einblenden'}><Layers3 size={17} /><span>{state.showUpper ? 'ALLE LEVEL' : 'LEVEL 0'}</span></button><button className="icon-button tablet-rotate-button" aria-label="Kamera drehen" title="Kamera drehen" onClick={() => onRotateCamera(-1)}><RotateCcw size={16} /></button><button className="icon-button regenerate-button" onClick={onRequestRegenerate} title="Karte neu generieren"><Sparkles size={16} /></button></div>
       </header>
 
       <aside className={`left-rail ${missionOpen ? '' : 'is-collapsed'}`}>
@@ -167,7 +167,7 @@ export function TacticalHud({ state, selected, target, hasShootableEnemy, seedCo
         <div className="dock-end"><button className="end-turn-button" onClick={onRequestEndTurn} disabled={state.phase !== 'player'}><SkipForward size={16} /><span>{nextReadyUnit ? 'NÄCHSTE' : 'ZUG BEENDEN'}</span><kbd>↵</kbd></button></div>
       </footer>
 
-      <div className="touch-controls"><button aria-label="Kamera drehen" title="Kamera drehen" onClick={() => window.dispatchEvent(new KeyboardEvent('keydown', { key: 'q' }))}><RotateCcw size={17} /></button><button aria-label="Etagen umschalten" title="Etagen umschalten" onClick={onToggleLevels}><Layers3 size={17} /></button><button aria-label={nextReadyUnit ? 'Nächste Einheit' : 'Zug beenden'} title={nextReadyUnit ? 'Nächste Einheit' : 'Zug beenden'} onClick={onRequestEndTurn} disabled={state.phase !== 'player'}><SkipForward size={17} /></button></div>
+      <div className="touch-controls"><button aria-label="Kamera drehen" title="Kamera drehen" onClick={() => onRotateCamera(-1)}><RotateCcw size={17} /></button><button aria-label="Etagen umschalten" title="Etagen umschalten" onClick={onToggleLevels}><Layers3 size={17} /></button><button aria-label={nextReadyUnit ? 'Nächste Einheit' : 'Zug beenden'} title={nextReadyUnit ? 'Nächste Einheit' : 'Zug beenden'} onClick={onRequestEndTurn} disabled={state.phase !== 'player'}><SkipForward size={17} /></button></div>
       {showNewGameWarning && (
         <div className="end-turn-warning-backdrop">
           <section className="end-turn-warning" role="alertdialog" aria-modal="true" aria-labelledby="new-game-warning-title" aria-describedby="new-game-warning-copy">

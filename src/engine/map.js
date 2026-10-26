@@ -5,6 +5,9 @@ export const FOG_REVEAL_RANGE = 18;
 // Highest level index a building reaches. Level 0 is ground, so 3 means up to four floors.
 export const MAX_BUILDING_LEVEL = 3;
 export const cellKey = ({ x, z, level = 0 }) => `${x},${z},${level}`;
+// Height of a cell in steps. Currently the storey index only: no generator sets an
+// elevation, so this is the single place to change if terrain height is added later.
+export const cellHeight = (cell) => cell?.level || 0;
 
 // Terrain that physically blocks movement. Boxes (pillar/console) are rendered as
 // solid cover objects, so they must never be walkable. Single source of truth for
@@ -12,7 +15,8 @@ export const cellKey = ({ x, z, level = 0 }) => `${x},${z},${level}`;
 export const BLOCKING_TERRAIN = new Set(['wall', 'pillar', 'console']);
 export const isPassable = (cell) => Boolean(cell && cell.walkable && !BLOCKING_TERRAIN.has(cell.terrain));
 
-const makeRandom = (seed) => {
+// Single seeded LCG for the whole engine. game.js imports it, so seeds stay consistent.
+export const makeRandom = (seed) => {
   let value = seed >>> 0;
   return () => {
     value = (value * 1664525 + 1013904223) >>> 0;

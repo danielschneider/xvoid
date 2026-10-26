@@ -3,9 +3,9 @@ import { Canvas, useFrame, useLoader, useThree } from '@react-three/fiber';
 import { Html, Line } from '@react-three/drei';
 import * as THREE from 'three';
 import { getFlankedBy } from '../engine/game.js';
-import { cellKey, getSideCover, hasLineOfSight } from '../engine/map.js';
+import { cellHeight, cellKey, getSideCover, hasLineOfSight } from '../engine/map.js';
 
-const LEVEL_HEIGHT = 1.5;
+const STEP_HEIGHT = 1.5;
 const TILE_SIZE = 16;
 const TILE_PITCH = 17;
 const ROGUELIKE_SHEET = `${import.meta.env.BASE_URL}assets/kenney-roguelike/Spritesheet/roguelikeSheet_transparent.png`;
@@ -162,7 +162,7 @@ function InstancedGround({ cells, visibleCells, meshRef }) {
   useEffect(() => {
     if (!meshRef.current) return;
     data.forEach((cell, index) => {
-      dummy.position.set(cell.x - 15.5, cell.level * LEVEL_HEIGHT - 0.08, cell.z - 15.5);
+      dummy.position.set(cell.x - 15.5, cellHeight(cell) * STEP_HEIGHT - 0.08, cell.z - 15.5);
       dummy.scale.set(1, 1, 1);
       dummy.updateMatrix();
       meshRef.current.setMatrixAt(index, dummy.matrix);
@@ -191,7 +191,7 @@ function CoverField({ cells, selected }) {
   const data = useMemo(() => cells.filter((cell) => cell.terrain === 'console' || cell.terrain === 'pillar'), [cells]);
   return data.map((cell) => {
     const height = cell.terrain === 'pillar' ? 1.14 : 0.46;
-    const position = [cell.x - 15.5, cell.level * LEVEL_HEIGHT + height / 2, cell.z - 15.5];
+    const position = [cell.x - 15.5, cellHeight(cell) * STEP_HEIGHT + height / 2, cell.z - 15.5];
     return (
       <group key={cellKey(cell)} position={position}>
         <mesh position={[0, -height / 2 + 0.045, 0]}>
@@ -286,7 +286,7 @@ function ReachableOverlay({ paths, map, coverProfiles }) {
     const cell = map.cells[key];
     const x = cell.x - 15.5;
     const z = cell.z - 15.5;
-    const y = cell.level * LEVEL_HEIGHT + 0.026;
+    const y = cellHeight(cell) * STEP_HEIGHT + 0.026;
     return {
       cell,
       ...value,
@@ -303,7 +303,7 @@ function ReachableOverlay({ paths, map, coverProfiles }) {
     // Tile color is the AP cost (cyan = 1 AP, orange = 2 AP). Cover on that cell is a separate inner marker.
     const color = apCost === 1 ? '#00cfff' : '#ffc247';
     const tier = coverProfiles?.get(cellKey(cell))?.tier ?? 0;
-    const y = cell.level * LEVEL_HEIGHT;
+    const y = cellHeight(cell) * STEP_HEIGHT;
     return (
       <group key={cellKey(cell)}>
         <mesh position={[cell.x - 15.5, y + 0.018, cell.z - 15.5]} rotation={[-Math.PI / 2, 0, 0]}>
@@ -323,14 +323,14 @@ function ReachableOverlay({ paths, map, coverProfiles }) {
 
 function MoveTrace({ path, start }) {
   const points = useMemo(() => [start, ...path].map((cell) => (
-    new THREE.Vector3(cell.x - 15.5, cell.level * LEVEL_HEIGHT + 0.055, cell.z - 15.5)
+    new THREE.Vector3(cell.x - 15.5, cellHeight(cell) * STEP_HEIGHT + 0.055, cell.z - 15.5)
   )), [path, start]);
   return <Line points={points} color="#d7f279" lineWidth={4} transparent opacity={0.95} />;
 }
 
 function AimBeam({ shooter, target, blocked }) {
   const points = useMemo(() => [shooter, target].map((unit) => (
-    new THREE.Vector3(unit.x - 15.5, unit.level * LEVEL_HEIGHT + 0.82, unit.z - 15.5)
+    new THREE.Vector3(unit.x - 15.5, cellHeight(unit) * STEP_HEIGHT + 0.82, unit.z - 15.5)
   )), [shooter, target]);
   const color = blocked ? '#ffd27a' : '#ff4d42';
   return (
@@ -353,7 +353,7 @@ const SIDE_STRIPS = {
 
 function SideCoverMarkers({ state, unit }) {
   const sides = getSideCover(state.map, unit);
-  const base = [unit.x - 15.5, unit.level * LEVEL_HEIGHT + 0.07, unit.z - 15.5];
+  const base = [unit.x - 15.5, cellHeight(unit) * STEP_HEIGHT + 0.07, unit.z - 15.5];
   return Object.entries(SIDE_STRIPS).filter(([side]) => sides[side] > 0).map(([side, { offset, size }]) => (
     <mesh key={side} position={[base[0] + offset[0], base[1], base[2] + offset[1]]} rotation={[-Math.PI / 2, 0, 0]}>
       <planeGeometry args={size} />
@@ -370,7 +370,7 @@ function FlankLines({ state, visibleCellKeys }) {
       .filter((enemy) => visibleCellKeys.has(cellKey(enemy)))
       .map((enemy) => ({ key: `${unit.id}-${enemy.id}`, from: enemy, to: unit }))), [state, visibleCellKeys]);
   return pairs.map(({ key, from, to }) => {
-    const points = [from, to].map((cell) => new THREE.Vector3(cell.x - 15.5, cell.level * LEVEL_HEIGHT + 0.9, cell.z - 15.5));
+    const points = [from, to].map((cell) => new THREE.Vector3(cell.x - 15.5, cellHeight(cell) * STEP_HEIGHT + 0.9, cell.z - 15.5));
     return <Line key={key} points={points} color="#ff4d42" lineWidth={3} dashed dashSize={0.25} gapSize={0.15} depthTest={false} renderOrder={997} />;
   });
 }
@@ -378,7 +378,7 @@ function FlankLines({ state, visibleCellKeys }) {
 function FogOfWar({ cells, visibleCellKeys }) {
   const foggedCells = useMemo(() => cells.filter((cell) => cell.level > 0 && !visibleCellKeys.has(cellKey(cell))), [cells, visibleCellKeys]);
   return foggedCells.map((cell) => (
-    <mesh key={`fog-${cellKey(cell)}`} position={[cell.x - 15.5, cell.level * LEVEL_HEIGHT + 0.026, cell.z - 15.5]} rotation={[-Math.PI / 2, 0, 0]}>
+    <mesh key={`fog-${cellKey(cell)}`} position={[cell.x - 15.5, cellHeight(cell) * STEP_HEIGHT + 0.026, cell.z - 15.5]} rotation={[-Math.PI / 2, 0, 0]}>
       <planeGeometry args={[1, 1]} />
       <meshBasicMaterial color="#080d0e" transparent opacity={0.9} depthWrite={false} />
     </mesh>
@@ -434,8 +434,8 @@ function PixelUnit({ unit, selected, targeted, shootable, hitChance, camera, mov
   ), [unit.team, unit.color, unit.className]);
   const spriteView = useRef(null);
   const visualFacing = useRef(unit.facing ?? 0);
-  const ground = [unit.x - 15.5, unit.level * LEVEL_HEIGHT + 0.035, unit.z - 15.5];
-  const destination = useMemo(() => new THREE.Vector3(...ground), [unit.level, unit.x, unit.z]);
+  const ground = [unit.x - 15.5, cellHeight(unit) * STEP_HEIGHT + 0.035, unit.z - 15.5];
+  const destination = useMemo(() => new THREE.Vector3(...ground), [cellHeight(unit), unit.x, unit.z]);
   const fullRoute = movement?.unitId === unit.id ? movement.path : null;
   const firstVisibleIndex = unit.team === 'alien' && fullRoute
     ? fullRoute.findIndex((cell) => visibleCellKeys.has(cellKey(cell)))
@@ -489,7 +489,7 @@ function PixelUnit({ unit, selected, targeted, shootable, hitChance, camera, mov
     if (group.current) {
       if (!initialized.current) {
         const first = route?.[0];
-        if (first) group.current.position.set(first.x - 15.5, first.level * LEVEL_HEIGHT + 0.035, first.z - 15.5);
+        if (first) group.current.position.set(first.x - 15.5, cellHeight(first) * STEP_HEIGHT + 0.035, first.z - 15.5);
         else group.current.position.copy(destination);
         initialized.current = true;
       }
@@ -501,8 +501,8 @@ function PixelUnit({ unit, selected, targeted, shootable, hitChance, camera, mov
         const segmentProgress = progress >= route.length - 1 ? 1 : progress - segment;
         const from = route[segment];
         const to = route[segment + 1];
-        routeStart.set(from.x - 15.5, from.level * LEVEL_HEIGHT + 0.035, from.z - 15.5);
-        routeEnd.set(to.x - 15.5, to.level * LEVEL_HEIGHT + 0.035, to.z - 15.5);
+        routeStart.set(from.x - 15.5, cellHeight(from) * STEP_HEIGHT + 0.035, from.z - 15.5);
+        routeEnd.set(to.x - 15.5, cellHeight(to) * STEP_HEIGHT + 0.035, to.z - 15.5);
         group.current.position.lerpVectors(routeStart, routeEnd, segmentProgress);
       } else {
         group.current.position.lerp(destination, 0.12);
@@ -608,10 +608,6 @@ function PixelUnit({ unit, selected, targeted, shootable, hitChance, camera, mov
           <span className="enemy-hit-chance">{hitChance}%</span>
         </Html>
       )}
-      <mesh ref={critOverlay} position={[0, 1.72, 0.05]} visible={false} renderOrder={12}>
-        <planeGeometry args={[0.9, 0.45]} />
-        <meshBasicMaterial ref={critMaterial} map={critTexture} transparent opacity={0} depthWrite={false} depthTest={false} toneMapped={false} />
-      </mesh>
     </group>
   );
 }
@@ -645,8 +641,8 @@ function BeamEffect({ shot, camera }) {
   const to = shot.to;
   const animationDuration = shot.enemyShot ? 1.15 : 0.65;
   const points = [
-    new THREE.Vector3(from.x - 15.5, from.level * LEVEL_HEIGHT + 0.8, from.z - 15.5),
-    new THREE.Vector3(to.x - 15.5, to.level * LEVEL_HEIGHT + 0.8, to.z - 15.5),
+    new THREE.Vector3(from.x - 15.5, cellHeight(from) * STEP_HEIGHT + 0.8, from.z - 15.5),
+    new THREE.Vector3(to.x - 15.5, cellHeight(to) * STEP_HEIGHT + 0.8, to.z - 15.5),
   ];
   useFrame((_, delta) => {
     elapsed.current += delta;
@@ -675,7 +671,7 @@ function BeamEffect({ shot, camera }) {
   );
 }
 
-function CameraRig({ floorRef, cells, onCellTap, focusUnit, focusToken, mapOffset, movingUnitId }) {
+function CameraRig({ floorRef, cells, onCellTap, focusUnit, focusToken, mapOffset, movingUnitId, rotateToken }) {
   const { camera, gl, size, scene } = useThree();
   const raycaster = useMemo(() => new THREE.Raycaster(), []);
   const pointer = useMemo(() => new THREE.Vector2(), []);
@@ -685,7 +681,7 @@ function CameraRig({ floorRef, cells, onCellTap, focusUnit, focusToken, mapOffse
     if (!focusUnit || movingUnitId) return;
     const target = new THREE.Vector3(
       focusUnit.x - 15.5 + mapOffset,
-      focusUnit.level * LEVEL_HEIGHT,
+      cellHeight(focusUnit) * STEP_HEIGHT,
       focusUnit.z - 15.5 + mapOffset,
     );
     const forward = camera.getWorldDirection(new THREE.Vector3());
@@ -699,6 +695,13 @@ function CameraRig({ floorRef, cells, onCellTap, focusUnit, focusToken, mapOffse
 
   const worldPos = useMemo(() => new THREE.Vector3(), []);
   const forward = useMemo(() => new THREE.Vector3(), []);
+
+  // Quarter-turn requests from the HUD (rotateToken changes) and keyboard use the same rotator.
+  useEffect(() => {
+    if (!rotateToken) return;
+    rotateCamera(camera, rotateToken.direction);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [rotateToken]);
 
   useFrame((_, delta) => {
     if (!movingUnitId) return;
@@ -722,12 +725,6 @@ function CameraRig({ floorRef, cells, onCellTap, focusUnit, focusToken, mapOffse
     let gesture = null;
     let moved = false;
 
-    const rotateCamera = (direction) => {
-      const offset = camera.position.clone();
-      offset.applyAxisAngle(new THREE.Vector3(0, 1, 0), direction * Math.PI / 2);
-      camera.position.copy(offset);
-      camera.lookAt(0, 0, 0);
-    };
     const distanceAndAngle = () => {
       const [first, second] = [...pointers.values()];
       if (!first || !second) return null;
@@ -772,7 +769,7 @@ function CameraRig({ floorRef, cells, onCellTap, focusUnit, focusToken, mapOffse
         const STEP = Math.PI / 2;
         while (Math.abs(gesture.rotationAcc) >= STEP / 2) {
           const dir = Math.sign(gesture.rotationAcc);
-          rotateCamera(dir);
+          rotateCamera(camera, dir);
           gesture.rotationAcc -= dir * STEP;
         }
         moved = true;
@@ -812,7 +809,7 @@ function CameraRig({ floorRef, cells, onCellTap, focusUnit, focusToken, mapOffse
       if (event.target instanceof HTMLElement && ['INPUT', 'TEXTAREA', 'BUTTON'].includes(event.target.tagName)) return;
       const key = event.key.toLowerCase();
       if (key === 'q' || key === 'e') {
-        rotateCamera(key === 'q' ? -1 : 1);
+        rotateCamera(camera, key === 'q' ? -1 : 1);
       } else if (['w', 'a', 's', 'd', 'arrowup', 'arrowleft', 'arrowdown', 'arrowright'].includes(key)) {
         const distance = 1.2;
         const right = new THREE.Vector3().setFromMatrixColumn(camera.matrixWorld, 0);
@@ -846,7 +843,15 @@ function CameraRig({ floorRef, cells, onCellTap, focusUnit, focusToken, mapOffse
   return null;
 }
 
-function Battlefield({ state, selected, coverProfiles, focusUnit, focusToken, target, paths, pendingMove, visibleCellKeys, shootableEnemyIds, enemyHitChances, onCellTap, movingUnitId }) {
+// Rotates the orbit camera a quarter turn around the map centre.
+function rotateCamera(camera, direction) {
+  const offset = camera.position.clone();
+  offset.applyAxisAngle(new THREE.Vector3(0, 1, 0), direction * Math.PI / 2);
+  camera.position.copy(offset);
+  camera.lookAt(0, 0, 0);
+}
+
+function Battlefield({ state, selected, coverProfiles, focusUnit, focusToken, target, paths, pendingMove, visibleCellKeys, shootableEnemyIds, enemyHitChances, onCellTap, movingUnitId, rotateToken }) {
   const { camera } = useThree();
   const floorRef = useRef();
   const allCells = useMemo(() => Object.values(state.map.cells), [state.map]);
@@ -883,12 +888,12 @@ function Battlefield({ state, selected, coverProfiles, focusUnit, focusToken, ta
       ))}
       {state.lastShot && <BeamEffect key={state.lastShot.id} shot={state.lastShot} camera={camera} />}
       </group>
-      <CameraRig floorRef={floorRef} cells={groundData} onCellTap={onCellTap} focusUnit={focusUnit} focusToken={focusToken} mapOffset={mapOffset} movingUnitId={movingUnitId} />
+      <CameraRig floorRef={floorRef} cells={groundData} onCellTap={onCellTap} focusUnit={focusUnit} focusToken={focusToken} mapOffset={mapOffset} movingUnitId={movingUnitId} rotateToken={rotateToken} />
     </>
   );
 }
 
-export default function GameScene({ state, selected, coverProfiles, focusUnit, focusToken, target, paths, pendingMove, visibleCellKeys, shootableEnemyIds, enemyHitChances, onCellTap, movingUnitId }) {
+export default function GameScene({ state, selected, coverProfiles, focusUnit, focusToken, target, paths, pendingMove, visibleCellKeys, shootableEnemyIds, enemyHitChances, onCellTap, movingUnitId, rotateToken }) {
   return (
     <Canvas
       orthographic
@@ -897,7 +902,7 @@ export default function GameScene({ state, selected, coverProfiles, focusUnit, f
       gl={{ antialias: false, powerPreference: 'low-power', alpha: false }}
       style={{ touchAction: 'none' }}
     >
-      <Battlefield state={state} selected={selected} coverProfiles={coverProfiles} focusUnit={focusUnit} focusToken={focusToken} target={target} paths={paths} pendingMove={pendingMove} visibleCellKeys={visibleCellKeys} shootableEnemyIds={shootableEnemyIds} enemyHitChances={enemyHitChances} onCellTap={onCellTap} movingUnitId={movingUnitId} />
+      <Battlefield state={state} selected={selected} coverProfiles={coverProfiles} focusUnit={focusUnit} focusToken={focusToken} target={target} paths={paths} pendingMove={pendingMove} visibleCellKeys={visibleCellKeys} shootableEnemyIds={shootableEnemyIds} enemyHitChances={enemyHitChances} onCellTap={onCellTap} movingUnitId={movingUnitId} rotateToken={rotateToken} />
     </Canvas>
   );
 }
