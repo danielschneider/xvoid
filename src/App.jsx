@@ -3,6 +3,7 @@ import GameScene from './components/GameScene.jsx';
 import { TacticalHud } from './components/TacticalHud.jsx';
 import { cellKey, computeHitChance, createInitialState, gameReducer, getReachable, movementLimits, SHOT_RANGE } from './engine/game.js';
 import { getCoverProfile, getVisibleCells, hasLineOfSight } from './engine/map.js';
+import { getNextReadyUnit } from './rules/turns/readyUnit.js';
 
 export default function App() {
   const [state, dispatch] = useReducer(gameReducer, undefined, () => createInitialState());
@@ -51,18 +52,8 @@ export default function App() {
     && (!activeEnemy || !visibleCellKeys.has(cellKey(activeEnemy)));
   const movementHidden = !!state.movement
     && state.movement.path.every((cell) => !visibleCellKeys.has(cellKey(cell)));
-  const playerUnits = state.units.filter((unit) => unit.team === 'player' && unit.hp > 0);
-  // Other living player units that still have AP, in roster order after the currently selected unit.
-  const readyUnits = useMemo(() => {
-    const ready = playerUnits.filter((unit) => unit.ap > 0 && unit.id !== state.selectedId);
-    const selectedIndex = playerUnits.findIndex((unit) => unit.id === state.selectedId);
-    return [...ready].sort((a, b) => {
-      const ia = (playerUnits.indexOf(a) - selectedIndex + playerUnits.length) % playerUnits.length;
-      const ib = (playerUnits.indexOf(b) - selectedIndex + playerUnits.length) % playerUnits.length;
-      return ia - ib;
-    });
-  }, [playerUnits, state.selectedId]);
-  const nextReadyUnit = readyUnits[0] ?? null;
+  // Same definition the reducer uses when it hands over selection (rules/turns/readyUnit.js).
+  const nextReadyUnit = useMemo(() => getNextReadyUnit(state), [state]);
   // Latest turn state for callbacks that must not be re-created on every render (D8).
   const turnRef = useRef({});
   turnRef.current = { phase: state.phase, movement: state.movement, lastShot: state.lastShot, nextReadyUnit };

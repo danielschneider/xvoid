@@ -7,7 +7,7 @@
     "dev": "vite --host 0.0.0.0",
     "build": "vite build",
     "preview": "vite preview --host 0.0.0.0",
-    "test": "node --test src/engine/*.test.js src/selectors/*.test.js",
+    "test": "node --test src/engine/*.test.js src/selectors/*.test.js src/rules/turns/*.test.js",
     "check": "npm run test && npm run build"
   },
   "dependencies": {

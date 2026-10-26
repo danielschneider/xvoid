@@ -6,6 +6,7 @@ import {
   WANDER_CHANCE, WANDER_RADIUS, WANDER_STEPS,
 } from '../rules/constants.js';
 import { ENEMY_TEMPLATES, PLAYER_TEMPLATES } from '../rules/templates.js';
+import { getNextReadyUnit } from '../rules/turns/readyUnit.js';
 
 export {
   SHOT_RANGE, ENEMY_SHOT_RANGE, OVERWATCH_RANGE, ENEMY_COVER_FACTOR, COVER_VALUE, CRIT_CHANCE, CRIT_MULTIPLIER,
@@ -242,14 +243,12 @@ const addLog = (state, text, kind = 'system') => [
 
 const facingToward = (from, to) => Math.atan2(to.x - from.x, to.z - from.z);
 
+// Hands selection to the next ready unit only once the selected unit is spent.
 function selectNextReadyPlayer(state) {
   if (state.phase !== 'player') return state;
   const current = state.units.find((unit) => unit.id === state.selectedId);
   if (!current || current.team !== 'player' || current.ap > 0) return state;
-  const players = state.units.filter((unit) => unit.team === 'player' && unit.hp > 0);
-  const currentIndex = players.findIndex((unit) => unit.id === current.id);
-  const next = [...players.slice(currentIndex + 1), ...players.slice(0, currentIndex)]
-    .find((unit) => unit.ap > 0);
+  const next = getNextReadyUnit(state);
   return next ? { ...state, selectedId: next.id, targetId: null, moveMode: true, shootMode: false } : state;
 }
 
