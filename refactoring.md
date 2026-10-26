@@ -4,9 +4,10 @@
 
 Read this first in every session. Work one chunk per session; stop when its acceptance check passes.
 
-- [~] Chunk 1: Commit Phase 0 and add a safety net (in progress)
+- [x] Chunk 1: Commit Phase 0 and add a safety net (done)
   - Phase 0 code committed as `c816ce0` ("refa1"); golden test and `test/fixtures/golden-hashes.json` are in that commit
-  - `npm run check` (test + build) added
+  - `npm run check` (test + build) added in `8ef1549`
+  - Verified: `npm run check` passed, 48/48 including golden test, golden hashes unchanged (fixture not modified in `8ef1549`)
 - [ ] Chunk 2: Phase 1, single source of truth (D2, D3, D4, D6)
 - [ ] Chunk 3: Phase 2a, split `map.js` (no behavior change)
 - [ ] Chunk 4: Phase 2b, split `game.js`, roles table (D10)
