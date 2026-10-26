@@ -14,7 +14,7 @@ Read this first in every session. Work one chunk per session; stop when its acce
   - [x] 2c: `selectors/combatPreview.js` calls `computeHitChance` and `getCoverAgainst`; HUD has no hit-chance arithmetic (D2). Add a parity test over a grid of shooter/target configs. Acceptance: `npm run check` passes. (done: 50/50 incl. parity grid in `selectors/combatPreview.test.js`; `game.js` exports `computePlayerHitParts` so the HUD breakdown reads engine terms; `npm test` glob now includes `src/selectors`; fixture unchanged)
   - [x] 2d: `getNextReadyUnit(state)` in `rules/turns/`, used by reducer and App (D6). Acceptance: `npm run check` passes. (done: `rules/turns/readyUnit.js` walks roster order from the selected unit; `game.js` `selectNextReadyPlayer` and App `readyUnits` both call it, circular sort removed; `rules/turns/readyUnit.test.js` covers 6 states incl. only-self and no-ready; `npm test` glob now includes `src/rules/turns`; 56/56, build ok, fixture unchanged)
   - If a sub-chunk still produces too much output, split it further and record the new split here before editing code.
-- [ ] Chunk 3: Phase 2a, split `map.js` (no behavior change)
+- [x] Chunk 3: Phase 2a, split `map.js` (no behavior change) (done: modules in `rules/grid/{cells,connectivity,generate}.js`, `rules/movement/pathfinding.js`, `rules/sight/{line,fog}.js`, `rules/combat/cover.js`; `engine/map.js` is now a re-export facade so importers are unchanged; 56/56, build ok, fixture unchanged)
 - [ ] Chunk 4: Phase 2b, split `game.js`, roles table (D10)
 - [ ] Chunk 5: Phase 3, events and director (riskiest)
 - [ ] Chunk 6: Phase 4, split `GameScene.jsx` and `game.test.js`
