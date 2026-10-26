@@ -116,6 +116,7 @@ export function TacticalHud({ state, selected, target, hasShootableEnemy, seedCo
   const totalEnemies = state.units.filter((unit) => unit.team === 'alien').length;
   const eliminatedEnemies = totalEnemies - livingEnemies;
   const targetVisible = selected && target && hasLineOfSight(state.map, selected, target);
+  const targetInRange = targetVisible && Math.hypot(selected.x - target.x, selected.z - target.z) <= SHOT_RANGE;
   return (
     <div className="hud-layer">
       <header className="topbar">
@@ -153,10 +154,10 @@ export function TacticalHud({ state, selected, target, hasShootableEnemy, seedCo
       <footer className={`bottom-dock ${!selected?.ap && !pendingMove ? 'bottom-dock--compact' : ''}`}>
         <div className="dock-location"><span className="location-cross"><Move size={15} /></span><div><b>GRID {String(selected?.x ?? 0).padStart(2, '0')} : {String(selected?.z ?? 0).padStart(2, '0')}</b><small>DECK {selected?.level ?? 0} · {selected?.level > 0 ? 'ELEVATED' : 'GROUND'}</small></div></div>
         <div className="action-group">
-          <ActionButton icon={Move} label="Bewegen" hint="M" active={moveMode} onClick={() => onAction({ type: 'toggle-move-mode' })} disabled={state.phase !== 'player' || !selected?.ap} />
-          <ActionButton icon={Crosshair} label="Feuern" active={state.shootMode} onClick={() => target && onAction({ type: 'attack', id: target.id })} disabled={state.phase !== 'player' || !targetVisible || !selected?.ap} kind="fire-action" />
-          <ActionButton icon={Eye} label="Overwatch" hint="O" onClick={() => onAction({ type: 'ability', name: 'overwatch' })} disabled={state.phase !== 'player' || !selected?.ap} />
-          {pendingMove && pendingMoveCost && <ActionButton icon={Check} label="Bestätigen" onClick={onConfirmMove} title={`Bewegung für ${pendingMoveCost} AP bestätigen`} active kind="confirm-move" />}
+          {pendingMove && pendingMoveCost
+            ? <ActionButton icon={Check} label="Bewegen" onClick={onConfirmMove} title={`Bewegung für ${pendingMoveCost} AP bestätigen`} active kind="confirm-move" />
+            : targetVisible && <ActionButton icon={Crosshair} label="Feuern" title={targetInRange ? undefined : 'Ziel außer Reichweite'} active={state.shootMode && targetInRange} onClick={() => onAction({ type: 'attack', id: target.id })} disabled={state.phase !== 'player' || !selected?.ap || !targetInRange} kind="fire-action" />}
+          <ActionButton icon={Eye} label="Feuerschutz" hint="O" onClick={() => onAction({ type: 'ability', name: 'overwatch' })} disabled={state.phase !== 'player' || !selected?.ap} />
         </div>
         <div className="dock-end"><button className="end-turn-button" onClick={onRequestEndTurn} disabled={state.phase !== 'player'}><SkipForward size={16} /><span>{nextReadyUnit ? 'NÄCHSTE' : 'ZUG BEENDEN'}</span><kbd>↵</kbd></button></div>
       </footer>

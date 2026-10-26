@@ -172,7 +172,12 @@ export default function App() {
       dispatch({ type: 'target', id: occupant.id });
       return;
     }
-    if (state.moveMode && paths.has(cellKey(cell))) {
+    if (!state.moveMode) {
+      setPendingMove(null);
+      dispatch({ type: 'move-mode' });
+      return;
+    }
+    if (paths.has(cellKey(cell))) {
       setPendingMove(cell);
       return;
     }

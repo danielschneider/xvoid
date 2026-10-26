@@ -595,6 +595,10 @@ export function gameReducer(state, action) {
     case 'toggle-move-mode':
       if (state.phase !== 'player' || state.movement) return state;
       return { ...state, moveMode: !state.moveMode, shootMode: false, targetId: null };
+    case 'move-mode':
+      // Tapping a non-target leaves shoot mode and returns to move mode.
+      if (state.phase !== 'player' || state.movement) return state;
+      return { ...state, moveMode: true, shootMode: false, targetId: null };
     case 'move':
       if (state.phase !== 'player' || state.movement) return state;
       return selectNextReadyPlayer(refreshAlerts(moveUnit(state, action.destination)));
