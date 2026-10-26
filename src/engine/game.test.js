@@ -1,6 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { computeCoverFor, computeCritChance, computeDistanceModifier, computeHitChance, createInitialState, CRIT_CHANCE, CRIT_MULTIPLIER, gameReducer, getFlankedBy } from './game.js';
+import { makeRandom } from '../rules/rng.js';
 import { cellKey, getCoverProfile, getReachable, getSideCover, getVisibleCells, hasLineOfSight, isPassable, VISION_RANGE } from './map.js';
 
 function adjacentWalkableCell(map, unit) {
@@ -375,15 +376,6 @@ test('selected player turns toward the targeted enemy', () => {
   const aimed = gameReducer(encounter, { type: 'target', id: enemy.id });
   assert.equal(aimed.units[0].facing, 0);
 });
-function withRandom(value, fn) {
-  const original = Math.random;
-  Math.random = () => value;
-  try {
-    return fn();
-  } finally {
-    Math.random = original;
-  }
-}
 
 function isolateEncounter(state, keep) {
   return { ...state, units: state.units.map((unit) => (keep[unit.id] ? { ...unit, ...keep[unit.id] } : { ...unit, hp: 0 })) };
@@ -400,7 +392,7 @@ test('overwatch fires at a visible enemy that ends its move in range, without sp
     [enemy.id]: { x: nearby.x, z: nearby.z, level: nearby.level, ap: 1 },
   });
   const moving = { ...placed, movement: { id: 7, unitId: enemy.id, path: [enemy], step: 0 } };
-  const result = withRandom(0, () => gameReducer(moving, { type: 'complete-movement', id: 7 }));
+  const result = gameReducer(withDraws(moving, [0]), { type: 'complete-movement', id: 7 });
   assert.equal(result.movement, null);
   assert.equal(result.lastShot?.enemyShot, false);
   assert.equal(result.units.find((unit) => unit.id === 'vanguard').status, null);
@@ -416,7 +408,7 @@ test('overwatch does not fire at enemies hidden in fog of war', () => {
     [enemy.id]: { x: 1, z: 1, level: 0 },
   });
   const moving = { ...placed, movement: { id: 8, unitId: enemy.id, path: [enemy], step: 0 } };
-  const result = withRandom(0, () => gameReducer(moving, { type: 'complete-movement', id: 8 }));
+  const result = gameReducer(withDraws(moving, [0]), { type: 'complete-movement', id: 8 });
   assert.equal(result.lastShot, null);
   assert.equal(result.units.find((unit) => unit.id === 'vanguard').status, 'overwatch');
 });
@@ -432,10 +424,10 @@ test('a single overwatch reaction shot consumes the watcher stance', () => {
     [enemy.id]: { x: nearby.x, z: nearby.z, level: nearby.level },
   });
   const moving = { ...placed, movement: { id: 9, unitId: enemy.id, path: [enemy], step: 0 } };
-  const first = withRandom(0, () => gameReducer(moving, { type: 'complete-movement', id: 9 }));
+  const first = gameReducer(withDraws(moving, [0]), { type: 'complete-movement', id: 9 });
   assert.equal(first.units.find((unit) => unit.id === 'vanguard').status, null);
   const again = { ...first, movement: { id: 10, unitId: enemy.id, path: [enemy], step: 0 } };
-  const second = withRandom(0, () => gameReducer(again, { type: 'complete-movement', id: 10 }));
+  const second = gameReducer(withDraws(again, [0]), { type: 'complete-movement', id: 10 });
   assert.equal(second.lastShot?.id, first.lastShot?.id);
 });
 
@@ -567,14 +559,15 @@ test('initial selection is a player unit that can move, even when the squad boxe
   assert.ok(getReachable(state.map, selected, blocked, 10).size > 0);
 });
 
-function withRandomSequence(values, fn) {
-  const original = Math.random;
-  let index = 0;
-  Math.random = () => values[Math.min(index++, values.length - 1)];
-  try {
-    return fn();
-  } finally {
-    Math.random = original;
+// Finds an RNG cursor whose next draws fall in the given buckets: 0 means [0, 0.01),
+// any other value v means [v, v + 0.01). Draws are consumed in order by the reducer.
+function withDraws(state, targets) {
+  for (let cursor = 1; ; cursor += 1) {
+    const random = makeRandom(cursor);
+    if (targets.every((target) => {
+      const value = random();
+      return target === 0 ? value < 0.01 : value >= target && value < target + 0.01;
+    })) return { ...state, rng: cursor };
   }
 }
 
@@ -591,7 +584,7 @@ test('a critical hit doubles base damage and reports crit on the shot', () => {
   const lineOpen = hasLineOfSight(encounter.map, shooterNow, target);
   assert.ok(lineOpen, 'test setup needs an open line of sight');
   // Roll sequence: hit (0), crit (0), damage roll (0 -> base 2) => crit damage 4.
-  const result = withRandomSequence([0, 0, 0], () => gameReducer(encounter, { type: 'attack', id: target.id }));
+  const result = gameReducer(withDraws(encounter, [0, 0, 0]), { type: 'attack', id: target.id });
   assert.equal(result.lastShot.hit, true);
   assert.equal(result.lastShot.crit, true);
   assert.equal(result.lastShot.damage, 2 * CRIT_MULTIPLIER);
@@ -607,7 +600,7 @@ test('a non-critical hit keeps base damage and reports crit as false', () => {
     units: state.units.map((unit) => (unit.id === shooter.id ? { ...unit, x: target.x, z: target.z + 1, level: 0, ap: 2 }
       : unit.id === target.id ? target : { ...unit, hp: 0 })),
   };
-  const result = withRandomSequence([0, 0.99, 0], () => gameReducer(encounter, { type: 'attack', id: target.id }));
+  const result = gameReducer(withDraws(encounter, [0, 0.99, 0]), { type: 'attack', id: target.id });
   assert.equal(result.lastShot.crit, false);
   assert.equal(result.lastShot.damage, 2);
 });
@@ -621,7 +614,7 @@ test('a miss never crits, so the crit roll is not consumed', () => {
     units: state.units.map((unit) => (unit.id === shooter.id ? { ...unit, x: target.x, z: target.z + 1, level: 0, ap: 2 }
       : unit.id === target.id ? target : { ...unit, hp: 0 })),
   };
-  const result = withRandomSequence([0.999, 0], () => gameReducer(encounter, { type: 'attack', id: target.id }));
+  const result = gameReducer(withDraws(encounter, [0.999, 0]), { type: 'attack', id: target.id });
   assert.equal(result.lastShot.hit, false);
   assert.equal(result.lastShot.crit, false);
   assert.equal(result.lastShot.damage, 0);
@@ -679,6 +672,6 @@ test('player shooting power adds to damage, enemy shots ignore it', () => {
       : unit.id === target.id ? target : { ...unit, hp: 0 })),
   };
   // Hit (0), no crit (0.99), base roll 0 -> 2 + power 1 = 3.
-  const result = withRandomSequence([0, 0.99, 0], () => gameReducer(encounter, { type: 'attack', id: target.id }));
+  const result = gameReducer(withDraws(encounter, [0, 0.99, 0]), { type: 'attack', id: target.id });
   assert.equal(result.lastShot.damage, 3);
 });

@@ -1,4 +1,5 @@
-import { cellKey, createBattlefield, getCoverAgainst, getReachable, getVisibleCells, hasLineOfSight, isPassable, makeRandom, VISION_RANGE } from './map.js';
+import { cellKey, createBattlefield, getCoverAgainst, getReachable, getVisibleCells, hasLineOfSight, isPassable, VISION_RANGE } from './map.js';
+import { makeRandom } from '../rules/rng.js';
 import {
   AP_ACTION_COST, AP_PER_TURN, CRIT_CHANCE, CRIT_MULTIPLIER, COVER_VALUE, DEFAULT_MOVE_RANGE, ENEMY_COVER_FACTOR,
   ENEMY_MOVE_STEPS, ENEMY_SHOT_RANGE, GROUP_RANGE, OVERWATCH_RANGE, SCOUT_RETREAT_RANGE, SHOT_RANGE,
@@ -112,8 +113,7 @@ function placeEnemyGroups(candidates, count, random) {
   return placed.slice(0, count);
 }
 
-function createStartingUnits(map, seed) {
-  const random = makeRandom(seed ^ 0x9e3779b9);
+function createStartingUnits(map, random) {
   const middle = Math.floor(map.size / 2);
   const openGround = Object.values(map.cells).filter((cell) => (
     isPassable(cell) && cell.level === 0 && !cell.structure
@@ -206,7 +206,8 @@ function initialSelection(map, units) {
 
 export function createInitialState(seed = 20261024, generation = 0) {
   const map = createBattlefield(seed);
-  const units = createStartingUnits(map, seed);
+  const random = makeRandom(seed ^ 0x9e3779b9);
+  const units = createStartingUnits(map, random);
   return {
     // Increments on every level reset. Views key their per-unit components on it
     // so that a reset remounts them instead of reusing stale visual state.
@@ -227,6 +228,10 @@ export function createInitialState(seed = 20261024, generation = 0) {
     showUpper: true,
     logs: [{ id: 1, text: 'Einsatz bereit. Halte die Position.', kind: 'system' }],
     lastShot: null,
+    // Integer RNG cursor: every random draw advances it (see rules/rng.js).
+    rng: random.cursor,
+    // Counter for movement and shot ids, so ids stay deterministic across runs.
+    nextId: 1,
   };
 }
 
@@ -260,7 +265,8 @@ function moveUnit(state, destination) {
   const facing = facingToward(previous, last);
   return {
     ...state,
-    movement: { id: Date.now(), unitId: unit.id, path: [unit, ...pathData.path], step: 0 },
+    movement: { id: state.nextId, unitId: unit.id, path: [unit, ...pathData.path], step: 0 },
+    nextId: state.nextId + 1,
     units: state.units.map((entry) => entry.id === unit.id
       ? { ...entry, x: last.x, z: last.z, level: last.level, ap: entry.ap - pathData.apCost, facing, status: null }
       : entry),
@@ -308,7 +314,7 @@ export function computeCritChance(enemyShot = false) {
   return CRIT_CHANCE;
 }
 
-function fireAt(state, targetId, shooterId = state.selectedId, enemyShot = false, reaction = false, random = Math.random) {
+function fireAt(state, targetId, shooterId = state.selectedId, enemyShot = false, reaction = false) {
   const shooter = state.units.find((unit) => unit.id === shooterId);
   const target = state.units.find((unit) => unit.id === targetId);
   if (!shooter || !target || shooter.team === target.team || (!reaction && shooter.ap < AP_ACTION_COST) || target.hp <= 0) return state;
@@ -320,6 +326,7 @@ function fireAt(state, targetId, shooterId = state.selectedId, enemyShot = false
     return { ...state, targetId, logs: addLog(state, 'Ziel außer Reichweite.', 'combat') };
   }
   const hitChance = computeHitChance(state, shooter, target, enemyShot);
+  const random = makeRandom(state.rng);
   const hit = random() < hitChance;
   const crit = hit && random() < computeCritChance(enemyShot);
   const baseDamage = enemyShot
@@ -337,9 +344,11 @@ function fireAt(state, targetId, shooterId = state.selectedId, enemyShot = false
   });
   return {
     ...state,
+    rng: random.cursor,
+    nextId: state.nextId + 1,
     units: nextUnits,
     targetId: enemyShot ? null : targetId,
-    lastShot: { from: shooter, to: target, hit, crit, damage, enemyShot, id: Date.now() },
+    lastShot: { from: shooter, to: target, hit, crit, damage, enemyShot, id: state.nextId },
     logs: addLog(state, (reaction ? 'Overwatch: ' : '') + (hit
       ? crit
         ? `${shooter.name} landet einen KRITISCHEN Treffer auf ${target.name} für ${damage} Schaden.`
@@ -411,7 +420,8 @@ function moveEnemy(state, enemy, destination, logText) {
   const facing = facingToward(previous, last);
   return {
     ...state,
-    movement: { id: Date.now(), unitId: enemy.id, path: [enemy, ...destination.path], step: 0 },
+    movement: { id: state.nextId, unitId: enemy.id, path: [enemy, ...destination.path], step: 0 },
+    nextId: state.nextId + 1,
     units: state.units.map((unit) => unit.id === enemy.id
       ? { ...unit, x: last.x, z: last.z, level: last.level, ap: unit.ap - AP_ACTION_COST, facing }
       : unit),
@@ -421,9 +431,11 @@ function moveEnemy(state, enemy, destination, logText) {
 }
 
 // Unalerted enemy: drifts randomly around its post without knowing where the squad is.
-function wanderEnemy(state, enemy, random = Math.random) {
+function wanderEnemy(state, enemy) {
+  const random = makeRandom(state.rng);
   const skip = (text) => ({
     ...state,
+    rng: random.cursor,
     enemyTurnIndex: state.enemyTurnIndex + 1,
     logs: text ? addLog(state, text, 'combat') : state.logs,
   });
@@ -434,7 +446,7 @@ function wanderEnemy(state, enemy, random = Math.random) {
     .filter(({ cell }) => Math.hypot(cell.x - enemy.postX, cell.z - enemy.postZ) <= WANDER_RADIUS);
   if (options.length === 0) return skip(null);
   const destination = options[Math.floor(random() * options.length)];
-  return moveEnemy(state, enemy, destination, `${enemy.name} patrouilliert.`);
+  return moveEnemy({ ...state, rng: random.cursor }, enemy, destination, `${enemy.name} patrouilliert.`);
 }
 
 function enemyStep(stateIn) {

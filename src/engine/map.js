@@ -1,3 +1,4 @@
+import { makeRandom } from '../rules/rng.js';
 import { AP_MOVE_CHEAP, AP_MOVE_FULL, DEFAULT_MOVE_RANGE, FOG_REVEAL_RANGE, VISION_RANGE } from '../rules/constants.js';
 
 export { FOG_REVEAL_RANGE, VISION_RANGE };
@@ -15,14 +16,6 @@ export const cellHeight = (cell) => cell?.level || 0;
 export const BLOCKING_TERRAIN = new Set(['wall', 'pillar', 'console']);
 export const isPassable = (cell) => Boolean(cell && cell.walkable && !BLOCKING_TERRAIN.has(cell.terrain));
 
-// Single seeded LCG for the whole engine. game.js imports it, so seeds stay consistent.
-export const makeRandom = (seed) => {
-  let value = seed >>> 0;
-  return () => {
-    value = (value * 1664525 + 1013904223) >>> 0;
-    return value / 4294967296;
-  };
-};
 
 const neighborsOf = (current, transitions) => [
   { x: current.x + 1, z: current.z, level: current.level },
@@ -124,7 +117,7 @@ function raiseBuilding(cells, transitions, room, topLevel) {
   }
 }
 
-export function createBattlefield(seed = Date.now()) {
+export function createBattlefield(seed) {
   const random = makeRandom(seed);
   const size = GRID_SIZES[Math.floor(random() * GRID_SIZES.length)];
   const middle = Math.floor(size / 2);
