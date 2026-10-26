@@ -1,0 +1,77 @@
+import { moveUnit } from '../movement/moveUnit.js';
+import { fireAt, resolveOverwatch } from '../combat/resolveShot.js';
+import { refreshAlerts } from '../ai/alerts.js';
+import { enemyStep } from '../ai/enemyStep.js';
+import { createInitialState } from '../spawn/initialState.js';
+import { facingToward } from '../geometry.js';
+import { endTurn, finishEnemyTurn, selectNextReadyPlayer, useAbility } from './actions.js';
+
+// The only public mutation entry point for game state. Helpers never mutate.
+export function gameReducer(state, action) {
+  switch (action.type) {
+    case 'select':
+      if (state.phase !== 'player' || state.movement) return state;
+      return { ...state, selectedId: action.id, targetId: null, shootMode: false, moveMode: true };
+    case 'target':
+      if (state.phase !== 'player' || state.movement) return state;
+      // Selecting an enemy leaves move mode and enters shoot mode.
+      return {
+        ...state,
+        targetId: action.id,
+        moveMode: false,
+        shootMode: true,
+        units: state.units.map((unit) => unit.id === state.selectedId
+          ? { ...unit, facing: facingToward(unit, state.units.find((target) => target.id === action.id) || unit) }
+          : unit),
+      };
+    case 'toggle-move-mode':
+      if (state.phase !== 'player' || state.movement) return state;
+      return { ...state, moveMode: !state.moveMode, shootMode: false, targetId: null };
+    case 'move-mode':
+      // Tapping a non-target leaves shoot mode and returns to move mode.
+      if (state.phase !== 'player' || state.movement) return state;
+      return { ...state, moveMode: true, shootMode: false, targetId: null };
+    case 'move':
+      if (state.phase !== 'player' || state.movement) return state;
+      return selectNextReadyPlayer(refreshAlerts(moveUnit(state, action.destination)));
+    case 'attack':
+      if (state.phase !== 'player' || state.movement) return state;
+      // Selection moves on only after the shot has been shown (see finish-shot).
+      return { ...refreshAlerts(fireAt(state, action.id)), shootMode: false };
+    case 'ability':
+      if (state.phase !== 'player' || state.movement) return state;
+      return selectNextReadyPlayer(useAbility(state));
+    case 'end-turn':
+      return endTurn(state);
+    case 'advance-movement':
+      if (!state.movement || state.movement.id !== action.id) return state;
+      if (state.movement.step >= state.movement.path.length - 1) return state;
+      return { ...state, movement: { ...state.movement, step: state.movement.step + 1 } };
+    case 'complete-movement': {
+      if (state.movement?.id !== action.id) return state;
+      const mover = state.units.find((unit) => unit.id === state.movement.unitId);
+      const cleared = { ...state, movement: null };
+      return mover?.team === 'alien' && state.phase === 'enemy'
+        ? resolveOverwatch(refreshAlerts(cleared), mover.id)
+        : cleared;
+    }
+    case 'enemy-step':
+      return enemyStep(state);
+    case 'finish-enemy-turn':
+      return finishEnemyTurn(state);
+    case 'regenerate':
+      return createInitialState(action.seed, state.generation + 1);
+    case 'toggle-levels':
+      return { ...state, showUpper: !state.showUpper };
+    case 'clear-shot':
+      return { ...state, lastShot: null };
+    case 'finish-shot': {
+      // Runs after the shot/death animation: clear the shot and hand over to the next ready player unit.
+      if (!state.lastShot || state.lastShot.id !== action.id) return state;
+      const cleared = { ...state, lastShot: null };
+      return state.lastShot.enemyShot ? cleared : selectNextReadyPlayer(cleared);
+    }
+    default:
+      return state;
+  }
+}

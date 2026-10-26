@@ -15,7 +15,9 @@ Read this first in every session. Work one chunk per session; stop when its acce
   - [x] 2d: `getNextReadyUnit(state)` in `rules/turns/`, used by reducer and App (D6). Acceptance: `npm run check` passes. (done: `rules/turns/readyUnit.js` walks roster order from the selected unit; `game.js` `selectNextReadyPlayer` and App `readyUnits` both call it, circular sort removed; `rules/turns/readyUnit.test.js` covers 6 states incl. only-self and no-ready; `npm test` glob now includes `src/rules/turns`; 56/56, build ok, fixture unchanged)
   - If a sub-chunk still produces too much output, split it further and record the new split here before editing code.
 - [x] Chunk 3: Phase 2a, split `map.js` (no behavior change) (done: modules in `rules/grid/{cells,connectivity,generate}.js`, `rules/movement/pathfinding.js`, `rules/sight/{line,fog}.js`, `rules/combat/cover.js`; `engine/map.js` is now a re-export facade so importers are unchanged; 56/56, build ok, fixture unchanged)
-- [ ] Chunk 4: Phase 2b, split `game.js`, roles table (D10)
+- [ ] Chunk 4: Phase 2b, split `game.js`, roles table (D10). Split into sub-chunks because 644 lines plus the role conversion exceed one session's output. Do one sub-chunk per session, commit it, then stop. Chunk 4 is [x] only after 4b.
+  - [x] 4a: moved `game.js` code into `rules/{spawn,movement,combat,ai,turns}/` plus `rules/{log,geometry}.js`, no behavior change; `engine/game.js` is now a re-export facade. Roles still use `ENEMY_MOVE_STEPS` and branches. (done: 56/56, build ok, fixture unchanged; largest new file `spawn/placement.js` 166 lines)
+  - [ ] 4b: convert enemy roles (D10) to `rules/ai/roles.js` table; remove `aiRole || role || 'raider'` fallback so a missing role throws; every file under 250 lines. Acceptance: `npm run check` passes, golden fixture unchanged.
 - [ ] Chunk 5: Phase 3, events and director (riskiest)
 - [ ] Chunk 6: Phase 4, split `GameScene.jsx` and `game.test.js`
 - [ ] Chunk 7: Phase 5, HUD, copy, CSS, tooling (ESLint, JSDoc `checkJs`, Prettier)
