@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import {
-  Activity, AlertTriangle, Check, Copy, Crosshair, ChevronDown, Eye, Footprints, HeartPulse, Layers3, Move, Radio, RotateCcw,
+  Activity, AlertTriangle, Check, Copy, Crosshair, ChevronDown, Eye, Footprints, HeartPulse, Layers3, Radio, RotateCcw,
   Shield, ShieldCheck, SkipForward, Sparkles, Swords, Target, Zap,
 } from 'lucide-react';
 import { COVER_VALUE, computeCoverFor, computeDistanceModifier, getFlankedBy, SHOT_RANGE } from '../engine/game.js';
@@ -117,6 +117,13 @@ export function TacticalHud({ state, selected, target, hasShootableEnemy, seedCo
   const eliminatedEnemies = totalEnemies - livingEnemies;
   const targetVisible = selected && target && hasLineOfSight(state.map, selected, target);
   const targetInRange = targetVisible && Math.hypot(selected.x - target.x, selected.z - target.z) <= SHOT_RANGE;
+  if (state.phase === 'enemy') {
+    return (
+      <div className="hud-layer">
+        <div className="enemy-turn-banner" role="status" aria-live="polite"><Radio size={15} /> ENEMY TURN</div>
+      </div>
+    );
+  }
   return (
     <div className="hud-layer">
       <header className="topbar">
@@ -124,7 +131,6 @@ export function TacticalHud({ state, selected, target, hasShootableEnemy, seedCo
         <div className="mission-meta"><span className="live-indicator" /> <span>SEKTOR 07 / NEMESIS</span><i /> <span>R-{String(state.turn).padStart(2, '0')}</span></div>
         <div className="top-actions"><span className="enemy-count"><span>{String(livingEnemies).padStart(2, '0')}</span> HOSTILES</span><button className="icon-button level-toggle" onClick={onToggleLevels} title={state.showUpper ? 'Obere Etagen ausblenden' : 'Obere Etagen einblenden'}><Layers3 size={17} /><span>{state.showUpper ? 'ALLE LEVEL' : 'LEVEL 0'}</span></button><button className="icon-button tablet-rotate-button" aria-label="Kamera drehen" title="Kamera drehen" onClick={() => window.dispatchEvent(new KeyboardEvent('keydown', { key: 'q' }))}><RotateCcw size={16} /></button><button className="icon-button regenerate-button" onClick={onRequestRegenerate} title="Karte neu generieren"><Sparkles size={16} /></button></div>
       </header>
-      {state.phase === 'enemy' && <div className="enemy-turn-banner" role="status" aria-live="polite"><Radio size={15} /> ENEMY TURN</div>}
 
       <aside className={`left-rail ${missionOpen ? '' : 'is-collapsed'}`}>
         <button className="mission-toggle" aria-expanded={missionOpen} aria-controls="mission-status-body" onClick={() => setMissionOpen((open) => !open)}>
@@ -152,7 +158,6 @@ export function TacticalHud({ state, selected, target, hasShootableEnemy, seedCo
       </div>
 
       <footer className={`bottom-dock ${!selected?.ap && !pendingMove ? 'bottom-dock--compact' : ''}`}>
-        <div className="dock-location"><span className="location-cross"><Move size={15} /></span><div><b>GRID {String(selected?.x ?? 0).padStart(2, '0')} : {String(selected?.z ?? 0).padStart(2, '0')}</b><small>DECK {selected?.level ?? 0} · {selected?.level > 0 ? 'ELEVATED' : 'GROUND'}</small></div></div>
         <div className="action-group">
           {pendingMove && pendingMoveCost
             ? <ActionButton icon={Check} label="Bewegen" onClick={onConfirmMove} title={`Bewegung für ${pendingMoveCost} AP bestätigen`} active kind="confirm-move" />
@@ -177,7 +182,7 @@ export function TacticalHud({ state, selected, target, hasShootableEnemy, seedCo
         </div>
       )}
       {pendingMove && <div className="map-legend" aria-label="Deckungsfarben"><span><i style={{ background: '#4aa8ff' }} />voll</span><span><i style={{ background: '#7fe08a' }} />halb</span><span><i style={{ background: '#8c9a94' }} />offen</span></div>}
-      <div className="map-coordinates"><span>{state.map.size} × {state.map.size}</span><i /> PROC-GEN <i /><span>SEED {state.map.seed}</span><button className="seed-copy-button" onClick={onCopySeed} aria-label="Kartenseed kopieren" title={seedCopied ? 'Seed kopiert' : 'Seed kopieren'}>{seedCopied ? <Check size={12} /> : <Copy size={12} />}</button></div>
+      <div className="map-coordinates"><span>{state.map.size} × {state.map.size}</span><i /> PROC-GEN <span className="seed-group"><i /><span>SEED {state.map.seed}</span><button className="seed-copy-button" onClick={onCopySeed} aria-label="Kartenseed kopieren" title={seedCopied ? 'Seed kopiert' : 'Seed kopieren'}>{seedCopied ? <Check size={12} /> : <Copy size={12} />}</button></span></div>
     </div>
   );
 }

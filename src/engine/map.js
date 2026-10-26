@@ -1,7 +1,7 @@
 export const GRID_SIZES = [32, 40, 48];
 export const VISION_RANGE = 10;
 // Fog reveal radius for the player squad; wider than spawn-safety vision so the map shows more.
-export const FOG_REVEAL_RANGE = 14;
+export const FOG_REVEAL_RANGE = 18;
 // Highest level index a building reaches. Level 0 is ground, so 3 means up to four floors.
 export const MAX_BUILDING_LEVEL = 3;
 export const cellKey = ({ x, z, level = 0 }) => `${x},${z},${level}`;
