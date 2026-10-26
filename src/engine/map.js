@@ -1,7 +1,7 @@
+import { AP_MOVE_CHEAP, AP_MOVE_FULL, DEFAULT_MOVE_RANGE, FOG_REVEAL_RANGE, VISION_RANGE } from '../rules/constants.js';
+
+export { FOG_REVEAL_RANGE, VISION_RANGE };
 export const GRID_SIZES = [32, 40, 48];
-export const VISION_RANGE = 10;
-// Fog reveal radius for the player squad; wider than spawn-safety vision so the map shows more.
-export const FOG_REVEAL_RANGE = 18;
 // Highest level index a building reaches. Level 0 is ground, so 3 means up to four floors.
 export const MAX_BUILDING_LEVEL = 3;
 export const cellKey = ({ x, z, level = 0 }) => `${x},${z},${level}`;
@@ -239,7 +239,7 @@ export function createBattlefield(seed = Date.now()) {
   return { seed, size, cells, transitions, rooms: buildings };
 }
 
-export function getReachable(map, start, blocked = new Set(), maxSteps = 10, cheapSteps = 5) {
+export function getReachable(map, start, blocked = new Set(), maxSteps = DEFAULT_MOVE_RANGE, cheapSteps = Math.ceil(DEFAULT_MOVE_RANGE / 2)) {
   const startKey = cellKey(start);
   const queue = [start];
   const distance = new Map([[startKey, 0]]);
@@ -269,7 +269,7 @@ export function getReachable(map, start, blocked = new Set(), maxSteps = 10, che
       path.unshift(map.cells[cursor]);
       cursor = previous.get(cursor);
     }
-    paths.set(key, { steps, path, apCost: steps <= cheapSteps ? 1 : 2 });
+    paths.set(key, { steps, path, apCost: steps <= cheapSteps ? AP_MOVE_CHEAP : AP_MOVE_FULL });
   }
   return paths;
 }

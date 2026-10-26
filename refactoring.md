@@ -8,7 +8,12 @@ Read this first in every session. Work one chunk per session; stop when its acce
   - Phase 0 code committed as `c816ce0` ("refa1"); golden test and `test/fixtures/golden-hashes.json` are in that commit
   - `npm run check` (test + build) added in `8ef1549`
   - Verified: `npm run check` passed, 48/48 including golden test, golden hashes unchanged (fixture not modified in `8ef1549`)
-- [ ] Chunk 2: Phase 1, single source of truth (D2, D3, D4, D6)
+- [ ] Chunk 2: Phase 1, single source of truth (D2, D3, D4, D6). Split into sub-chunks because one session hit the output limit. Do one sub-chunk per session, commit it, then stop.
+  - [x] 2a: `rules/constants.js` and `rules/templates.js`; replace AP, range and move literals (D4). Acceptance: `npm run check` passes, golden hashes unchanged. (done: 48/48, build ok, fixture unchanged; `game.js` and `map.js` re-export the old names)
+  - [ ] 2b: state-carried RNG and id counter; remove `Date.now()` and `Math.random` defaults; delete duplicate `makeRandom` (D3, D5). Keep the `createInitialState(seed, generation)` signature. Acceptance: `npm run check` passes, golden hashes unchanged.
+  - [ ] 2c: `selectors/combatPreview.js` calls `computeHitChance` and `getCoverAgainst`; HUD has no hit-chance arithmetic (D2). Add a parity test over a grid of shooter/target configs. Acceptance: `npm run check` passes.
+  - [ ] 2d: `getNextReadyUnit(state)` in `rules/turns/`, used by reducer and App (D6). Acceptance: `npm run check` passes.
+  - If a sub-chunk still produces too much output, split it further and record the new split here before editing code.
 - [ ] Chunk 3: Phase 2a, split `map.js` (no behavior change)
 - [ ] Chunk 4: Phase 2b, split `game.js`, roles table (D10)
 - [ ] Chunk 5: Phase 3, events and director (riskiest)

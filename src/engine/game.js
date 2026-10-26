@@ -1,23 +1,14 @@
 import { cellKey, createBattlefield, getCoverAgainst, getReachable, getVisibleCells, hasLineOfSight, isPassable, makeRandom, VISION_RANGE } from './map.js';
+import {
+  AP_ACTION_COST, AP_PER_TURN, CRIT_CHANCE, CRIT_MULTIPLIER, COVER_VALUE, DEFAULT_MOVE_RANGE, ENEMY_COVER_FACTOR,
+  ENEMY_MOVE_STEPS, ENEMY_SHOT_RANGE, GROUP_RANGE, OVERWATCH_RANGE, SCOUT_RETREAT_RANGE, SHOT_RANGE,
+  WANDER_CHANCE, WANDER_RADIUS, WANDER_STEPS,
+} from '../rules/constants.js';
+import { ENEMY_TEMPLATES, PLAYER_TEMPLATES } from '../rules/templates.js';
 
-export const SHOT_RANGE = 10;
-export const ENEMY_SHOT_RANGE = SHOT_RANGE;
-export const OVERWATCH_RANGE = 8;
-export const ENEMY_COVER_FACTOR = 0.5;
-// Cover penalty per tier: 2 = full (wall, pillar), 1 = half (console).
-export const COVER_VALUE = { 0: 0, 1: 0.2, 2: 0.4 };
-export const CRIT_CHANCE = 0.15;
-export const CRIT_MULTIPLIER = 2;
-
-// moveRange: max steps per turn at full AP. Half of it (rounded up) costs 1 AP.
-// power: flat damage bonus on player shots (enemy shots ignore it).
-const playerTemplates = [
-  { id: 'vanguard', name: 'Vanguard', className: 'BREACHER', team: 'player', hp: 7, maxHp: 7, shield: 2, ap: 2, moveRange: 6, power: 0, color: '#62e6c4' },
-  { id: 'spectre', name: 'Spectre', className: 'RECON', team: 'player', hp: 4, maxHp: 4, shield: 1, ap: 2, moveRange: 9, power: 1, color: '#87b5ff' },
-  { id: 'medic', name: 'Medic', className: 'FIELD MEDIC', team: 'player', hp: 5, maxHp: 5, shield: 2, ap: 2, moveRange: 7, power: -1, color: '#f0d77e' },
-];
-
-const DEFAULT_MOVE_RANGE = 10;
+export {
+  SHOT_RANGE, ENEMY_SHOT_RANGE, OVERWATCH_RANGE, ENEMY_COVER_FACTOR, COVER_VALUE, CRIT_CHANCE, CRIT_MULTIPLIER,
+};
 
 // Step limits for a unit's move. With 1 AP left only the cheap (1 AP) half is reachable.
 export function movementLimits(unit) {
@@ -25,13 +16,6 @@ export function movementLimits(unit) {
   const cheapSteps = Math.ceil(moveRange / 2);
   return { maxSteps: unit.ap === 1 ? cheapSteps : moveRange, cheapSteps };
 }
-
-const enemyTemplates = [
-  { role: 'raider', name: 'Void Raider', className: 'RAIDER', hp: 5, shield: 0, color: '#ff6f66' },
-  { role: 'stalker', name: 'Void Stalker', className: 'STALKER', hp: 6, shield: 1, color: '#d28cff' },
-  { role: 'scout', name: 'Void Scout', className: 'SCOUT', hp: 4, shield: 0, color: '#ff9b70' },
-  { role: 'guard', name: 'Void Guard', className: 'GUARD', hp: 7, shield: 2, color: '#d47682' },
-];
 
 function shuffle(items, random) {
   const result = [...items];
@@ -46,12 +30,8 @@ const spawnDistance = (a, b) => Math.hypot(a.x - b.x, a.z - b.z);
 
 // Enemies within GROUP_RANGE of each other (chained) form one group. A group is
 // alerted once any member is visible to the squad; only alerted groups hunt or shoot.
-const GROUP_RANGE = 2;
 // Unalerted enemies drift around their post: at most WANDER_STEPS per move, never
 // further than WANDER_RADIUS from the post.
-const WANDER_STEPS = 2;
-const WANDER_RADIUS = 3;
-const WANDER_CHANCE = 0.6;
 
 function assignEnemyGroups(cells) {
   const groupIds = cells.map(() => -1);
@@ -181,11 +161,11 @@ function createStartingUnits(map, seed) {
     if (enemySpawns) break;
   }
 
-  if (!playerSpawns || !enemySpawns || playerSpawns.length < playerTemplates.length || enemySpawns.length < enemyCount) {
+  if (!playerSpawns || !enemySpawns || playerSpawns.length < PLAYER_TEMPLATES.length || enemySpawns.length < enemyCount) {
     throw new Error(`Unable to place a fair ${map.size}x${map.size} starting force`);
   }
-  const randomizedRoles = shuffle(enemyTemplates, random);
-  const players = playerTemplates.map((unit, index) => ({
+  const randomizedRoles = shuffle(ENEMY_TEMPLATES, random);
+  const players = PLAYER_TEMPLATES.map((unit, index) => ({
     ...unit,
     x: playerSpawns[index].x,
     z: playerSpawns[index].z,
@@ -206,7 +186,7 @@ function createStartingUnits(map, seed) {
       postX: spawn.x,
       postZ: spawn.z,
       maxHp: template.hp,
-      ap: 2,
+      ap: AP_PER_TURN,
     };
   });
   return [...players, ...enemies];
@@ -270,7 +250,7 @@ function selectNextReadyPlayer(state) {
 
 function moveUnit(state, destination) {
   const unit = state.units.find((entry) => entry.id === state.selectedId);
-  if (!unit || unit.team !== 'player' || unit.ap < 1) return state;
+  if (!unit || unit.team !== 'player' || unit.ap < AP_ACTION_COST) return state;
   const occupied = new Set(state.units.filter((entry) => entry.id !== unit.id && entry.hp > 0).map(cellKey));
   const { maxSteps, cheapSteps } = movementLimits(unit);
   const pathData = getReachable(state.map, unit, occupied, maxSteps, cheapSteps).get(cellKey(destination));
@@ -331,7 +311,7 @@ export function computeCritChance(enemyShot = false) {
 function fireAt(state, targetId, shooterId = state.selectedId, enemyShot = false, reaction = false, random = Math.random) {
   const shooter = state.units.find((unit) => unit.id === shooterId);
   const target = state.units.find((unit) => unit.id === targetId);
-  if (!shooter || !target || shooter.team === target.team || (!reaction && shooter.ap < 1) || target.hp <= 0) return state;
+  if (!shooter || !target || shooter.team === target.team || (!reaction && shooter.ap < AP_ACTION_COST) || target.hp <= 0) return state;
   const visible = hasLineOfSight(state.map, shooter, target);
   if (!visible) {
     return { ...state, targetId, logs: addLog(state, 'Schusslinie blockiert.', 'combat') };
@@ -348,7 +328,7 @@ function fireAt(state, targetId, shooterId = state.selectedId, enemyShot = false
   const damage = hit ? (crit ? baseDamage * CRIT_MULTIPLIER : baseDamage) : 0;
   const remainingDamage = Math.max(0, damage - target.shield);
   const nextUnits = state.units.map((unit) => {
-    if (unit.id === shooter.id) return { ...unit, ap: reaction ? unit.ap : unit.ap - 1, facing: facingToward(shooter, target) };
+    if (unit.id === shooter.id) return { ...unit, ap: reaction ? unit.ap : unit.ap - AP_ACTION_COST, facing: facingToward(shooter, target) };
     if (unit.id === target.id && hit) {
       const shieldDamage = Math.min(unit.shield, damage);
       return { ...unit, shield: unit.shield - shieldDamage, hp: Math.max(0, unit.hp - remainingDamage) };
@@ -389,11 +369,11 @@ function resolveOverwatch(state, enemyId) {
 
 function useAbility(state) {
   const unit = state.units.find((entry) => entry.id === state.selectedId);
-  if (!unit || unit.ap < 1 || unit.team !== 'player') return state;
+  if (!unit || unit.ap < AP_ACTION_COST || unit.team !== 'player') return state;
   return {
     ...state,
     units: state.units.map((entry) => entry.id === unit.id
-      ? { ...entry, ap: entry.ap - 1, status: 'overwatch' }
+      ? { ...entry, ap: entry.ap - AP_ACTION_COST, status: 'overwatch' }
       : entry),
     logs: addLog(state, `${unit.name}: Overwatch.`, 'system'),
   };
@@ -433,7 +413,7 @@ function moveEnemy(state, enemy, destination, logText) {
     ...state,
     movement: { id: Date.now(), unitId: enemy.id, path: [enemy, ...destination.path], step: 0 },
     units: state.units.map((unit) => unit.id === enemy.id
-      ? { ...unit, x: last.x, z: last.z, level: last.level, ap: unit.ap - 1, facing }
+      ? { ...unit, x: last.x, z: last.z, level: last.level, ap: unit.ap - AP_ACTION_COST, facing }
       : unit),
     enemyTurnIndex: state.enemyTurnIndex + 1,
     logs: addLog(state, logText, 'move'),
@@ -447,7 +427,7 @@ function wanderEnemy(state, enemy, random = Math.random) {
     enemyTurnIndex: state.enemyTurnIndex + 1,
     logs: text ? addLog(state, text, 'combat') : state.logs,
   });
-  if (enemy.ap < 1 || random() > WANDER_CHANCE) return skip(null);
+  if (enemy.ap < AP_ACTION_COST || random() > WANDER_CHANCE) return skip(null);
   const blocked = new Set(state.units.filter((unit) => unit.id !== enemy.id && unit.hp > 0).map(cellKey));
   const options = [...getReachable(state.map, enemy, blocked, WANDER_STEPS).values()]
     .map((path) => ({ ...path, cell: path.path[path.path.length - 1] }))
@@ -478,7 +458,7 @@ function enemyStep(stateIn) {
       .sort((a, b) => Math.hypot(a.x - enemy.x, a.z - enemy.z) - Math.hypot(b.x - enemy.x, b.z - enemy.z))
     : [];
   const role = enemy.aiRole || enemy.role || 'raider';
-  const retreating = role === 'scout' && enemy.hp <= Math.ceil(enemy.maxHp / 2) && distance <= 5;
+  const retreating = role === 'scout' && enemy.hp <= Math.ceil(enemy.maxHp / 2) && distance <= SCOUT_RETREAT_RANGE;
 
   if (!retreating && enemy.ap > 0 && revealedTargets.length > 0) {
     const targetToShoot = role === 'raider'
@@ -494,7 +474,7 @@ function enemyStep(stateIn) {
   }
 
   const blocked = new Set(state.units.filter((unit) => unit.id !== enemy.id && unit.hp > 0).map(cellKey));
-  const maxSteps = role === 'scout' ? 7 : role === 'stalker' ? 6 : 5;
+  const maxSteps = ENEMY_MOVE_STEPS[role] ?? ENEMY_MOVE_STEPS.raider;
   const paths = getReachable(state.map, enemy, blocked, maxSteps);
   let destinations = [...paths.entries()]
     .map(([key, path]) => ({ cell: state.map.cells[key], ...path }))
@@ -528,7 +508,7 @@ function enemyStep(stateIn) {
   });
   const destination = destinations[0];
 
-  if (!destination || enemy.ap < 1) {
+  if (!destination || enemy.ap < AP_ACTION_COST) {
     const decision = role === 'guard' ? 'hält den Posten' : role === 'stalker' ? 'bleibt verborgen' : 'hält die Position';
     return {
       ...state,
@@ -547,7 +527,7 @@ function enemyStep(stateIn) {
 function finishEnemyTurn(state) {
   if (state.phase !== 'enemy' || state.enemyTurnIndex < state.enemyTurnOrder.length) return state;
   const players = state.units.filter((unit) => unit.team === 'player' && unit.hp > 0);
-  const units = state.units.map((unit) => ({ ...unit, ap: unit.hp > 0 ? 2 : 0, status: null }));
+  const units = state.units.map((unit) => ({ ...unit, ap: unit.hp > 0 ? AP_PER_TURN : 0, status: null }));
   // Every new round starts with the first living player unit in roster order.
   const selectedId = players[0]?.id || null;
   const turn = state.turn + 1;
