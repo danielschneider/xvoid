@@ -4,82 +4,15 @@ import { Html, Line } from '@react-three/drei';
 import * as THREE from 'three';
 import { getFlankedBy } from '../engine/game.js';
 import { cellHeight, cellKey, getSideCover, hasLineOfSight } from '../engine/map.js';
-
-const STEP_HEIGHT = 1.5;
-const TILE_SIZE = 16;
-const TILE_PITCH = 17;
+import { CELL_OFFSET, STEP_HEIGHT, toWorld, toWorldY } from './scene/coords.js';
+import { createTileTexture, createGroundTexture } from './scene/textures/tiles.js';
+import { createSpriteTexture } from './scene/textures/sprites.js';
+import { createCritTexture, createDamageTexture } from './scene/textures/labels.js';
 const ROGUELIKE_SHEET = `${import.meta.env.BASE_URL}assets/kenney-roguelike/Spritesheet/roguelikeSheet_transparent.png`;
-
-function seededNoise(seed, x, z, salt = 0) {
-  let value = (seed ^ Math.imul(x, 374761393) ^ Math.imul(z, 668265263) ^ Math.imul(salt, 2246822519)) >>> 0;
-  value = Math.imul(value ^ (value >>> 13), 1274126177) >>> 0;
-  return ((value ^ (value >>> 16)) >>> 0) / 4294967296;
-}
-
-function createTileTexture(image, column, row) {
-  const canvas = document.createElement('canvas');
-  canvas.width = TILE_SIZE;
-  canvas.height = TILE_SIZE;
-  const context = canvas.getContext('2d');
-  context.imageSmoothingEnabled = false;
-  context.drawImage(image, column * TILE_PITCH, row * TILE_PITCH, TILE_SIZE, TILE_SIZE, 0, 0, TILE_SIZE, TILE_SIZE);
-  const texture = new THREE.CanvasTexture(canvas);
-  texture.magFilter = THREE.NearestFilter;
-  texture.minFilter = THREE.NearestFilter;
-  texture.colorSpace = THREE.SRGBColorSpace;
-  return texture;
-}
 
 function TilemapGround({ map, visibleCellKeys }) {
   const atlas = useLoader(THREE.TextureLoader, ROGUELIKE_SHEET);
-  const texture = useMemo(() => {
-    const canvas = document.createElement('canvas');
-    canvas.width = map.size * TILE_SIZE;
-    canvas.height = map.size * TILE_SIZE;
-    const context = canvas.getContext('2d');
-    context.imageSmoothingEnabled = false;
-    for (let z = 0; z < map.size; z += 1) {
-      for (let x = 0; x < map.size; x += 1) {
-        const cell = map.cells[cellKey({ x, z, level: 0 })];
-        const variation = seededNoise(map.seed, x, z, 47);
-        const tile = cell.structure
-          ? (variation < 0.5 ? [6, 14] : [7, 14])
-          : cell.corridor
-            ? (variation < 0.5 ? [5, 8] : [6, 8])
-            : cell.cover > 0
-              ? [5, 14]
-              : variation < 0.055
-                ? [0, 9]
-                : variation < 0.16 ? [1, 15] : [0, 15];
-        context.fillStyle = cell.corridor ? '#263332' : cell.structure ? '#303c39' : '#202b2b';
-        context.fillRect(x * TILE_SIZE, z * TILE_SIZE, TILE_SIZE, TILE_SIZE);
-        context.drawImage(
-          atlas.image,
-          tile[0] * TILE_PITCH,
-          tile[1] * TILE_PITCH,
-          TILE_SIZE,
-          TILE_SIZE,
-          x * TILE_SIZE,
-          z * TILE_SIZE,
-          TILE_SIZE,
-          TILE_SIZE,
-        );
-        if (!visibleCellKeys.has(cellKey({ x, z, level: 0 }))) {
-          context.globalAlpha = 0.9;
-          context.fillStyle = '#080d0e';
-          context.fillRect(x * TILE_SIZE, z * TILE_SIZE, TILE_SIZE, TILE_SIZE);
-          context.globalAlpha = 1;
-        }
-      }
-    }
-    const groundTexture = new THREE.CanvasTexture(canvas);
-    groundTexture.magFilter = THREE.NearestFilter;
-    groundTexture.minFilter = THREE.NearestFilter;
-    groundTexture.colorSpace = THREE.SRGBColorSpace;
-    groundTexture.generateMipmaps = false;
-    groundTexture.anisotropy = 1;
-    return groundTexture;
-  }, [atlas, map, visibleCellKeys]);
+  const texture = useMemo(() => createGroundTexture(atlas.image, map, visibleCellKeys), [atlas, map, visibleCellKeys]);
 
   return (
     <>
@@ -96,64 +29,6 @@ function TilemapGround({ map, visibleCellKeys }) {
   );
 }
 
-function createSpriteTexture(team, color, className, view) {
-  const canvas = document.createElement('canvas');
-  canvas.width = 48;
-  canvas.height = 64;
-  const context = canvas.getContext('2d');
-  context.clearRect(0, 0, canvas.width, canvas.height);
-  const pixel = (x, y, width, height, fill) => {
-    context.fillStyle = fill;
-    context.fillRect(x, y, width, height);
-  };
-  const glow = team === 'alien' ? '#ff7770' : color;
-  const armor = team === 'alien' ? '#39242d' : '#203737';
-  const sideView = view === 'left' || view === 'right';
-  if (view === 'left') {
-    context.translate(canvas.width, 0);
-    context.scale(-1, 1);
-  }
-  pixel(sideView ? 19 : 18, 3, sideView ? 10 : 12, 3, glow);
-  pixel(sideView ? 17 : 15, 6, sideView ? 14 : 18, 13, '#a8c3b8');
-  pixel(sideView ? 14 : 13, 10, 3, 6, armor);
-  pixel(sideView ? 31 : 32, 10, 3, 6, armor);
-  pixel(sideView ? 18 : 16, 18, sideView ? 12 : 16, 2, glow);
-  pixel(sideView ? 14 : 11, 21, sideView ? 20 : 26, 20, armor);
-  pixel(sideView ? 10 : 8, 23, 5, 16, glow);
-  pixel(sideView ? 34 : 35, 23, 5, 16, glow);
-  pixel(sideView ? 17 : 14, 24, sideView ? 15 : 20, 7, '#547b70');
-  pixel(sideView ? 20 : 20, 31, 8, 8, glow);
-  pixel(sideView ? 15 : 14, 41, 7, 15, '#20302f');
-  pixel(sideView ? 27 : 26, 41, 7, 15, '#20302f');
-  pixel(sideView ? 12 : 10, 55, 10, 4, glow);
-  pixel(sideView ? 27 : 26, 55, 10, 4, glow);
-  if (view === 'back') {
-    pixel(18, 9, 12, 5, '#36524c');
-    pixel(22, 21, 4, 19, '#71877b');
-    pixel(18, 27, 12, 3, glow);
-  } else if (sideView) {
-    pixel(23, 10, 7, 4, team === 'alien' ? '#ffb19a' : '#eaffcf');
-    pixel(28, 27, 12, 4, '#718078');
-    pixel(37, 26, 8, 2, '#c5c3a3');
-    pixel(30, 31, 3, 5, '#35433d');
-    pixel(31, 25, 4, 2, glow);
-  } else {
-    pixel(19, 10, 3, 3, team === 'alien' ? '#ffb19a' : '#eaffcf');
-    pixel(24, 10, 3, 3, team === 'alien' ? '#ffb19a' : '#eaffcf');
-    pixel(28, 28, 11, 4, '#718078');
-    pixel(37, 27, 8, 2, '#c5c3a3');
-    pixel(31, 32, 3, 5, '#35433d');
-    pixel(33, 25, 4, 2, glow);
-  }
-  if (className === 'RECON') pixel(36, 20, 4, 28, '#98baff');
-  if (className === 'FIELD MEDIC') pixel(20, 23, 8, 3, '#f5efc7');
-  const texture = new THREE.CanvasTexture(canvas);
-  texture.magFilter = THREE.NearestFilter;
-  texture.minFilter = THREE.NearestFilter;
-  texture.colorSpace = THREE.SRGBColorSpace;
-  return texture;
-}
-
 function InstancedGround({ cells, visibleCells, meshRef }) {
   const data = useMemo(() => visibleCells.filter((cell) => cell.walkable), [visibleCells]);
   const dummy = useMemo(() => new THREE.Object3D(), []);
@@ -162,7 +37,7 @@ function InstancedGround({ cells, visibleCells, meshRef }) {
   useEffect(() => {
     if (!meshRef.current) return;
     data.forEach((cell, index) => {
-      dummy.position.set(cell.x - 15.5, cellHeight(cell) * STEP_HEIGHT - 0.08, cell.z - 15.5);
+      dummy.position.set(toWorld(cell).x, toWorldY(cell) - 0.08, toWorld(cell).z);
       dummy.scale.set(1, 1, 1);
       dummy.updateMatrix();
       meshRef.current.setMatrixAt(index, dummy.matrix);
@@ -191,7 +66,7 @@ function CoverField({ cells, selected }) {
   const data = useMemo(() => cells.filter((cell) => cell.terrain === 'console' || cell.terrain === 'pillar'), [cells]);
   return data.map((cell) => {
     const height = cell.terrain === 'pillar' ? 1.14 : 0.46;
-    const position = [cell.x - 15.5, cellHeight(cell) * STEP_HEIGHT + height / 2, cell.z - 15.5];
+    const position = [toWorld(cell).x, toWorldY(cell) + height / 2, toWorld(cell).z];
     return (
       <group key={cellKey(cell)} position={position}>
         <mesh position={[0, -height / 2 + 0.045, 0]}>
@@ -226,7 +101,7 @@ function WallField({ cells, selected }) {
   return cells.filter((cell) => cell.terrain === 'wall').map((cell) => {
     const nearby = selected && Math.hypot(selected.x - cell.x, selected.z - cell.z) < 5;
     return (
-      <group key={cellKey(cell)} position={[cell.x - 15.5, 0.74, cell.z - 15.5]}>
+      <group key={cellKey(cell)} position={[toWorld(cell).x, 0.74, toWorld(cell).z]}>
         <mesh>
           <boxGeometry args={[0.92, 1.42, 0.92]} />
           <meshStandardMaterial map={wallTexture} color="#ffffff" roughness={0.94} transparent={nearby} opacity={nearby ? 0.34 : 1} />
@@ -284,9 +159,9 @@ const SHIELD_COLOR = { 1: '#ffd34d', 2: '#7fe08a' };
 function ReachableOverlay({ paths, map, coverProfiles }) {
   const entries = useMemo(() => [...paths.entries()].map(([key, value]) => {
     const cell = map.cells[key];
-    const x = cell.x - 15.5;
-    const z = cell.z - 15.5;
-    const y = cellHeight(cell) * STEP_HEIGHT + 0.026;
+    const x = toWorld(cell).x;
+    const z = toWorld(cell).z;
+    const y = toWorldY(cell) + 0.026;
     return {
       cell,
       ...value,
@@ -303,15 +178,15 @@ function ReachableOverlay({ paths, map, coverProfiles }) {
     // Tile color is the AP cost (cyan = 1 AP, orange = 2 AP). Cover on that cell is a separate inner marker.
     const color = apCost === 1 ? '#00cfff' : '#ffc247';
     const tier = coverProfiles?.get(cellKey(cell))?.tier ?? 0;
-    const y = cellHeight(cell) * STEP_HEIGHT;
+    const y = toWorldY(cell);
     return (
       <group key={cellKey(cell)}>
-        <mesh position={[cell.x - 15.5, y + 0.018, cell.z - 15.5]} rotation={[-Math.PI / 2, 0, 0]}>
+        <mesh position={[toWorld(cell).x, y + 0.018, toWorld(cell).z]} rotation={[-Math.PI / 2, 0, 0]}>
           <planeGeometry args={[0.86, 0.86]} />
           <meshBasicMaterial color={color} transparent opacity={steps <= 5 ? 0.4 : 0.5} depthWrite={false} toneMapped={false} />
         </mesh>
         {tier > 0 && (
-          <mesh geometry={SHIELD_GEOMETRY} position={[cell.x - 15.5, y + 0.024, cell.z - 15.5]} rotation={[-Math.PI / 2, 0, 0]}>
+          <mesh geometry={SHIELD_GEOMETRY} position={[toWorld(cell).x, y + 0.024, toWorld(cell).z]} rotation={[-Math.PI / 2, 0, 0]}>
             <meshBasicMaterial color={SHIELD_COLOR[tier]} transparent opacity={0.95} depthWrite={false} toneMapped={false} side={THREE.DoubleSide} />
           </mesh>
         )}
@@ -323,14 +198,14 @@ function ReachableOverlay({ paths, map, coverProfiles }) {
 
 function MoveTrace({ path, start }) {
   const points = useMemo(() => [start, ...path].map((cell) => (
-    new THREE.Vector3(cell.x - 15.5, cellHeight(cell) * STEP_HEIGHT + 0.055, cell.z - 15.5)
+    new THREE.Vector3(toWorld(cell).x, toWorldY(cell) + 0.055, toWorld(cell).z)
   )), [path, start]);
   return <Line points={points} color="#d7f279" lineWidth={4} transparent opacity={0.95} />;
 }
 
 function AimBeam({ shooter, target, blocked }) {
   const points = useMemo(() => [shooter, target].map((unit) => (
-    new THREE.Vector3(unit.x - 15.5, cellHeight(unit) * STEP_HEIGHT + 0.82, unit.z - 15.5)
+    new THREE.Vector3(toWorld(unit).x, toWorldY(unit) + 0.82, toWorld(unit).z)
   )), [shooter, target]);
   const color = blocked ? '#ffd27a' : '#ff4d42';
   return (
@@ -353,7 +228,7 @@ const SIDE_STRIPS = {
 
 function SideCoverMarkers({ state, unit }) {
   const sides = getSideCover(state.map, unit);
-  const base = [unit.x - 15.5, cellHeight(unit) * STEP_HEIGHT + 0.07, unit.z - 15.5];
+  const base = [toWorld(unit).x, toWorldY(unit) + 0.07, toWorld(unit).z];
   return Object.entries(SIDE_STRIPS).filter(([side]) => sides[side] > 0).map(([side, { offset, size }]) => (
     <mesh key={side} position={[base[0] + offset[0], base[1], base[2] + offset[1]]} rotation={[-Math.PI / 2, 0, 0]}>
       <planeGeometry args={size} />
@@ -370,7 +245,7 @@ function FlankLines({ state, visibleCellKeys }) {
       .filter((enemy) => visibleCellKeys.has(cellKey(enemy)))
       .map((enemy) => ({ key: `${unit.id}-${enemy.id}`, from: enemy, to: unit }))), [state, visibleCellKeys]);
   return pairs.map(({ key, from, to }) => {
-    const points = [from, to].map((cell) => new THREE.Vector3(cell.x - 15.5, cellHeight(cell) * STEP_HEIGHT + 0.9, cell.z - 15.5));
+    const points = [from, to].map((cell) => new THREE.Vector3(toWorld(cell).x, toWorldY(cell) + 0.9, toWorld(cell).z));
     return <Line key={key} points={points} color="#ff4d42" lineWidth={3} dashed dashSize={0.25} gapSize={0.15} depthTest={false} renderOrder={997} />;
   });
 }
@@ -378,7 +253,7 @@ function FlankLines({ state, visibleCellKeys }) {
 function FogOfWar({ cells, visibleCellKeys }) {
   const foggedCells = useMemo(() => cells.filter((cell) => cell.level > 0 && !visibleCellKeys.has(cellKey(cell))), [cells, visibleCellKeys]);
   return foggedCells.map((cell) => (
-    <mesh key={`fog-${cellKey(cell)}`} position={[cell.x - 15.5, cellHeight(cell) * STEP_HEIGHT + 0.026, cell.z - 15.5]} rotation={[-Math.PI / 2, 0, 0]}>
+    <mesh key={`fog-${cellKey(cell)}`} position={[toWorld(cell).x, toWorldY(cell) + 0.026, toWorld(cell).z]} rotation={[-Math.PI / 2, 0, 0]}>
       <planeGeometry args={[1, 1]} />
       <meshBasicMaterial color="#080d0e" transparent opacity={0.9} depthWrite={false} />
     </mesh>
@@ -406,25 +281,7 @@ function PixelUnit({ unit, selected, targeted, shootable, hitChance, camera, mov
   const muzzleElapsed = useRef(Infinity);
   const playedShotId = useRef(lastShot?.id ?? null);
   const movementProgress = useRef({ id: null, elapsed: 0 });
-  const critTexture = useMemo(() => {
-    const canvas = document.createElement('canvas');
-    canvas.width = 128;
-    canvas.height = 64;
-    const context = canvas.getContext('2d');
-    context.font = 'bold 40px monospace';
-    context.textAlign = 'center';
-    context.textBaseline = 'middle';
-    context.lineWidth = 8;
-    context.strokeStyle = '#17201c';
-    context.fillStyle = '#ffd34d';
-    context.strokeText('CRIT', 64, 34);
-    context.fillText('CRIT', 64, 34);
-    const texture = new THREE.CanvasTexture(canvas);
-    texture.magFilter = THREE.NearestFilter;
-    texture.minFilter = THREE.NearestFilter;
-    texture.colorSpace = THREE.SRGBColorSpace;
-    return texture;
-  }, []);
+  const critTexture = useMemo(() => createCritTexture(), []);
   const routeStart = useMemo(() => new THREE.Vector3(), []);
   const routeEnd = useMemo(() => new THREE.Vector3(), []);
   const cameraDirection = useMemo(() => new THREE.Vector3(), []);
@@ -434,7 +291,7 @@ function PixelUnit({ unit, selected, targeted, shootable, hitChance, camera, mov
   ), [unit.team, unit.color, unit.className]);
   const spriteView = useRef(null);
   const visualFacing = useRef(unit.facing ?? 0);
-  const ground = [unit.x - 15.5, cellHeight(unit) * STEP_HEIGHT + 0.035, unit.z - 15.5];
+  const ground = [toWorld(unit).x, toWorldY(unit) + 0.035, toWorld(unit).z];
   const destination = useMemo(() => new THREE.Vector3(...ground), [cellHeight(unit), unit.x, unit.z]);
   const fullRoute = movement?.unitId === unit.id ? movement.path : null;
   const firstVisibleIndex = unit.team === 'alien' && fullRoute
@@ -489,7 +346,7 @@ function PixelUnit({ unit, selected, targeted, shootable, hitChance, camera, mov
     if (group.current) {
       if (!initialized.current) {
         const first = route?.[0];
-        if (first) group.current.position.set(first.x - 15.5, cellHeight(first) * STEP_HEIGHT + 0.035, first.z - 15.5);
+        if (first) group.current.position.set(toWorld(first).x, toWorldY(first) + 0.035, toWorld(first).z);
         else group.current.position.copy(destination);
         initialized.current = true;
       }
@@ -501,8 +358,8 @@ function PixelUnit({ unit, selected, targeted, shootable, hitChance, camera, mov
         const segmentProgress = progress >= route.length - 1 ? 1 : progress - segment;
         const from = route[segment];
         const to = route[segment + 1];
-        routeStart.set(from.x - 15.5, cellHeight(from) * STEP_HEIGHT + 0.035, from.z - 15.5);
-        routeEnd.set(to.x - 15.5, cellHeight(to) * STEP_HEIGHT + 0.035, to.z - 15.5);
+        routeStart.set(toWorld(from).x, toWorldY(from) + 0.035, toWorld(from).z);
+        routeEnd.set(toWorld(to).x, toWorldY(to) + 0.035, toWorld(to).z);
         group.current.position.lerpVectors(routeStart, routeEnd, segmentProgress);
       } else {
         group.current.position.lerp(destination, 0.12);
@@ -617,32 +474,13 @@ function BeamEffect({ shot, camera }) {
   const damageMaterial = useRef();
   const elapsed = useRef(0);
   const previousShake = useRef({ x: 0, y: 0 });
-  const damageTexture = useMemo(() => {
-    const canvas = document.createElement('canvas');
-    canvas.width = 256;
-    canvas.height = 128;
-    const context = canvas.getContext('2d');
-    context.font = 'bold 84px monospace';
-    context.textAlign = 'center';
-    context.textBaseline = 'middle';
-    context.lineWidth = 12;
-    context.strokeStyle = '#17201c';
-    context.fillStyle = shot.hit ? (shot.crit ? '#ffd34d' : '#ff9580') : '#9ce3e3';
-    const label = shot.hit ? `${shot.crit ? 'CRIT ' : ''}-${shot.damage}` : 'MISS';
-    context.strokeText(label, 128, 68);
-    context.fillText(label, 128, 68);
-    const texture = new THREE.CanvasTexture(canvas);
-    texture.magFilter = THREE.NearestFilter;
-    texture.minFilter = THREE.NearestFilter;
-    texture.colorSpace = THREE.SRGBColorSpace;
-    return texture;
-  }, [shot.damage, shot.hit, shot.crit]);
+  const damageTexture = useMemo(() => createDamageTexture(shot), [shot.damage, shot.hit, shot.crit]);
   const from = shot.from;
   const to = shot.to;
   const animationDuration = shot.enemyShot ? 1.15 : 0.65;
   const points = [
-    new THREE.Vector3(from.x - 15.5, cellHeight(from) * STEP_HEIGHT + 0.8, from.z - 15.5),
-    new THREE.Vector3(to.x - 15.5, cellHeight(to) * STEP_HEIGHT + 0.8, to.z - 15.5),
+    new THREE.Vector3(toWorld(from).x, toWorldY(from) + 0.8, toWorld(from).z),
+    new THREE.Vector3(toWorld(to).x, toWorldY(to) + 0.8, toWorld(to).z),
   ];
   useFrame((_, delta) => {
     elapsed.current += delta;
@@ -680,9 +518,9 @@ function CameraRig({ floorRef, cells, onCellTap, focusUnit, focusToken, mapOffse
   useEffect(() => {
     if (!focusUnit || movingUnitId) return;
     const target = new THREE.Vector3(
-      focusUnit.x - 15.5 + mapOffset,
-      cellHeight(focusUnit) * STEP_HEIGHT,
-      focusUnit.z - 15.5 + mapOffset,
+      toWorld(focusUnit).x + mapOffset,
+      toWorldY(focusUnit),
+      toWorld(focusUnit).z + mapOffset,
     );
     const forward = camera.getWorldDirection(new THREE.Vector3());
     if (Math.abs(forward.y) < 1e-6) return;
@@ -864,7 +702,7 @@ function Battlefield({ state, selected, coverProfiles, focusUnit, focusToken, ta
   })), [paths, state.map, state.showUpper, visibleCellKeys]);
   const groundData = useMemo(() => visibleCells.filter((cell) => cell.walkable), [visibleCells]);
   const pendingPath = pendingMove ? paths.get(cellKey(pendingMove))?.path : null;
-  const mapOffset = 15.5 - (state.map.size - 1) / 2;
+  const mapOffset = CELL_OFFSET - (state.map.size - 1) / 2;
   return (
     <>
       <color attach="background" args={['#111817']} />
