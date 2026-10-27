@@ -1,18 +1,23 @@
 import { useRef } from 'react';
 import * as THREE from 'three';
 import { critFrame, fallPose, fallStep, muzzleFrame, recoilAt } from './effectTiming.js';
+import { travelDuration } from '../effects/impact.js';
 
 // Per-unit effect clock: elapsed times since the last shot, the last shot ids that were played,
-// and the fall progress (starts at 1 for a unit that is already dead).
+// and the fall progress. A unit already dead before the last shot starts fallen. A unit killed by
+// the last shot stays upright until the tracer arrives (fallDelay counts down), then falls.
 export function useEffectClock(unit, lastShot) {
   const dead = unit.hp <= 0;
+  const killedByLastShot = Boolean(lastShot?.hit && lastShot.to.id === unit.id && dead);
   return {
     critShotId: useRef(lastShot?.crit && lastShot.to.id === unit.id ? lastShot.id : null),
     critElapsed: useRef(Infinity),
     fireElapsed: useRef(Infinity),
     muzzleElapsed: useRef(Infinity),
     playedShotId: useRef(lastShot?.id ?? null),
-    fall: useRef(dead ? 1 : 0),
+    fallShotId: useRef(lastShot?.id ?? null),
+    fallDelay: useRef(killedByLastShot ? travelDuration() : 0),
+    fall: useRef(dead && !killedByLastShot ? 1 : 0),
   };
 }
 
@@ -24,6 +29,12 @@ export function advanceEffects(clock, { unitId, dead, lastShot, refs }, delta) {
     clock.muzzleElapsed.current = 0;
     if (refs.muzzle.current) refs.muzzle.current.rotation.z = Math.random() * Math.PI * 2;
   }
+  if (lastShot && lastShot.to.id === unitId && lastShot.id !== clock.fallShotId.current) {
+    clock.fallShotId.current = lastShot.id;
+    // Only a shot that hit and killed this unit makes it fall, and only once the tracer arrives.
+    clock.fallDelay.current = lastShot.hit && dead ? travelDuration() : 0;
+  }
+  if (clock.fallDelay.current > 0) clock.fallDelay.current = Math.max(0, clock.fallDelay.current - delta);
   if (lastShot && lastShot.crit && lastShot.to.id === unitId && lastShot.id !== clock.critShotId.current) {
     clock.critShotId.current = lastShot.id;
     clock.critElapsed.current = 0;
@@ -52,7 +63,8 @@ export function advanceEffects(clock, { unitId, dead, lastShot, refs }, delta) {
     refs.muzzle.current.scale.setScalar(flash.scale);
     refs.muzzleMaterial.current.opacity = flash.opacity;
   }
-  clock.fall.current = fallStep(clock.fall.current, dead, delta);
+  // The fall starts only after the tracer has arrived (fallDelay reached 0).
+  clock.fall.current = fallStep(clock.fall.current, dead && clock.fallDelay.current === 0, delta);
   return { recoil, pose: fallPose(clock.fall.current) };
 }
 

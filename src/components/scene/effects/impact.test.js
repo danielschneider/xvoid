@@ -48,8 +48,8 @@ test('impactSpec: crit is the strongest burst, shake and light', () => {
   assert.ok(critSpec.lightIntensity > open.lightIntensity);
 });
 
-test('travelDuration: enemy shots travel slower than player shots', () => {
-  assert.equal(travelDuration(false), 0.2);
+test('travelDuration: same travel time for player and enemy shots', () => {
+  assert.equal(travelDuration(false), 0.3);
   assert.equal(travelDuration(true), 0.3);
 });
 
@@ -86,7 +86,7 @@ test('burstVelocities: deterministic, correct count, upward', () => {
   assert.deepEqual(burstVelocities(0, 1), []);
 });
 
-test('PARTICLE_LIFE fits inside the shortest shot lifetime after travel', () => {
-  assert.ok(travelDuration(false) + PARTICLE_LIFE <= 0.65);
+test('PARTICLE_LIFE fits inside the shot lifetime after travel', () => {
+  assert.ok(travelDuration(false) + PARTICLE_LIFE <= 1.15);
   assert.ok(travelDuration(true) + PARTICLE_LIFE <= 1.15);
 });

@@ -5,22 +5,27 @@ import { aliveCount, coneSpawns, createPool, mulberry32, spawn, step } from './p
 
 const particleVertexShader = /* glsl */ `
   attribute float aSize;
+  attribute float aAlpha;
   attribute vec3 aColor;
   uniform float uPixelRatio;
   varying vec3 vColor;
+  varying float vAlpha;
   void main() {
     vColor = aColor;
+    vAlpha = aAlpha;
     gl_PointSize = aSize * uPixelRatio;
     gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
   }
 `;
 
 // Hard-edged square points with no antialiasing, matching the pixel-art look.
+// vAlpha fades each particle out over its life so it does not pop when it dies.
 const particleFragmentShader = /* glsl */ `
   uniform float uOpacity;
   varying vec3 vColor;
+  varying float vAlpha;
   void main() {
-    gl_FragColor = vec4(vColor, uOpacity);
+    gl_FragColor = vec4(vColor, uOpacity * vAlpha);
   }
 `;
 
@@ -32,14 +37,16 @@ export const Particles = forwardRef(function Particles({ capacity = 64, seed = 1
   const pool = useMemo(() => createPool(capacity), [capacity]);
   const rng = useMemo(() => mulberry32(seed), [seed]);
   const sizes = useMemo(() => new Float32Array(capacity), [capacity]);
+  const alphas = useMemo(() => new Float32Array(capacity), [capacity]);
 
   const geometry = useMemo(() => {
     const geo = new THREE.BufferGeometry();
     geo.setAttribute('position', new THREE.BufferAttribute(pool.positions, 3));
     geo.setAttribute('aColor', new THREE.BufferAttribute(pool.color, 3));
     geo.setAttribute('aSize', new THREE.BufferAttribute(sizes, 1));
+    geo.setAttribute('aAlpha', new THREE.BufferAttribute(alphas, 1));
     return geo;
-  }, [pool, sizes]);
+  }, [pool, sizes, alphas]);
 
   const material = useMemo(
     () =>
@@ -83,17 +90,20 @@ export const Particles = forwardRef(function Particles({ capacity = 64, seed = 1
     [pool, rng]
   );
 
-  // Particles shrink over their life; dead slots get size 0 so they vanish without a separate draw.
+  // Particles shrink and fade over their life; dead slots get size 0 so they vanish without a separate draw.
   const wasAlive = useRef(false);
   useFrame((_, delta) => {
     if (aliveCount(pool) === 0 && !wasAlive.current) return;
     step(pool, Math.min(delta, 0.05), gravity);
     for (let i = 0; i < pool.capacity; i += 1) {
-      sizes[i] = pool.life[i] > 0 ? pool.size[i] * (0.4 + 0.6 * (pool.life[i] / pool.maxLife[i])) : 0;
+      const ratio = pool.life[i] > 0 ? pool.life[i] / pool.maxLife[i] : 0;
+      sizes[i] = pool.life[i] > 0 ? pool.size[i] * (0.4 + 0.6 * ratio) : 0;
+      alphas[i] = Math.min(1, ratio * 2);
     }
     geometry.attributes.position.needsUpdate = true;
     geometry.attributes.aColor.needsUpdate = true;
     geometry.attributes.aSize.needsUpdate = true;
+    geometry.attributes.aAlpha.needsUpdate = true;
     wasAlive.current = aliveCount(pool) > 0;
   });
 

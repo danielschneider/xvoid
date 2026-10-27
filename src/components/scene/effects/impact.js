@@ -22,11 +22,11 @@ export function impactKind(shot, cover) {
 const SPECS = {
   miss: { sparkCount: 0, dustCount: 0, shakeStrength: 0.018, lightIntensity: 0 },
   // Hits on cover kick up dust and a few chips.
-  cover: { sparkCount: 3, dustCount: 8, shakeStrength: 0.04, lightIntensity: 1.5 },
+  cover: { sparkCount: 6, dustCount: 18, shakeStrength: 0.04, lightIntensity: 1.5 },
   // Open-ground hits throw sparks.
-  open: { sparkCount: 10, dustCount: 2, shakeStrength: 0.055, lightIntensity: 3 },
+  open: { sparkCount: 22, dustCount: 6, shakeStrength: 0.055, lightIntensity: 3 },
   // Crits: a bigger burst, stronger shake and light.
-  crit: { sparkCount: 18, dustCount: 8, shakeStrength: 0.085, lightIntensity: 4.5 },
+  crit: { sparkCount: 40, dustCount: 18, shakeStrength: 0.085, lightIntensity: 4.5 },
 };
 
 export function impactSpec(shot, cover) {
@@ -34,9 +34,9 @@ export function impactSpec(shot, cover) {
   return { kind, ...SPECS[kind] };
 }
 
-// Tracer travel time: the head reaches the far end after this many seconds.
-export function travelDuration(enemyShot) {
-  return enemyShot ? 0.3 : 0.2;
+// Tracer travel time: the head reaches the far end after this many seconds. Same for player and enemy shots.
+export function travelDuration() {
+  return 0.3;
 }
 
 // Total path length of the tracer. Misses run past the target by a fixed extra length.

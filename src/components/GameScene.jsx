@@ -1,6 +1,6 @@
 import { useMemo, useRef } from 'react';
 import { Canvas, useThree } from '@react-three/fiber';
-import { cellKey, hasLineOfSight } from '../engine/map.js';
+import { cellKey } from '../engine/map.js';
 import { getCoverAgainst } from '../rules/index.js';
 import { CELL_OFFSET } from './scene/coords.js';
 import { TilemapGround } from './scene/terrain/TilemapGround.jsx';
@@ -12,7 +12,6 @@ import { ReachableOverlay } from './scene/overlays/ReachableOverlay.jsx';
 import { MoveTrace } from './scene/overlays/MoveTrace.jsx';
 import { SideCoverMarkers } from './scene/overlays/SideCoverMarkers.jsx';
 import { FlankLines } from './scene/overlays/FlankLines.jsx';
-import { AimBeam } from './scene/overlays/AimBeam.jsx';
 import { BeamEffect } from './scene/effects/BeamEffect.jsx';
 import { CameraRig } from './scene/camera/CameraRig.jsx';
 import { PixelUnit } from './scene/units/PixelUnit.jsx';
@@ -88,9 +87,6 @@ function Battlefield({
             <SideCoverMarkers key={`cover-${unit.id}`} state={state} unit={unit} />
           ))}
         <FlankLines state={state} visibleCellKeys={visibleCellKeys} />
-        {selected && target && (
-          <AimBeam shooter={selected} target={target} blocked={!hasLineOfSight(state.map, selected, target)} />
-        )}
         {state.units
           .filter((unit) => unit.team === 'player' || visibleCellKeys.has(cellKey(unit)))
           .map((unit) => (

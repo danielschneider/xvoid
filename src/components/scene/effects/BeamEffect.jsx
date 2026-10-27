@@ -15,17 +15,18 @@ import {
   travelDuration,
 } from './impact.js';
 
-const TRACER_WIDTH = 0.12;
-const PARTICLE_CAPACITY = 64;
-const CRIT_EXTRA_SPARKS = 6;
+const TRACER_WIDTH = 0.22;
+const SHOT_DURATION = 1.15;
+const PARTICLE_CAPACITY = 160;
+const CRIT_EXTRA_SPARKS = 10;
 const DUST_SPEED = 0.5;
-const MUZZLE_COUNT = 6;
-const MUZZLE_OPTIONS = { speedMin: 1.5, speedMax: 3, spread: 0.35, life: 0.25, size: 3, color: [1, 0.88, 0.55] };
+const MUZZLE_COUNT = 10;
+const MUZZLE_OPTIONS = { speedMin: 1.5, speedMax: 3.2, spread: 0.4, life: 0.3, size: 9, color: [1, 0.9, 0.6] };
 const SPARK_LIFE = 0.4;
-const SPARK_SIZE = 3;
+const SPARK_SIZE = 7;
 const SPARK_COLOR = [1, 0.66, 0.2];
 const DUST_LIFE = 0.5;
-const DUST_SIZE = 6;
+const DUST_SIZE = 12;
 const DUST_COLOR = [0.72, 0.66, 0.56];
 const UP = new THREE.Vector3(0, 1, 0);
 
@@ -37,7 +38,8 @@ const tracerVertexShader = /* glsl */ `
   }
 `;
 
-// Bright head with a trail behind it. Alpha is quantised to 3 steps for the pixel-art look.
+// Bright head with a trail behind it. Alpha is quantised to 6 steps for the pixel-art look,
+// and the ribbon stays solid across most of its width so the shot reads from a distance.
 const tracerFragmentShader = /* glsl */ `
   uniform vec3 uColor;
   uniform float uLength;
@@ -50,13 +52,14 @@ const tracerFragmentShader = /* glsl */ `
     float behind = uHead - s;
     if (behind < 0.0 || behind > uTrail) discard;
     float fall = 1.0 - behind / uTrail;
-    float a = pow(fall, 1.5) * uOpacity;
-    a *= 1.0 - abs(vUv.y - 0.5) * 1.6;
-    a = floor(clamp(a, 0.0, 1.0) * 3.0 + 0.5) / 3.0;
+    float a = pow(fall, 1.0) * uOpacity;
+    float edge = abs(vUv.y - 0.5) * 2.0;
+    a *= 1.0 - edge * edge * 0.6;
+    a = floor(clamp(a, 0.0, 1.0) * 6.0 + 0.5) / 6.0;
     if (a <= 0.0) discard;
-    float head = smoothstep(0.8, 1.0, fall);
-    vec3 col = mix(uColor, vec3(1.0), head * 0.7);
-    gl_FragColor = vec4(col, a);
+    float head = smoothstep(0.7, 1.0, fall);
+    vec3 col = mix(uColor, vec3(1.0), head * 0.85);
+    gl_FragColor = vec4(col * (1.0 + head * 0.6), a);
   }
 `;
 
@@ -97,8 +100,8 @@ export function BeamEffect({ shot, camera, cover }) {
   const previousShake = useRef({ x: 0, y: 0 });
   const damageTexture = useMemo(() => createDamageTexture(shot), [shot.damage, shot.hit, shot.crit]);
   const spec = useMemo(() => impactSpec(shot, cover), [shot.hit, shot.crit, cover]);
-  const animationDuration = shot.enemyShot ? 1.15 : 0.65;
-  const travel = travelDuration(shot.enemyShot);
+  const animationDuration = SHOT_DURATION;
+  const travel = travelDuration();
 
   const start = useMemo(() => {
     const from = toWorld(shot.from);
@@ -144,10 +147,12 @@ export function BeamEffect({ shot, camera, cover }) {
     [unitDirection]
   );
 
-  // Muzzle flash at the shooter, pointed along the shot.
-  useEffect(() => {
+  // Muzzle flash at the shooter, pointed along the shot. Emitted once per shot from the first frame
+  // (not in an effect) so StrictMode's double-mount cannot spawn it twice.
+  const muzzleEmitted = useRef(false);
+  const emitMuzzle = () => {
     particlesRef.current?.emitCone(start, unitDirection, MUZZLE_COUNT, MUZZLE_OPTIONS);
-  }, [start, unitDirection]);
+  };
 
   const emitImpact = () => {
     const particles = particlesRef.current;
@@ -168,6 +173,11 @@ export function BeamEffect({ shot, camera, cover }) {
     elapsed.current += delta;
     const t = elapsed.current;
     const opacity = Math.max(0, 1 - t / animationDuration);
+
+    if (!muzzleEmitted.current) {
+      muzzleEmitted.current = true;
+      emitMuzzle();
+    }
 
     if (!impactEmitted.current && t >= travel) {
       impactEmitted.current = true;

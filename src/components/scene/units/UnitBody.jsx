@@ -1,8 +1,50 @@
+import { useRef } from 'react';
+import { useFrame } from '@react-three/fiber';
 import * as THREE from 'three';
 import { Html } from '@react-three/drei';
 import { toWorld, toWorldY } from '../coords.js';
 import { Muzzle, CritOverlay } from './UnitEffects.jsx';
 import { UnitSprite } from './UnitSprite.jsx';
+
+// Crosshair drawn around the targeted enemy: four arms with a gap at the centre, always
+// facing the camera (it lives in the billboard group). It pulses in scale and opacity.
+const CROSS_ARM_LENGTH = 0.42;
+const CROSS_ARM_WIDTH = 0.1;
+const CROSS_GAP = 0.2;
+const CROSS_COLOR = '#ff4d42';
+const CROSS_OUTLINE = '#120504';
+const CROSS_PULSE_SPEED = 4;
+const CROSS_PULSE_AMOUNT = 0.18;
+
+function CrossArms({ color, grow }) {
+  const half = CROSS_GAP + CROSS_ARM_LENGTH / 2;
+  const arms = [
+    { pos: [0, half, 0], size: [CROSS_ARM_WIDTH + grow, CROSS_ARM_LENGTH + grow] },
+    { pos: [0, -half, 0], size: [CROSS_ARM_WIDTH + grow, CROSS_ARM_LENGTH + grow] },
+    { pos: [half, 0, 0], size: [CROSS_ARM_LENGTH + grow, CROSS_ARM_WIDTH + grow] },
+    { pos: [-half, 0, 0], size: [CROSS_ARM_LENGTH + grow, CROSS_ARM_WIDTH + grow] },
+  ];
+  return arms.map((arm, i) => (
+    <mesh key={i} position={arm.pos}>
+      <planeGeometry args={arm.size} />
+      <meshBasicMaterial color={color} depthTest={false} depthWrite={false} toneMapped={false} transparent />
+    </mesh>
+  ));
+}
+
+function TargetCross() {
+  const group = useRef();
+  useFrame(({ clock }) => {
+    const pulse = 0.5 + 0.5 * Math.sin(clock.elapsedTime * CROSS_PULSE_SPEED);
+    group.current?.scale.setScalar(1 + pulse * CROSS_PULSE_AMOUNT);
+  });
+  return (
+    <group ref={group} position={[0, 0.25, 0.25]} renderOrder={11}>
+      <CrossArms color={CROSS_OUTLINE} grow={0.06} />
+      <CrossArms color={CROSS_COLOR} grow={0} />
+    </group>
+  );
+}
 
 // Static unit geometry: shadow, selection ring, body, rifle and billboard sprite group.
 export function UnitBody({ unit, selected, targeted, shootable, hitChance, dead, refs, spriteTextures, critTexture }) {
@@ -13,17 +55,18 @@ export function UnitBody({ unit, selected, targeted, shootable, hitChance, dead,
         <circleGeometry args={[0.35, 20]} />
         <meshBasicMaterial color="#020807" transparent opacity={0.45} depthWrite={false} />
       </mesh>
-      {!dead && (selected || targeted || shootable) && (
+      {!dead && (selected || targeted || shootable) && !targeted && (
         <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, 0.022, 0]}>
-          <ringGeometry args={shootable && !targeted ? [0.48, 0.54, 32] : [0.42, 0.49, 32]} />
+          <ringGeometry args={shootable ? [0.48, 0.54, 32] : [0.42, 0.49, 32]} />
           <meshBasicMaterial
-            color={targeted ? '#ff786d' : shootable ? '#f3bd76' : '#69e7ca'}
+            color={shootable ? '#f3bd76' : '#69e7ca'}
             transparent
             opacity={0.92}
             side={THREE.DoubleSide}
           />
         </mesh>
       )}
+
       <group ref={refs.bodyGroup}>
         <mesh position={[0, 0.79, 0]}>
           <boxGeometry args={[0.48, 0.58, 0.32]} />
@@ -58,6 +101,7 @@ export function UnitBody({ unit, selected, targeted, shootable, hitChance, dead,
       <group ref={refs.billboard} position={[0, 0.82, 0]}>
         <UnitSprite refs={refs} team={unit.team} spriteTextures={spriteTextures} />
         <CritOverlay refs={refs} texture={critTexture} />
+        {!dead && targeted && <TargetCross />}
       </group>
       {shootable && hitChance != null && (
         <Html position={[0, 1.95, 0]} center zIndexRange={[20, 0]} style={{ pointerEvents: 'none' }}>

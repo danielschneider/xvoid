@@ -1,13 +1,13 @@
 import { cellKey } from '../grid/cells.js';
 import { getReachable } from './pathfinding.js';
-import { AP_ACTION_COST, DEFAULT_MOVE_RANGE } from '../constants.js';
+import { AP_ACTION_COST, CHEAP_MOVE_STEPS, DEFAULT_MOVE_RANGE } from '../constants.js';
 import { facingToward } from '../geometry.js';
 import { moveEvent } from '../../presentation/events.js';
 
 // Step limits for a unit's move. With 1 AP left only the cheap (1 AP) half is reachable.
 export function movementLimits(unit) {
   const moveRange = unit.moveRange ?? DEFAULT_MOVE_RANGE;
-  const cheapSteps = Math.ceil(moveRange / 2);
+  const cheapSteps = Math.min(CHEAP_MOVE_STEPS, moveRange);
   return { maxSteps: unit.ap === 1 ? cheapSteps : moveRange, cheapSteps };
 }
 

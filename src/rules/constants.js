@@ -21,6 +21,8 @@ export const FOG_REVEAL_RANGE = 18;
 // Movement. moveRange is the max steps per turn at full AP; half of it (rounded up)
 // is the cheap range that costs 1 AP. DEFAULT_MOVE_RANGE applies to units without moveRange.
 export const DEFAULT_MOVE_RANGE = 10;
+// Steps reachable for 1 AP (the cheap move). Full AP reaches the unit's moveRange.
+export const CHEAP_MOVE_STEPS = 8;
 export const ENEMY_MOVE_STEPS = { raider: 5, stalker: 6, scout: 7, guard: 5 };
 // A scout retreats when it is within this distance of its target and below half HP.
 export const SCOUT_RETREAT_RANGE = 5;
