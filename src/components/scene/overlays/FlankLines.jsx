@@ -4,7 +4,8 @@ import * as THREE from 'three';
 import { getFlankedBy } from '../../../engine/game.js';
 import { cellKey } from '../../../engine/map.js';
 import { toWorld, toWorldY } from '../coords.js';
-// Red lines from every enemy that flanks a player unit to that unit.
+// Red lines from every unit that flanks a target to that target. Targets are player units
+// (flanked by enemies) and visible enemies (flanked by player units).
 // Hidden while any unit is moving: positions already show the destination, but the
 // bodies are still walking there, so flank lines would point at units not yet in place.
 export function FlankLines({ state, visibleCellKeys }) {
@@ -14,7 +15,7 @@ export function FlankLines({ state, visibleCellKeys }) {
       moving
         ? []
         : state.units
-            .filter((unit) => unit.team === 'player' && unit.hp > 0)
+            .filter((unit) => unit.hp > 0 && (unit.team === 'player' || visibleCellKeys.has(cellKey(unit))))
             .flatMap((unit) =>
               getFlankedBy(state, unit)
                 .filter((enemy) => visibleCellKeys.has(cellKey(enemy)))

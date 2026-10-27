@@ -1,7 +1,7 @@
 import { getCoverAgainst } from './cover.js';
 import { hasLineOfSight } from '../sight/line.js';
 import { clamp, spawnDistance } from '../geometry.js';
-import { COVER_VALUE, CRIT_CHANCE, ENEMY_COVER_FACTOR, SHOT_RANGE } from '../constants.js';
+import { COVER_VALUE, CRIT_CHANCE, ENEMY_COVER_FACTOR, FLANK_COVER_VALUE, SHOT_RANGE } from '../constants.js';
 
 export function computeDistanceModifier(distance) {
   return (5 - distance) * 0.1;
@@ -10,6 +10,12 @@ export function computeDistanceModifier(distance) {
 // Cover from the side the shot arrives at. A flanking shot gets no cover.
 export function computeCoverFor(state, shooter, target) {
   return getCoverAgainst(state.map, target, shooter);
+}
+
+// Defence value of a target against one shot: a flank is negative (raises hit chance),
+// otherwise the cover tier's value applies.
+function defenceValue({ cover: tier, flanked }) {
+  return flanked ? FLANK_COVER_VALUE : COVER_VALUE[tier];
 }
 
 // Living enemies that currently flank `target`: they have a clear shot within range
@@ -33,7 +39,7 @@ export function computePlayerHitParts(state, shooter, target) {
   return {
     base: 0.7,
     elevation: shooter.level > target.level ? 0.15 : 0,
-    cover: COVER_VALUE[tier],
+    cover: defenceValue({ cover: tier, flanked }),
     coverTier: tier,
     flanked,
     distance,
@@ -43,9 +49,9 @@ export function computePlayerHitParts(state, shooter, target) {
 
 export function computeHitChance(state, shooter, target, enemyShot = false) {
   if (enemyShot) {
-    const { cover: tier } = computeCoverFor(state, shooter, target);
+    const cover = computeCoverFor(state, shooter, target);
     const distance = spawnDistance(shooter, target);
-    return clamp(0.52 - COVER_VALUE[tier] * ENEMY_COVER_FACTOR + computeDistanceModifier(distance), 0.05, 0.95);
+    return clamp(0.52 - defenceValue(cover) * ENEMY_COVER_FACTOR + computeDistanceModifier(distance), 0.05, 0.95);
   }
   const parts = computePlayerHitParts(state, shooter, target);
   return clamp(parts.base + parts.elevation - parts.cover + parts.distanceModifier, 0.05, 0.95);

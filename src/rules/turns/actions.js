@@ -12,15 +12,13 @@ export function selectNextReadyPlayer(state) {
   return next ? { ...state, selectedId: next.id, targetId: null, moveMode: true, shootMode: false } : state;
 }
 
-// Returns { state, events }; emits an overwatch event when the ability is spent.
+// Returns { state, events }; overwatch spends all of the unit's remaining AP and emits an overwatch event.
 export function useAbility(state) {
   const unit = state.units.find((entry) => entry.id === state.selectedId);
   if (!unit || unit.ap < AP_ACTION_COST || unit.team !== 'player') return { state, events: [] };
   const next = {
     ...state,
-    units: state.units.map((entry) =>
-      entry.id === unit.id ? { ...entry, ap: entry.ap - AP_ACTION_COST, status: 'overwatch' } : entry
-    ),
+    units: state.units.map((entry) => (entry.id === unit.id ? { ...entry, ap: 0, status: 'overwatch' } : entry)),
   };
   return { state: next, events: [overwatchEvent({ unitId: unit.id, name: unit.name })] };
 }

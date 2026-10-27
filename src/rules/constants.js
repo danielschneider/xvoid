@@ -32,6 +32,9 @@ export const CRIT_CHANCE = 0.15;
 export const CRIT_MULTIPLIER = 2;
 // Cover penalty per tier: 2 = full (wall, pillar), 1 = half (console).
 export const COVER_VALUE = { 0: 0, 1: 0.2, 2: 0.4 };
+// A flanked target (attacked from an open side while covered elsewhere) has its
+// defence turned negative, so the hit chance rises instead of staying at base.
+export const FLANK_COVER_VALUE = -0.4;
 // Enemies discount cover by this factor when computing their hit chance.
 export const ENEMY_COVER_FACTOR = 0.5;
 

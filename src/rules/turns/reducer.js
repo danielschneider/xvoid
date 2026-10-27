@@ -51,10 +51,16 @@ function reduce(state, action) {
   }
 }
 
-// Spending the ability may hand selection on; both steps' events are returned.
+// Overwatch ends the unit's turn. Selection moves on if another player unit has AP;
+// when no player unit has AP left, the player round ends (end-turn events are returned too).
 function ability(state) {
   const used = useAbility(state);
-  return { state: selectNextReadyPlayer(used.state), events: used.events };
+  if (used.events.length === 0) return used;
+  const handed = selectNextReadyPlayer(used.state);
+  const anyReady = handed.units.some((unit) => unit.team === 'player' && unit.hp > 0 && unit.ap > 0);
+  if (anyReady) return { state: handed, events: used.events };
+  const ended = endTurn(handed);
+  return { state: ended.state, events: [...used.events, ...ended.events] };
 }
 
 // The only public mutation entry point for game state. Helpers never mutate.

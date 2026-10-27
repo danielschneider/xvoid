@@ -78,3 +78,35 @@ test('getFlankedBy reports enemies that flank a covered player', () => {
     ['e']
   );
 });
+
+test('getFlankedBy lists every enemy flanking from different open sides', () => {
+  const state = createInitialState(42);
+  const player = { x: 10, z: 10, level: 0, team: 'player', hp: 5, id: 'p' };
+  setSides(state, player, { N: 2 });
+  for (const x of [7, 8, 9, 11, 12])
+    Object.assign(state.map.cells[cellKey({ x, z: 10, level: 0 })], { terrain: 'floor', walkable: true, cover: 0 });
+  const east = { x: 13, z: 10, level: 0, team: 'alien', hp: 3, id: 'e' };
+  const west = { x: 7, z: 10, level: 0, team: 'alien', hp: 3, id: 'w' };
+  const frontal = { x: 10, z: 7, level: 0, team: 'alien', hp: 3, id: 'f' };
+  const withUnits = { ...state, units: [player, east, west, frontal] };
+  assert.deepEqual(
+    getFlankedBy(withUnits, player)
+      .map((unit) => unit.id)
+      .sort(),
+    ['e', 'w']
+  );
+});
+
+test('getFlankedBy reports player units flanking an enemy target', () => {
+  const state = createInitialState(42);
+  const enemy = { x: 10, z: 10, level: 0, team: 'alien', hp: 3, id: 'a' };
+  setSides(state, enemy, { N: 2 });
+  for (const x of [11, 12])
+    Object.assign(state.map.cells[cellKey({ x, z: 10, level: 0 })], { terrain: 'floor', walkable: true, cover: 0 });
+  const flanker = { x: 13, z: 10, level: 0, team: 'player', hp: 5, id: 'p' };
+  const withUnits = { ...state, units: [enemy, flanker] };
+  assert.deepEqual(
+    getFlankedBy(withUnits, enemy).map((unit) => unit.id),
+    ['p']
+  );
+});

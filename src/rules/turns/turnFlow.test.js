@@ -175,3 +175,25 @@ test('an enemy finishing its move under player overwatch emits a reaction shot e
   assert.equal(shots[0].targetId, 2);
   assert.equal(after.units.find((entry) => entry.id === 1).status, null);
 });
+
+test('overwatch spends all remaining AP of the unit', () => {
+  const { state: next } = useAbility(stateWith([unit({ ap: 2 })]));
+  assert.equal(next.units[0].ap, 0);
+  assert.equal(next.units[0].status, 'overwatch');
+});
+
+test('overwatch with no other player AP left ends the player round', () => {
+  const watcher = unit({ id: 1, ap: 2 });
+  const spent = unit({ id: 2, name: 'B', ap: 0 });
+  const next = gameReducer(stateWith([watcher, spent]), { type: 'ability', name: 'overwatch' });
+  assert.equal(next.phase, 'enemy');
+  assert.equal(ofType(next.eventLog, 'turn-start').length, 1);
+});
+
+test('overwatch while another player unit has AP hands selection on without ending the round', () => {
+  const watcher = unit({ id: 1, ap: 2 });
+  const other = unit({ id: 2, name: 'B', ap: 2 });
+  const next = gameReducer(stateWith([watcher, other]), { type: 'ability', name: 'overwatch' });
+  assert.equal(next.phase, 'player');
+  assert.equal(next.selectedId, 2);
+});
