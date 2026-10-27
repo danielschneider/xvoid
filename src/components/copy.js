@@ -2,8 +2,7 @@
 // Each string value is the exact text run that was written in the markup before 7e1, with
 // its surrounding spaces, so server-rendered HTML stays byte-identical. Parameterised text is
 // a function that returns the same output the old template produced.
-// The English HUD labels (ENEMY TURN, OVERWATCH, FLANKIERT, SEKTOR 07 / NEMESIS) are pending
-// decision D11 (7e2). Change them here only after that decision is recorded in refactoring.md.
+// D11 (7e2): HUD labels are German. SEKTOR 07 / NEMESIS is still English, pending a separate decision.
 
 export const COPY = {
   shared: {
@@ -12,7 +11,7 @@ export const COPY = {
     healthLabel: (value, total) => `${value} von ${total}`,
   },
   tactical: {
-    enemyTurn: ' ENEMY TURN',
+    enemyTurn: ' GEGNERISCHER ZUG',
   },
   topBar: {
     brandName: 'XVOID',
@@ -49,7 +48,7 @@ export const COPY = {
     apTitle: 'Aktions-Punkte',
     levelPrefix: '· L',
     vital: ' VITAL',
-    overwatch: ' OVERWATCH',
+    overwatch: ' ÜBERWACHUNG',
     flankedBadge: ' FLANKIERT ',
     noUnit: 'Keine Einheit ausgewählt',
   },

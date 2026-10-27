@@ -2,13 +2,12 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { COPY } from './copy.js';
 
-// Pins the pre-7e1 wording. A change here means visible copy changed; the English HUD labels
-// are pending decision D11 (7e2) and must not change before it is recorded.
-test('English HUD labels keep their current wording', () => {
-  assert.equal(COPY.tactical.enemyTurn.trim(), 'ENEMY TURN');
+// Pins the D11 (7e2) wording. A change here means visible copy changed.
+test('HUD labels use the D11 German wording; mission title is unchanged', () => {
+  assert.equal(COPY.tactical.enemyTurn.trim(), 'GEGNERISCHER ZUG');
   assert.equal(COPY.shared.flanked, 'FLANKIERT');
   assert.equal(COPY.topBar.mission, 'SEKTOR 07 / NEMESIS');
-  assert.equal(COPY.squad.overwatch.trim(), 'OVERWATCH');
+  assert.equal(COPY.squad.overwatch.trim(), 'ÜBERWACHUNG');
 });
 
 test('German HUD copy keeps its wording', () => {
