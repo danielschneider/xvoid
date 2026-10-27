@@ -5,9 +5,22 @@ import { enemyStep } from '../ai/enemyStep.js';
 import { createInitialState } from '../spawn/initialState.js';
 import { facingToward } from '../geometry.js';
 import { endTurn, finishEnemyTurn, selectNextReadyPlayer, useAbility } from './actions.js';
+import { appendEvents } from '../../presentation/events.js';
+import { EVENT_LOG_LIMIT } from '../constants.js';
+
+// Pure state transition. Returns { state, events }; events are plain objects (see presentation/events.js).
+function reduce(state, action) {
+  return { state: applyAction(state, action), events: [] };
+}
 
 // The only public mutation entry point for game state. Helpers never mutate.
 export function gameReducer(state, action) {
+  const { state: next, events } = reduce(state, action);
+  if (events.length === 0) return next;
+  return { ...next, eventLog: appendEvents(next.eventLog, events, EVENT_LOG_LIMIT) };
+}
+
+function applyAction(state, action) {
   switch (action.type) {
     case 'select':
       if (state.phase !== 'player' || state.movement) return state;

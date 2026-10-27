@@ -26,6 +26,8 @@ export function createInitialState(seed = 20261024, generation = 0) {
     showUpper: true,
     logs: [{ id: 1, text: 'Einsatz bereit. Halte die Position.', kind: 'system' }],
     lastShot: null,
+    // Bounded list of plain events emitted by the reducer (see presentation/events.js).
+    eventLog: [],
     // Integer RNG cursor: every random draw advances it (see rules/rng.js).
     rng: random.cursor,
     // Counter for movement and shot ids, so ids stay deterministic across runs.

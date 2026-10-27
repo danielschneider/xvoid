@@ -40,3 +40,6 @@ export const ENEMY_COVER_FACTOR = 0.5;
 
 // Enemies within GROUP_RANGE of each other (chained) form one alert group.
 export const GROUP_RANGE = 2;
+
+// Events kept in state.eventLog; older entries are dropped so state stays bounded.
+export const EVENT_LOG_LIMIT = 50;
