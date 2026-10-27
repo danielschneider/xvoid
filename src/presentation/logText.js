@@ -33,7 +33,10 @@ function shotLine(event) {
   const prefix = event.reaction ? 'Overwatch: ' : '';
   if (!event.hit) return entry(`${prefix}${event.shooterName} verfehlt ${event.targetName}.`, 'combat');
   if (event.crit) {
-    return entry(`${prefix}${event.shooterName} landet einen KRITISCHEN Treffer auf ${event.targetName} für ${event.damage} Schaden.`, 'hit');
+    return entry(
+      `${prefix}${event.shooterName} landet einen KRITISCHEN Treffer auf ${event.targetName} für ${event.damage} Schaden.`,
+      'hit'
+    );
   }
   return entry(`${prefix}${event.shooterName} trifft ${event.targetName} für ${event.damage} Schaden.`, 'hit');
 }

@@ -29,7 +29,16 @@ test('createTileTexture copies one 16px tile from the atlas and sets nearest fil
     assert.equal(canvas.width, TILE_SIZE);
     assert.equal(canvas.height, TILE_SIZE);
     const draw = canvas.calls.find((call) => call.op === 'drawImage');
-    assert.deepEqual(draw.args.slice(1), [5 * TILE_PITCH, 14 * TILE_PITCH, TILE_SIZE, TILE_SIZE, 0, 0, TILE_SIZE, TILE_SIZE]);
+    assert.deepEqual(draw.args.slice(1), [
+      5 * TILE_PITCH,
+      14 * TILE_PITCH,
+      TILE_SIZE,
+      TILE_SIZE,
+      0,
+      0,
+      TILE_SIZE,
+      TILE_SIZE,
+    ]);
     assert.equal(texture.magFilter, THREE.NearestFilter);
     assert.equal(texture.minFilter, THREE.NearestFilter);
     assert.equal(texture.colorSpace, THREE.SRGBColorSpace);
@@ -51,7 +60,9 @@ test('createGroundTexture paints every cell and darkens only unseen cells', () =
     const canvas = stub.created[0];
     assert.equal(canvas.width, 2 * TILE_SIZE);
     assert.equal(canvas.height, 2 * TILE_SIZE);
-    const fogFills = canvas.calls.filter((call) => call.op === 'set' && call.key === 'fillStyle' && call.value === '#080d0e');
+    const fogFills = canvas.calls.filter(
+      (call) => call.op === 'set' && call.key === 'fillStyle' && call.value === '#080d0e'
+    );
     assert.equal(fogFills.length, 3);
     assert.equal(texture.generateMipmaps, false);
     assert.equal(texture.anisotropy, 1);

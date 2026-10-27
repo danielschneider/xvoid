@@ -20,10 +20,10 @@ export function planSteps(state, view) {
       deps: [state.lastShot],
       timer: state.lastShot
         ? {
-          kind: 'timeout',
-          delay: state.lastShot.enemyShot ? TIMING.enemyShotHoldMs : TIMING.shotHoldMs,
-          action: { type: 'finish-shot', id: state.lastShot.id },
-        }
+            kind: 'timeout',
+            delay: state.lastShot.enemyShot ? TIMING.enemyShotHoldMs : TIMING.shotHoldMs,
+            action: { type: 'finish-shot', id: state.lastShot.id },
+          }
         : null,
     },
     {
@@ -31,28 +31,31 @@ export function planSteps(state, view) {
       deps: [state.enemyTurnIndex, state.enemyTurnOrder.length, state.phase, movement, activeEnemyHidden],
       timer: enemyTurn
         ? {
-          kind: 'timeout',
-          delay: !enemyFinished && activeEnemyHidden ? TIMING.hiddenStepMs : TIMING.enemyStepMs,
-          action: { type: enemyFinished ? 'finish-enemy-turn' : 'enemy-step' },
-        }
+            kind: 'timeout',
+            delay: !enemyFinished && activeEnemyHidden ? TIMING.hiddenStepMs : TIMING.enemyStepMs,
+            action: { type: enemyFinished ? 'finish-enemy-turn' : 'enemy-step' },
+          }
         : null,
     },
     {
       key: 'movement-tick',
       deps: [movement?.id, movementHidden],
-      timer: movement && !movementHidden
-        ? { kind: 'interval', delay: TIMING.moveStepMs, action: { type: 'advance-movement', id: movement.id } }
-        : null,
+      timer:
+        movement && !movementHidden
+          ? { kind: 'interval', delay: TIMING.moveStepMs, action: { type: 'advance-movement', id: movement.id } }
+          : null,
     },
     {
       key: 'movement-complete',
       deps: [movement, movementHidden],
       timer: movement
         ? {
-          kind: 'timeout',
-          delay: movementHidden ? TIMING.hiddenStepMs : movement.path.length * TIMING.moveStepMs + TIMING.moveSettleMs,
-          action: { type: 'complete-movement', id: movement.id },
-        }
+            kind: 'timeout',
+            delay: movementHidden
+              ? TIMING.hiddenStepMs
+              : movement.path.length * TIMING.moveStepMs + TIMING.moveSettleMs,
+            action: { type: 'complete-movement', id: movement.id },
+          }
         : null,
     },
   ];

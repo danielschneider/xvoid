@@ -81,9 +81,11 @@ function applyAction(state, action) {
         targetId: action.id,
         moveMode: false,
         shootMode: true,
-        units: state.units.map((unit) => unit.id === state.selectedId
-          ? { ...unit, facing: facingToward(unit, state.units.find((target) => target.id === action.id) || unit) }
-          : unit),
+        units: state.units.map((unit) =>
+          unit.id === state.selectedId
+            ? { ...unit, facing: facingToward(unit, state.units.find((target) => target.id === action.id) || unit) }
+            : unit
+        ),
       };
     case 'toggle-move-mode':
       if (state.phase !== 'player' || state.movement) return state;

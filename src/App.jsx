@@ -1,7 +1,15 @@
 import { useCallback, useEffect, useMemo, useReducer, useRef, useState } from 'react';
 import GameScene from './components/GameScene.jsx';
 import { TacticalHud } from './components/TacticalHud.jsx';
-import { cellKey, computeHitChance, createInitialState, gameReducer, getReachable, movementLimits, SHOT_RANGE } from './engine/game.js';
+import {
+  cellKey,
+  computeHitChance,
+  createInitialState,
+  gameReducer,
+  getReachable,
+  movementLimits,
+  SHOT_RANGE,
+} from './engine/game.js';
 import { getCoverProfile, getVisibleCells, hasLineOfSight } from './engine/map.js';
 import { getNextReadyUnit } from './rules/turns/readyUnit.js';
 import { createDirector } from './presentation/director.js';
@@ -13,25 +21,36 @@ export default function App() {
   const [seedCopied, setSeedCopied] = useState(false);
   // Each camera quarter-turn request bumps the token; GameScene rotates once per change.
   const [rotateToken, setRotateToken] = useState(null);
-  const rotateCamera = useCallback((direction) => setRotateToken((previous) => ({ direction, n: (previous?.n ?? 0) + 1 })), []);
+  const rotateCamera = useCallback(
+    (direction) => setRotateToken((previous) => ({ direction, n: (previous?.n ?? 0) + 1 })),
+    []
+  );
   const selected = state.units.find((unit) => unit.id === state.selectedId && unit.hp > 0);
   const target = state.units.find((unit) => unit.id === state.targetId && unit.hp > 0);
   // While a player unit moves, fog of war follows its current path cell instead of its final position.
   const observerUnits = useMemo(() => {
-    const movingPlayer = state.movement && state.units.find((unit) => unit.id === state.movement.unitId && unit.team === 'player');
+    const movingPlayer =
+      state.movement && state.units.find((unit) => unit.id === state.movement.unitId && unit.team === 'player');
     const currentCell = movingPlayer && state.movement.path[state.movement.step];
     if (!currentCell) return state.units;
-    return state.units.map((unit) => (unit.id === movingPlayer.id
-      ? { ...unit, x: currentCell.x, z: currentCell.z, level: currentCell.level }
-      : unit));
+    return state.units.map((unit) =>
+      unit.id === movingPlayer.id ? { ...unit, x: currentCell.x, z: currentCell.z, level: currentCell.level } : unit
+    );
   }, [state.movement, state.units]);
   const visibleCellKeys = useMemo(() => getVisibleCells(state.map, observerUnits), [state.map, observerUnits]);
   const shootableEnemyIds = useMemo(() => {
     if (!selected || selected.ap < 1) return new Set();
-    return new Set(state.units
-      .filter((unit) => unit.team === 'alien' && unit.hp > 0)
-      .filter((unit) => visibleCellKeys.has(cellKey(unit)) && hasLineOfSight(state.map, selected, unit) && Math.hypot(selected.x - unit.x, selected.z - unit.z) <= SHOT_RANGE)
-      .map((unit) => unit.id));
+    return new Set(
+      state.units
+        .filter((unit) => unit.team === 'alien' && unit.hp > 0)
+        .filter(
+          (unit) =>
+            visibleCellKeys.has(cellKey(unit)) &&
+            hasLineOfSight(state.map, selected, unit) &&
+            Math.hypot(selected.x - unit.x, selected.z - unit.z) <= SHOT_RANGE
+        )
+        .map((unit) => unit.id)
+    );
   }, [selected, state.map, state.units, visibleCellKeys]);
   const enemyHitChances = useMemo(() => {
     const chances = new Map();
@@ -41,18 +60,20 @@ export default function App() {
       .forEach((unit) => chances.set(unit.id, Math.round(computeHitChance(state, selected, unit) * 100)));
     return chances;
   }, [selected, shootableEnemyIds, state]);
-  const activeEnemy = state.phase === 'enemy'
-    ? state.units.find((unit) => unit.id === state.enemyTurnOrder[state.enemyTurnIndex] && unit.hp > 0)
-    : null;
-  const focusUnit = state.phase === 'enemy'
-    ? (activeEnemy && visibleCellKeys.has(cellKey(activeEnemy)) ? activeEnemy : null)
-    : selected;
+  const activeEnemy =
+    state.phase === 'enemy'
+      ? state.units.find((unit) => unit.id === state.enemyTurnOrder[state.enemyTurnIndex] && unit.hp > 0)
+      : null;
+  const focusUnit =
+    state.phase === 'enemy'
+      ? activeEnemy && visibleCellKeys.has(cellKey(activeEnemy))
+        ? activeEnemy
+        : null
+      : selected;
   const focusToken = state.phase === 'enemy' ? state.enemyTurnIndex : 0;
   // Hidden enemy actions have no visual output, so their timers can run without delay.
-  const activeEnemyHidden = state.phase === 'enemy'
-    && (!activeEnemy || !visibleCellKeys.has(cellKey(activeEnemy)));
-  const movementHidden = !!state.movement
-    && state.movement.path.every((cell) => !visibleCellKeys.has(cellKey(cell)));
+  const activeEnemyHidden = state.phase === 'enemy' && (!activeEnemy || !visibleCellKeys.has(cellKey(activeEnemy)));
+  const movementHidden = !!state.movement && state.movement.path.every((cell) => !visibleCellKeys.has(cellKey(cell)));
   // Same definition the reducer uses when it hands over selection (rules/turns/readyUnit.js).
   const nextReadyUnit = useMemo(() => getNextReadyUnit(state), [state]);
   // Latest turn state for callbacks that must not be re-created on every render (D8).
@@ -79,7 +100,15 @@ export default function App() {
   };
 
   const paths = useMemo(() => {
-    if (state.phase !== 'player' || state.movement || !selected || selected.team !== 'player' || !state.moveMode || selected.ap < 1) return new Map();
+    if (
+      state.phase !== 'player' ||
+      state.movement ||
+      !selected ||
+      selected.team !== 'player' ||
+      !state.moveMode ||
+      selected.ap < 1
+    )
+      return new Map();
     const blocked = new Set(state.units.filter((unit) => unit.id !== selected.id && unit.hp > 0).map(cellKey));
     const { maxSteps, cheapSteps } = movementLimits(selected);
     return getReachable(state.map, selected, blocked, maxSteps, cheapSteps);
@@ -127,10 +156,14 @@ export default function App() {
 
   const tapCell = (cell) => {
     if (state.phase !== 'player' || state.movement) return;
-    const occupant = state.units.find((unit) => (
-      unit.x === cell.x && unit.z === cell.z && unit.level === cell.level && unit.hp > 0
-      && (unit.team === 'player' || visibleCellKeys.has(cellKey(unit)))
-    ));
+    const occupant = state.units.find(
+      (unit) =>
+        unit.x === cell.x &&
+        unit.z === cell.z &&
+        unit.level === cell.level &&
+        unit.hp > 0 &&
+        (unit.team === 'player' || visibleCellKeys.has(cellKey(unit)))
+    );
     if (occupant?.team === 'player') {
       setPendingMove(null);
       dispatch({ type: 'select', id: occupant.id });
@@ -154,7 +187,8 @@ export default function App() {
   };
 
   const confirmMove = () => {
-    if (state.phase !== 'player' || !pendingMove || !pendingPath || !selected || pendingPath.apCost > selected.ap) return;
+    if (state.phase !== 'player' || !pendingMove || !pendingPath || !selected || pendingPath.apCost > selected.ap)
+      return;
     dispatch({ type: 'move', destination: pendingMove });
     setPendingMove(null);
   };
@@ -167,7 +201,24 @@ export default function App() {
 
   return (
     <main className="game-shell">
-      <div className="scene-wrap"><GameScene state={state} selected={selected} coverProfiles={coverProfiles} focusUnit={focusUnit} focusToken={focusToken} target={target} paths={paths} pendingMove={pendingMove} visibleCellKeys={visibleCellKeys} shootableEnemyIds={shootableEnemyIds} enemyHitChances={enemyHitChances} onCellTap={tapCell} movingUnitId={state.movement?.unitId ?? null} rotateToken={rotateToken} /></div>
+      <div className="scene-wrap">
+        <GameScene
+          state={state}
+          selected={selected}
+          coverProfiles={coverProfiles}
+          focusUnit={focusUnit}
+          focusToken={focusToken}
+          target={target}
+          paths={paths}
+          pendingMove={pendingMove}
+          visibleCellKeys={visibleCellKeys}
+          shootableEnemyIds={shootableEnemyIds}
+          enemyHitChances={enemyHitChances}
+          onCellTap={tapCell}
+          movingUnitId={state.movement?.unitId ?? null}
+          rotateToken={rotateToken}
+        />
+      </div>
       <TacticalHud
         state={state}
         selected={selected}

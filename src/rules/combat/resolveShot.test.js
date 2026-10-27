@@ -6,23 +6,52 @@ import { gameReducer } from '../turns/reducer.js';
 // Open 12x3 floor on level 0: line of sight is clear and cover is zero everywhere.
 // Fog (used by overwatch) needs real cells, so the grid is explicit.
 const openMap = {
-  cells: Object.fromEntries(Array.from({ length: 36 }, (_, index) => {
-    const x = index % 12;
-    const z = Math.floor(index / 12);
-    return [`${x},${z},0`, { x, z, level: 0, terrain: 'floor', walkable: true, cover: 0 }];
-  })),
+  cells: Object.fromEntries(
+    Array.from({ length: 36 }, (_, index) => {
+      const x = index % 12;
+      const z = Math.floor(index / 12);
+      return [`${x},${z},0`, { x, z, level: 0, terrain: 'floor', walkable: true, cover: 0 }];
+    })
+  ),
 };
 
 const unit = (overrides) => ({
-  id: 1, team: 'player', name: 'A', x: 0, z: 0, level: 0, ap: 2, hp: 5, maxHp: 5, shield: 0,
-  status: null, facing: 0, power: 0, groupId: null, ...overrides,
+  id: 1,
+  team: 'player',
+  name: 'A',
+  x: 0,
+  z: 0,
+  level: 0,
+  ap: 2,
+  hp: 5,
+  maxHp: 5,
+  shield: 0,
+  status: null,
+  facing: 0,
+  power: 0,
+  groupId: null,
+  ...overrides,
 });
 
 function stateWith(units, extra = {}) {
   return {
-    map: openMap, units, selectedId: 1, targetId: null, shootMode: false, moveMode: true,
-    logs: [], lastShot: null, eventLog: [], rng: 0, nextId: 1, phase: 'player',
-    movement: null, alertedGroups: [], enemyTurnOrder: [], enemyTurnIndex: 0, ...extra,
+    map: openMap,
+    units,
+    selectedId: 1,
+    targetId: null,
+    shootMode: false,
+    moveMode: true,
+    logs: [],
+    lastShot: null,
+    eventLog: [],
+    rng: 0,
+    nextId: 1,
+    phase: 'player',
+    movement: null,
+    alertedGroups: [],
+    enemyTurnOrder: [],
+    enemyTurnIndex: 0,
+    ...extra,
   };
 }
 
@@ -61,7 +90,10 @@ test('a hit that reduces the target to 0 hp also emits a death event', () => {
   const units = [shooter(), enemy({ hp: 1 })];
   const { state, events } = fireAt(stateWith(units, { rng: cursorForHit(units) }), 2, 1);
   assert.equal(state.units[1].hp, 0);
-  assert.deepEqual(events.map((event) => event.type), ['shot', 'death']);
+  assert.deepEqual(
+    events.map((event) => event.type),
+    ['shot', 'death']
+  );
   assert.deepEqual(events[1], { type: 'death', unitId: 2 });
 });
 
@@ -70,11 +102,16 @@ test('a hit that leaves the target alive emits no death event', () => {
   const { state, events } = fireAt(stateWith(units, { rng: cursorForHit(units) }), 2, 1);
   assert.ok(state.lastShot.hit);
   assert.ok(state.units[1].hp > 0);
-  assert.deepEqual(events.map((event) => event.type), ['shot']);
+  assert.deepEqual(
+    events.map((event) => event.type),
+    ['shot']
+  );
 });
 
 test('a blocked line of sight returns no events and no shot', () => {
-  const wall = { cells: { ...openMap.cells, '1,0,0': { x: 1, z: 0, level: 0, terrain: 'wall', walkable: false, cover: 2 } } };
+  const wall = {
+    cells: { ...openMap.cells, '1,0,0': { x: 1, z: 0, level: 0, terrain: 'wall', walkable: false, cover: 2 } },
+  };
   const units = [shooter(), enemy()];
   const base = { ...stateWith(units), map: wall };
   const { state, events } = fireAt(base, 2, 1);

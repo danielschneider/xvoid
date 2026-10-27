@@ -9,7 +9,9 @@ export function angleDelta(radians) {
 export function selectSpriteView(relativeFacing) {
   return Math.abs(relativeFacing) < Math.PI / 4
     ? 'front'
-    : Math.abs(relativeFacing) > Math.PI * 3 / 4
+    : Math.abs(relativeFacing) > (Math.PI * 3) / 4
       ? 'back'
-      : relativeFacing > 0 ? 'right' : 'left';
+      : relativeFacing > 0
+        ? 'right'
+        : 'left';
 }

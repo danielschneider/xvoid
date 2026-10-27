@@ -5,10 +5,12 @@ import { cellKey } from '../grid/cells.js';
 const SIDE_OFFSETS = { N: [0, -1], E: [1, 0], S: [0, 1], W: [-1, 0] };
 
 export function getSideCover(map, cell) {
-  return Object.fromEntries(Object.entries(SIDE_OFFSETS).map(([side, [dx, dz]]) => [
-    side,
-    map.cells[cellKey({ x: cell.x + dx, z: cell.z + dz, level: cell.level })]?.cover || 0,
-  ]));
+  return Object.fromEntries(
+    Object.entries(SIDE_OFFSETS).map(([side, [dx, dz]]) => [
+      side,
+      map.cells[cellKey({ x: cell.x + dx, z: cell.z + dz, level: cell.level })]?.cover || 0,
+    ])
+  );
 }
 
 // Summary of a cell's protection, independent of who is shooting: the strongest

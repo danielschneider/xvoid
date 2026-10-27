@@ -26,12 +26,17 @@ export function moveUnit(state, destination) {
     ...state,
     movement: { id: state.nextId, unitId: unit.id, path: [unit, ...pathData.path], step: 0 },
     nextId: state.nextId + 1,
-    units: state.units.map((entry) => entry.id === unit.id
-      ? { ...entry, x: last.x, z: last.z, level: last.level, ap: entry.ap - pathData.apCost, facing, status: null }
-      : entry),
+    units: state.units.map((entry) =>
+      entry.id === unit.id
+        ? { ...entry, x: last.x, z: last.z, level: last.level, ap: entry.ap - pathData.apCost, facing, status: null }
+        : entry
+    ),
     targetId: null,
   };
-  return { state: next, events: [moveEvent({ unitId: unit.id, name: unit.name, steps: pathData.steps, enemy: false, intent: 'walk' })] };
+  return {
+    state: next,
+    events: [moveEvent({ unitId: unit.id, name: unit.name, steps: pathData.steps, enemy: false, intent: 'walk' })],
+  };
 }
 
 // intent: 'patrol' | 'advance' | 'retreat' (wording lives in presentation/logText.js).
@@ -44,10 +49,24 @@ export function moveEnemy(state, enemy, destination, intent) {
     ...state,
     movement: { id: state.nextId, unitId: enemy.id, path: [enemy, ...destination.path], step: 0 },
     nextId: state.nextId + 1,
-    units: state.units.map((unit) => unit.id === enemy.id
-      ? { ...unit, x: last.x, z: last.z, level: last.level, ap: unit.ap - AP_ACTION_COST, facing }
-      : unit),
+    units: state.units.map((unit) =>
+      unit.id === enemy.id
+        ? { ...unit, x: last.x, z: last.z, level: last.level, ap: unit.ap - AP_ACTION_COST, facing }
+        : unit
+    ),
     enemyTurnIndex: state.enemyTurnIndex + 1,
   };
-  return { state: next, events: [moveEvent({ unitId: enemy.id, name: enemy.name, steps: destination.steps, enemy: true, role: enemy.aiRole, intent })] };
+  return {
+    state: next,
+    events: [
+      moveEvent({
+        unitId: enemy.id,
+        name: enemy.name,
+        steps: destination.steps,
+        enemy: true,
+        role: enemy.aiRole,
+        intent,
+      }),
+    ],
+  };
 }

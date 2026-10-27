@@ -1,6 +1,15 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { angleDelta, clampZoom, keyPanStep, keyRotation, pinchMetrics, pinchZoom, rotationSteps, wheelZoom } from './gestures.js';
+import {
+  angleDelta,
+  clampZoom,
+  keyPanStep,
+  keyRotation,
+  pinchMetrics,
+  pinchZoom,
+  rotationSteps,
+  wheelZoom,
+} from './gestures.js';
 
 // Expected values follow the HEAD CameraRig handlers (f32310c): zoom clamp 18..72, wheel 0.92 / 1.08,
 // pinch scale distance / max(1, previous), quarter turn PI/2 fired at half a step.
@@ -29,14 +38,20 @@ test('pinchZoom scales by distance ratio and guards a zero previous distance', (
 });
 
 test('pinchMetrics returns distance and angle for two pointers, null otherwise', () => {
-  assert.deepEqual(pinchMetrics([{ x: 0, y: 0 }, { x: 3, y: 4 }]), { distance: 5, angle: Math.atan2(4, 3) });
+  assert.deepEqual(
+    pinchMetrics([
+      { x: 0, y: 0 },
+      { x: 3, y: 4 },
+    ]),
+    { distance: 5, angle: Math.atan2(4, 3) }
+  );
   assert.equal(pinchMetrics([{ x: 0, y: 0 }]), null);
   assert.equal(pinchMetrics([]), null);
 });
 
 test('angleDelta wraps across the -PI / PI seam', () => {
   assert.equal(angleDelta(0.5, 0.25), 0.25);
-  assert.ok(Math.abs(angleDelta(Math.PI - 0.1, -Math.PI + 0.1) - (-0.2)) < 1e-12);
+  assert.ok(Math.abs(angleDelta(Math.PI - 0.1, -Math.PI + 0.1) - -0.2) < 1e-12);
   assert.ok(Math.abs(angleDelta(-Math.PI + 0.1, Math.PI - 0.1) - 0.2) < 1e-12);
 });
 

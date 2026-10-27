@@ -61,7 +61,15 @@ export function CritOverlay({ refs, texture }) {
   return (
     <mesh ref={critOverlay} position={[0, 1.02, 0.05]} visible={false} renderOrder={12}>
       <planeGeometry args={[0.9, 0.45]} />
-      <meshBasicMaterial ref={critMaterial} map={texture} transparent opacity={0} depthWrite={false} depthTest={false} toneMapped={false} />
+      <meshBasicMaterial
+        ref={critMaterial}
+        map={texture}
+        transparent
+        opacity={0}
+        depthWrite={false}
+        depthTest={false}
+        toneMapped={false}
+      />
     </mesh>
   );
 }
@@ -71,7 +79,15 @@ export function Muzzle({ refs }) {
   return (
     <mesh ref={muzzle} position={[0, 0, 0.5]} visible={false}>
       <planeGeometry args={[0.42, 0.42]} />
-      <meshBasicMaterial ref={muzzleMaterial} color="#ffd27a" transparent opacity={0} depthWrite={false} side={THREE.DoubleSide} toneMapped={false} />
+      <meshBasicMaterial
+        ref={muzzleMaterial}
+        color="#ffd27a"
+        transparent
+        opacity={0}
+        depthWrite={false}
+        side={THREE.DoubleSide}
+        toneMapped={false}
+      />
     </mesh>
   );
 }

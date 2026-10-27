@@ -16,12 +16,14 @@ export function computeCoverFor(state, shooter, target) {
 // and arrive from a side without cover while the target is covered elsewhere.
 export function getFlankedBy(state, target) {
   if (target.hp <= 0) return [];
-  return state.units.filter((unit) => (
-    unit.team !== target.team && unit.hp > 0
-    && Math.hypot(unit.x - target.x, unit.z - target.z) <= SHOT_RANGE
-    && hasLineOfSight(state.map, unit, target)
-    && computeCoverFor(state, unit, target).flanked
-  ));
+  return state.units.filter(
+    (unit) =>
+      unit.team !== target.team &&
+      unit.hp > 0 &&
+      Math.hypot(unit.x - target.x, unit.z - target.z) <= SHOT_RANGE &&
+      hasLineOfSight(state.map, unit, target) &&
+      computeCoverFor(state, unit, target).flanked
+  );
 }
 
 // Terms of the player-shot hit chance, shown one-to-one in the combat preview.

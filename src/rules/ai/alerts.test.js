@@ -4,20 +4,40 @@ import { refreshAlerts } from './alerts.js';
 
 const openMap = {
   transitions: {},
-  cells: Object.fromEntries(Array.from({ length: 36 }, (_, index) => {
-    const x = index % 12;
-    const z = Math.floor(index / 12);
-    return [`${x},${z},0`, { x, z, level: 0, terrain: 'floor', walkable: true, cover: 0 }];
-  })),
+  cells: Object.fromEntries(
+    Array.from({ length: 36 }, (_, index) => {
+      const x = index % 12;
+      const z = Math.floor(index / 12);
+      return [`${x},${z},0`, { x, z, level: 0, terrain: 'floor', walkable: true, cover: 0 }];
+    })
+  ),
 };
 
 const unit = (overrides) => ({
-  id: 1, team: 'player', name: 'A', x: 0, z: 0, level: 0, ap: 2, hp: 5, maxHp: 5, shield: 0,
-  status: null, facing: 0, power: 0, groupId: null, ...overrides,
+  id: 1,
+  team: 'player',
+  name: 'A',
+  x: 0,
+  z: 0,
+  level: 0,
+  ap: 2,
+  hp: 5,
+  maxHp: 5,
+  shield: 0,
+  status: null,
+  facing: 0,
+  power: 0,
+  groupId: null,
+  ...overrides,
 });
 
 const stateWith = (units, alertedGroups = []) => ({
-  map: openMap, units, alertedGroups, logs: [], eventLog: [], phase: 'player',
+  map: openMap,
+  units,
+  alertedGroups,
+  logs: [],
+  eventLog: [],
+  phase: 'player',
 });
 
 test('an enemy group that becomes visible emits one alert event and is added to alertedGroups', () => {

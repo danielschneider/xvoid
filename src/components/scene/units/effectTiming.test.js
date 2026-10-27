@@ -1,6 +1,15 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { CRIT_DURATION, FIRE_DURATION, MUZZLE_DURATION, critFrame, fallPose, fallStep, muzzleFrame, recoilAt } from './effectTiming.js';
+import {
+  CRIT_DURATION,
+  FIRE_DURATION,
+  MUZZLE_DURATION,
+  critFrame,
+  fallPose,
+  fallStep,
+  muzzleFrame,
+  recoilAt,
+} from './effectTiming.js';
 
 test('critFrame at t = 0 is hidden-start: opacity 0 pop, scale 1.525', () => {
   const frame = critFrame(0);

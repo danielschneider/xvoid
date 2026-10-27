@@ -17,23 +17,27 @@ const SHIELD_GEOMETRY = (() => {
 const SHIELD_COLOR = { 1: '#ffd34d', 2: '#7fe08a' };
 
 export function ReachableOverlay({ paths, map, coverProfiles }) {
-  const entries = useMemo(() => [...paths.entries()].map(([key, value]) => {
-    const cell = map.cells[key];
-    const x = toWorld(cell).x;
-    const z = toWorld(cell).z;
-    const y = toWorldY(cell) + 0.026;
-    return {
-      cell,
-      ...value,
-      outline: [
-        new THREE.Vector3(x - 0.45, y, z - 0.45),
-        new THREE.Vector3(x + 0.45, y, z - 0.45),
-        new THREE.Vector3(x + 0.45, y, z + 0.45),
-        new THREE.Vector3(x - 0.45, y, z + 0.45),
-        new THREE.Vector3(x - 0.45, y, z - 0.45),
-      ],
-    };
-  }), [map, paths]);
+  const entries = useMemo(
+    () =>
+      [...paths.entries()].map(([key, value]) => {
+        const cell = map.cells[key];
+        const x = toWorld(cell).x;
+        const z = toWorld(cell).z;
+        const y = toWorldY(cell) + 0.026;
+        return {
+          cell,
+          ...value,
+          outline: [
+            new THREE.Vector3(x - 0.45, y, z - 0.45),
+            new THREE.Vector3(x + 0.45, y, z - 0.45),
+            new THREE.Vector3(x + 0.45, y, z + 0.45),
+            new THREE.Vector3(x - 0.45, y, z + 0.45),
+            new THREE.Vector3(x - 0.45, y, z - 0.45),
+          ],
+        };
+      }),
+    [map, paths]
+  );
   return entries.map(({ cell, apCost, steps, outline }) => {
     // Tile color is the AP cost (cyan = 1 AP, orange = 2 AP). Cover on that cell is a separate inner marker.
     const color = apCost === 1 ? '#00cfff' : '#ffc247';
@@ -43,11 +47,28 @@ export function ReachableOverlay({ paths, map, coverProfiles }) {
       <group key={cellKey(cell)}>
         <mesh position={[toWorld(cell).x, y + 0.018, toWorld(cell).z]} rotation={[-Math.PI / 2, 0, 0]}>
           <planeGeometry args={[0.86, 0.86]} />
-          <meshBasicMaterial color={color} transparent opacity={steps <= 5 ? 0.4 : 0.5} depthWrite={false} toneMapped={false} />
+          <meshBasicMaterial
+            color={color}
+            transparent
+            opacity={steps <= 5 ? 0.4 : 0.5}
+            depthWrite={false}
+            toneMapped={false}
+          />
         </mesh>
         {tier > 0 && (
-          <mesh geometry={SHIELD_GEOMETRY} position={[toWorld(cell).x, y + 0.024, toWorld(cell).z]} rotation={[-Math.PI / 2, 0, 0]}>
-            <meshBasicMaterial color={SHIELD_COLOR[tier]} transparent opacity={0.95} depthWrite={false} toneMapped={false} side={THREE.DoubleSide} />
+          <mesh
+            geometry={SHIELD_GEOMETRY}
+            position={[toWorld(cell).x, y + 0.024, toWorld(cell).z]}
+            rotation={[-Math.PI / 2, 0, 0]}
+          >
+            <meshBasicMaterial
+              color={SHIELD_COLOR[tier]}
+              transparent
+              opacity={0.95}
+              depthWrite={false}
+              toneMapped={false}
+              side={THREE.DoubleSide}
+            />
           </mesh>
         )}
         <Line points={outline} color={color} lineWidth={1.2} transparent opacity={0.95} />

@@ -7,8 +7,10 @@ import { cellKey, isPassable } from '../grid/cells.js';
 const SIGHT_INSET = 0.45;
 const SIGHT_OFFSETS = [
   [0, 0],
-  [-SIGHT_INSET, -SIGHT_INSET], [SIGHT_INSET, -SIGHT_INSET],
-  [-SIGHT_INSET, SIGHT_INSET], [SIGHT_INSET, SIGHT_INSET],
+  [-SIGHT_INSET, -SIGHT_INSET],
+  [SIGHT_INSET, -SIGHT_INSET],
+  [-SIGHT_INSET, SIGHT_INSET],
+  [SIGHT_INSET, SIGHT_INSET],
 ];
 
 function hasSightRay(map, from, targetX, targetZ, level) {
@@ -31,16 +33,23 @@ function canSeeCell(map, observer, cell) {
 }
 
 const SOLID_TERRAIN = new Set(['wall', 'pillar', 'console']);
-const SIGHT_DIRECTIONS = [[1, 0], [-1, 0], [0, 1], [0, -1]];
+const SIGHT_DIRECTIONS = [
+  [1, 0],
+  [-1, 0],
+  [0, 1],
+  [0, -1],
+];
 
 export function getVisibleCells(map, units) {
   const observers = units.filter((unit) => unit.team === 'player' && unit.hp > 0);
   const visible = new Set();
   for (const cell of Object.values(map.cells)) {
-    if (observers.some((unit) => (
-      Math.hypot(unit.x - cell.x, unit.z - cell.z) <= FOG_REVEAL_RANGE
-      && canSeeCell(map, unit, cell)
-    ))) visible.add(cellKey(cell));
+    if (
+      observers.some(
+        (unit) => Math.hypot(unit.x - cell.x, unit.z - cell.z) <= FOG_REVEAL_RANGE && canSeeCell(map, unit, cell)
+      )
+    )
+      visible.add(cellKey(cell));
   }
   // Floor between a seen cover box and the solid cell behind it is also seen. The wall
   // behind a box is itself hidden by the box, so only the box must be visible.

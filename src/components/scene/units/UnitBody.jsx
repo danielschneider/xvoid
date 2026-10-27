@@ -16,7 +16,12 @@ export function UnitBody({ unit, selected, targeted, shootable, hitChance, dead,
       {!dead && (selected || targeted || shootable) && (
         <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, 0.022, 0]}>
           <ringGeometry args={shootable && !targeted ? [0.48, 0.54, 32] : [0.42, 0.49, 32]} />
-          <meshBasicMaterial color={targeted ? '#ff786d' : shootable ? '#f3bd76' : '#69e7ca'} transparent opacity={0.92} side={THREE.DoubleSide} />
+          <meshBasicMaterial
+            color={targeted ? '#ff786d' : shootable ? '#f3bd76' : '#69e7ca'}
+            transparent
+            opacity={0.92}
+            side={THREE.DoubleSide}
+          />
         </mesh>
       )}
       <group ref={refs.bodyGroup}>
@@ -73,7 +78,8 @@ export function moveBody(refs, motion, { route, movement, destination }, delta) 
     motion.initialized.current = true;
   }
   if (route?.length > 1) {
-    if (motion.movementProgress.current.id !== movement.id) motion.movementProgress.current = { id: movement.id, elapsed: 0 };
+    if (motion.movementProgress.current.id !== movement.id)
+      motion.movementProgress.current = { id: movement.id, elapsed: 0 };
     motion.movementProgress.current.elapsed += delta;
     const progress = Math.min(motion.movementProgress.current.elapsed / 0.22, route.length - 1);
     const segment = Math.min(Math.floor(progress), route.length - 2);
@@ -92,7 +98,7 @@ export function moveBody(refs, motion, { route, movement, destination }, delta) 
 export function applyBodyPose(refs, { recoil, pose, facing, camera, fallenOrientation }) {
   if (refs.bodyGroup.current) {
     refs.bodyGroup.current.rotation.y = facing;
-    refs.bodyGroup.current.rotation.x = -Math.PI / 2 * pose;
+    refs.bodyGroup.current.rotation.x = (-Math.PI / 2) * pose;
     // Body rocks back slightly when firing; pushed along local -z (away from the aim direction).
     refs.bodyGroup.current.position.z = -recoil * 0.08 * (1 - pose);
   }

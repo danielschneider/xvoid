@@ -16,17 +16,44 @@ import { BeamEffect } from './scene/effects/BeamEffect.jsx';
 import { CameraRig } from './scene/camera/CameraRig.jsx';
 import { PixelUnit } from './scene/units/PixelUnit.jsx';
 
-function Battlefield({ state, selected, coverProfiles, focusUnit, focusToken, target, paths, pendingMove, visibleCellKeys, shootableEnemyIds, enemyHitChances, onCellTap, movingUnitId, rotateToken }) {
+function Battlefield({
+  state,
+  selected,
+  coverProfiles,
+  focusUnit,
+  focusToken,
+  target,
+  paths,
+  pendingMove,
+  visibleCellKeys,
+  shootableEnemyIds,
+  enemyHitChances,
+  onCellTap,
+  movingUnitId,
+  rotateToken,
+}) {
   const { camera } = useThree();
   const floorRef = useRef();
   const allCells = useMemo(() => Object.values(state.map.cells), [state.map]);
-  const visibleCells = useMemo(() => allCells.filter((cell) => cell.level === 0 || state.showUpper), [allCells, state.showUpper]);
-  const revealedCells = useMemo(() => visibleCells.filter((cell) => visibleCellKeys.has(cellKey(cell))), [visibleCellKeys, visibleCells]);
+  const visibleCells = useMemo(
+    () => allCells.filter((cell) => cell.level === 0 || state.showUpper),
+    [allCells, state.showUpper]
+  );
+  const revealedCells = useMemo(
+    () => visibleCells.filter((cell) => visibleCellKeys.has(cellKey(cell))),
+    [visibleCellKeys, visibleCells]
+  );
   // Only show reachable tiles on displayed floors that the player can currently see (fog hides the rest).
-  const shownPaths = useMemo(() => new Map([...paths].filter(([key, value]) => {
-    const cell = state.map.cells[key];
-    return cell && (cell.level === 0 || state.showUpper) && visibleCellKeys.has(key) && value;
-  })), [paths, state.map, state.showUpper, visibleCellKeys]);
+  const shownPaths = useMemo(
+    () =>
+      new Map(
+        [...paths].filter(([key, value]) => {
+          const cell = state.map.cells[key];
+          return cell && (cell.level === 0 || state.showUpper) && visibleCellKeys.has(key) && value;
+        })
+      ),
+    [paths, state.map, state.showUpper, visibleCellKeys]
+  );
   const groundData = useMemo(() => visibleCells.filter((cell) => cell.walkable), [visibleCells]);
   const pendingPath = pendingMove ? paths.get(cellKey(pendingMove))?.path : null;
   const mapOffset = CELL_OFFSET - (state.map.size - 1) / 2;
@@ -38,36 +65,94 @@ function Battlefield({ state, selected, coverProfiles, focusUnit, focusToken, ta
       <directionalLight position={[-12, 8, -10]} intensity={0.55} color="#73bcb3" />
       <TilemapGround map={state.map} visibleCellKeys={visibleCellKeys} />
       <group position={[mapOffset, 0, mapOffset]}>
-      <InstancedGround cells={allCells} visibleCells={visibleCells} meshRef={floorRef} />
-      <WallField cells={revealedCells} selected={selected} />
-      <CoverField cells={revealedCells} selected={selected} />
-      <FogOfWar cells={visibleCells} visibleCellKeys={visibleCellKeys} />
-      {selected?.ap > 0 && <ReachableOverlay paths={shownPaths} map={state.map} coverProfiles={coverProfiles} />}
-      {pendingPath && selected && <MoveTrace path={pendingPath} start={selected} />}
-      {pendingMove && <SideCoverMarkers state={state} unit={pendingMove} />}
-      {state.units.filter((unit) => unit.team === 'player' && unit.hp > 0).map((unit) => <SideCoverMarkers key={`cover-${unit.id}`} state={state} unit={unit} />)}
-      <FlankLines state={state} visibleCellKeys={visibleCellKeys} />
-      {selected && target && <AimBeam shooter={selected} target={target} blocked={!hasLineOfSight(state.map, selected, target)} />}
-      {state.units.filter((unit) => unit.team === 'player' || visibleCellKeys.has(cellKey(unit))).map((unit) => (
-        <PixelUnit key={`${state.generation}:${unit.id}`} unit={unit} selected={unit.id === state.selectedId} targeted={unit.id === state.targetId} shootable={shootableEnemyIds.has(unit.id)} hitChance={enemyHitChances?.get(unit.id)} camera={camera} movement={state.movement} visibleCellKeys={visibleCellKeys} lastShot={state.lastShot} />
-      ))}
-      {state.lastShot && <BeamEffect key={state.lastShot.id} shot={state.lastShot} camera={camera} />}
+        <InstancedGround cells={allCells} visibleCells={visibleCells} meshRef={floorRef} />
+        <WallField cells={revealedCells} selected={selected} />
+        <CoverField cells={revealedCells} selected={selected} />
+        <FogOfWar cells={visibleCells} visibleCellKeys={visibleCellKeys} />
+        {selected?.ap > 0 && <ReachableOverlay paths={shownPaths} map={state.map} coverProfiles={coverProfiles} />}
+        {pendingPath && selected && <MoveTrace path={pendingPath} start={selected} />}
+        {pendingMove && <SideCoverMarkers state={state} unit={pendingMove} />}
+        {state.units
+          .filter((unit) => unit.team === 'player' && unit.hp > 0)
+          .map((unit) => (
+            <SideCoverMarkers key={`cover-${unit.id}`} state={state} unit={unit} />
+          ))}
+        <FlankLines state={state} visibleCellKeys={visibleCellKeys} />
+        {selected && target && (
+          <AimBeam shooter={selected} target={target} blocked={!hasLineOfSight(state.map, selected, target)} />
+        )}
+        {state.units
+          .filter((unit) => unit.team === 'player' || visibleCellKeys.has(cellKey(unit)))
+          .map((unit) => (
+            <PixelUnit
+              key={`${state.generation}:${unit.id}`}
+              unit={unit}
+              selected={unit.id === state.selectedId}
+              targeted={unit.id === state.targetId}
+              shootable={shootableEnemyIds.has(unit.id)}
+              hitChance={enemyHitChances?.get(unit.id)}
+              camera={camera}
+              movement={state.movement}
+              visibleCellKeys={visibleCellKeys}
+              lastShot={state.lastShot}
+            />
+          ))}
+        {state.lastShot && <BeamEffect key={state.lastShot.id} shot={state.lastShot} camera={camera} />}
       </group>
-      <CameraRig floorRef={floorRef} cells={groundData} onCellTap={onCellTap} focusUnit={focusUnit} focusToken={focusToken} mapOffset={mapOffset} movingUnitId={movingUnitId} rotateToken={rotateToken} />
+      <CameraRig
+        floorRef={floorRef}
+        cells={groundData}
+        onCellTap={onCellTap}
+        focusUnit={focusUnit}
+        focusToken={focusToken}
+        mapOffset={mapOffset}
+        movingUnitId={movingUnitId}
+        rotateToken={rotateToken}
+      />
     </>
   );
 }
 
-export default function GameScene({ state, selected, coverProfiles, focusUnit, focusToken, target, paths, pendingMove, visibleCellKeys, shootableEnemyIds, enemyHitChances, onCellTap, movingUnitId, rotateToken }) {
+export default function GameScene({
+  state,
+  selected,
+  coverProfiles,
+  focusUnit,
+  focusToken,
+  target,
+  paths,
+  pendingMove,
+  visibleCellKeys,
+  shootableEnemyIds,
+  enemyHitChances,
+  onCellTap,
+  movingUnitId,
+  rotateToken,
+}) {
   return (
     <Canvas
       orthographic
-      camera={{ position: [23, 28, 23], zoom: Math.max(30, 50 * 32 / state.map.size), near: 0.1, far: 200 }}
+      camera={{ position: [23, 28, 23], zoom: Math.max(30, (50 * 32) / state.map.size), near: 0.1, far: 200 }}
       dpr={Math.min(window.devicePixelRatio || 1, 2)}
       gl={{ antialias: false, powerPreference: 'low-power', alpha: false }}
       style={{ touchAction: 'none' }}
     >
-      <Battlefield state={state} selected={selected} coverProfiles={coverProfiles} focusUnit={focusUnit} focusToken={focusToken} target={target} paths={paths} pendingMove={pendingMove} visibleCellKeys={visibleCellKeys} shootableEnemyIds={shootableEnemyIds} enemyHitChances={enemyHitChances} onCellTap={onCellTap} movingUnitId={movingUnitId} rotateToken={rotateToken} />
+      <Battlefield
+        state={state}
+        selected={selected}
+        coverProfiles={coverProfiles}
+        focusUnit={focusUnit}
+        focusToken={focusToken}
+        target={target}
+        paths={paths}
+        pendingMove={pendingMove}
+        visibleCellKeys={visibleCellKeys}
+        shootableEnemyIds={shootableEnemyIds}
+        enemyHitChances={enemyHitChances}
+        onCellTap={onCellTap}
+        movingUnitId={movingUnitId}
+        rotateToken={rotateToken}
+      />
     </Canvas>
   );
 }

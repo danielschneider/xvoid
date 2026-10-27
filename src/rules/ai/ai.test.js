@@ -8,7 +8,12 @@ test('enemies advance toward the nearest player during their turn', () => {
   const enemy = state.units.find((unit) => unit.aiRole === 'raider');
   const target = state.units[0];
   const distanceBefore = Math.hypot(enemy.x - target.x, enemy.z - target.z);
-  const enemyTurn = { ...gameReducer(state, { type: 'end-turn' }), enemyTurnOrder: [enemy.id], enemyTurnIndex: 0, alertedGroups: [enemy.groupId] };
+  const enemyTurn = {
+    ...gameReducer(state, { type: 'end-turn' }),
+    enemyTurnOrder: [enemy.id],
+    enemyTurnIndex: 0,
+    alertedGroups: [enemy.groupId],
+  };
   const afterAction = gameReducer(enemyTurn, { type: 'enemy-step' });
   const movedEnemy = afterAction.units.find((unit) => unit.id === enemy.id);
   const distanceAfter = Math.hypot(movedEnemy.x - target.x, movedEnemy.z - target.z);
@@ -20,7 +25,13 @@ test('unalerted enemies never approach or shoot, and stay near their post', () =
   const state = createInitialState(42);
   const enemies = state.units.filter((unit) => unit.team === 'alien');
   for (let round = 0; round < 20; round += 1) {
-    let turn = { ...state, phase: 'enemy', alertedGroups: [], enemyTurnOrder: enemies.map((unit) => unit.id), enemyTurnIndex: 0 };
+    let turn = {
+      ...state,
+      phase: 'enemy',
+      alertedGroups: [],
+      enemyTurnOrder: enemies.map((unit) => unit.id),
+      enemyTurnIndex: 0,
+    };
     while (turn.enemyTurnIndex < turn.enemyTurnOrder.length) {
       turn = gameReducer(turn, { type: 'enemy-step' });
       if (turn.movement) turn = gameReducer(turn, { type: 'complete-movement', id: turn.movement.id });
@@ -43,9 +54,12 @@ test('enemies in one spawn cluster share a group, and a sighting alerts the whol
   const spotted = enemies[0];
   const groupMembers = enemies.filter((unit) => unit.groupId === spotted.groupId);
   const player = state.units.find((unit) => unit.team === 'player');
-  const seen = { ...state, units: state.units.map((unit) => (
-    unit.id === spotted.id ? { ...unit, x: player.x, z: player.z, level: player.level } : unit
-  )) };
+  const seen = {
+    ...state,
+    units: state.units.map((unit) =>
+      unit.id === spotted.id ? { ...unit, x: player.x, z: player.z, level: player.level } : unit
+    ),
+  };
   const refreshed = gameReducer(seen, { type: 'end-turn' });
   assert.ok(refreshed.alertedGroups.includes(spotted.groupId));
   assert.ok(groupMembers.every((unit) => refreshed.alertedGroups.includes(unit.groupId)));
@@ -54,16 +68,26 @@ test('enemies in one spawn cluster share a group, and a sighting alerts the whol
 test('guards hold their assigned post when no player is visible', () => {
   const state = createInitialState(42);
   const guard = state.units.find((unit) => unit.aiRole === 'guard');
-  const corners = [{ x: 1, z: 1 }, { x: state.map.size - 2, z: state.map.size - 2 }];
-  const corner = corners.sort((a, b) => (
-    Math.hypot(b.x - guard.x, b.z - guard.z) - Math.hypot(a.x - guard.x, a.z - guard.z)
-  ))[0];
+  const corners = [
+    { x: 1, z: 1 },
+    { x: state.map.size - 2, z: state.map.size - 2 },
+  ];
+  const corner = corners.sort(
+    (a, b) => Math.hypot(b.x - guard.x, b.z - guard.z) - Math.hypot(a.x - guard.x, a.z - guard.z)
+  )[0];
   const units = state.units.map((unit) => {
     if (unit.team === 'player') return { ...unit, ...corner };
     if (unit.id === guard.id) return { ...unit, x: guard.postX, z: guard.postZ };
     return { ...unit, hp: 0 };
   });
-  const enemyTurn = { ...state, units, phase: 'enemy', enemyTurnOrder: [guard.id], enemyTurnIndex: 0, alertedGroups: [guard.groupId] };
+  const enemyTurn = {
+    ...state,
+    units,
+    phase: 'enemy',
+    enemyTurnOrder: [guard.id],
+    enemyTurnIndex: 0,
+    alertedGroups: [guard.groupId],
+  };
   const afterAction = gameReducer(enemyTurn, { type: 'enemy-step' });
   const heldGuard = afterAction.units.find((unit) => unit.id === guard.id);
   assert.equal(heldGuard.x, guard.postX);
@@ -129,12 +153,19 @@ test('stalkers choose a concealed forward route when one is available', () => {
   const reachable = getReachable(state.map, movedStalker, blocked, 6);
   const players = units.filter((unit) => unit.team === 'player' && unit.hp > 0);
   const visible = getVisibleCells(state.map, players);
-  const visibleForwardPathExists = [...reachable.entries()].some(([key]) => (
-    visible.has(key) && Math.hypot(state.map.cells[key].x - center, state.map.cells[key].z - center) < 6
-  ));
+  const visibleForwardPathExists = [...reachable.entries()].some(
+    ([key]) => visible.has(key) && Math.hypot(state.map.cells[key].x - center, state.map.cells[key].z - center) < 6
+  );
   assert.ok(visibleForwardPathExists);
 
-  const enemyTurn = { ...state, units, phase: 'enemy', enemyTurnOrder: [stalker.id], enemyTurnIndex: 0, alertedGroups: [stalker.groupId] };
+  const enemyTurn = {
+    ...state,
+    units,
+    phase: 'enemy',
+    enemyTurnOrder: [stalker.id],
+    enemyTurnIndex: 0,
+    alertedGroups: [stalker.groupId],
+  };
   const afterAction = gameReducer(enemyTurn, { type: 'enemy-step' });
   const destination = afterAction.movement.path.at(-1);
   assert.ok(Math.hypot(destination.x - center, destination.z - center) < 6);

@@ -14,11 +14,18 @@ const FIXTURE = fileURLToPath(new URL('../../test/fixtures/golden-hashes.json', 
 const canonical = (value) => {
   if (Array.isArray(value)) return value.map(canonical);
   if (value && typeof value === 'object') {
-    return Object.fromEntries(Object.keys(value).sort().map((key) => [key, canonical(value[key])]));
+    return Object.fromEntries(
+      Object.keys(value)
+        .sort()
+        .map((key) => [key, canonical(value[key])])
+    );
   }
   return value;
 };
-const hash = (value) => createHash('sha256').update(JSON.stringify(canonical(value))).digest('hex');
+const hash = (value) =>
+  createHash('sha256')
+    .update(JSON.stringify(canonical(value)))
+    .digest('hex');
 
 function computeGolden() {
   const out = {};

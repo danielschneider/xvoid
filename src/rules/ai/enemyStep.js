@@ -46,9 +46,7 @@ function chooseDestinations(state, enemy, target, role, retreating, visibleCells
 
   if (role.movePreference === 'post' && !retreating) {
     const postDistance = dist(postOf(enemy), enemy);
-    destinations = postDistance <= 1
-      ? []
-      : destinations.filter(({ cell }) => dist(cell, postOf(enemy)) < postDistance);
+    destinations = postDistance <= 1 ? [] : destinations.filter(({ cell }) => dist(cell, postOf(enemy)) < postDistance);
   }
 
   if (role.movePreference === 'conceal' || retreating) {
@@ -67,9 +65,8 @@ export function enemyStep(stateIn) {
   const enemyId = alerts.state.enemyTurnOrder[alerts.state.enemyTurnIndex];
   const enemy = alerts.state.units.find((unit) => unit.id === enemyId && unit.hp > 0);
   const step = takeEnemyTurn(alerts.state);
-  const ended = enemy && step.state.enemyTurnIndex > alerts.state.enemyTurnIndex
-    ? [enemyTurnEndEvent({ enemyId: enemy.id })]
-    : [];
+  const ended =
+    enemy && step.state.enemyTurnIndex > alerts.state.enemyTurnIndex ? [enemyTurnEndEvent({ enemyId: enemy.id })] : [];
   return { state: step.state, events: [...alerts.events, ...step.events, ...ended] };
 }
 
@@ -88,12 +85,11 @@ function takeEnemyTurn(state) {
   const distance = dist(target, enemy);
   const visibleCells = getVisibleCells(state.map, players);
   const revealedTargets = visibleCells.has(cellKey(enemy))
-    ? players.filter((unit) => dist(unit, enemy) <= ENEMY_SHOT_RANGE && hasLineOfSight(state.map, enemy, unit))
-      .sort((a, b) => dist(a, enemy) - dist(b, enemy))
+    ? players
+        .filter((unit) => dist(unit, enemy) <= ENEMY_SHOT_RANGE && hasLineOfSight(state.map, enemy, unit))
+        .sort((a, b) => dist(a, enemy) - dist(b, enemy))
     : [];
-  const retreating = role.retreat !== null
-    && enemy.hp <= Math.ceil(enemy.maxHp / 2)
-    && distance <= role.retreat.range;
+  const retreating = role.retreat !== null && enemy.hp <= Math.ceil(enemy.maxHp / 2) && distance <= role.retreat.range;
 
   if (!retreating && enemy.ap > 0 && revealedTargets.length > 0) {
     const targetToShoot = chooseShotTarget(state, enemy, revealedTargets, role);

@@ -15,7 +15,7 @@ import {
 // Rotates the orbit camera a quarter turn around the map centre.
 function rotateCamera(camera, direction) {
   const offset = camera.position.clone();
-  offset.applyAxisAngle(new THREE.Vector3(0, 1, 0), direction * Math.PI / 2);
+  offset.applyAxisAngle(new THREE.Vector3(0, 1, 0), (direction * Math.PI) / 2);
   camera.position.copy(offset);
   camera.lookAt(0, 0, 0);
 }
@@ -55,7 +55,12 @@ export function useTacticalCamera({ floorRef, cells, onCellTap, rotateToken }) {
       pointers.set(event.pointerId, { x: event.clientX, y: event.clientY });
       element.setPointerCapture?.(event.pointerId);
       moved = false;
-      if (pointers.size === 1) gesture = { last: { x: event.clientX, y: event.clientY }, origin: { x: event.clientX, y: event.clientY }, isPinch: false };
+      if (pointers.size === 1)
+        gesture = {
+          last: { x: event.clientX, y: event.clientY },
+          origin: { x: event.clientX, y: event.clientY },
+          isPinch: false,
+        };
       if (pointers.size === 2) {
         gesture = { ...distanceAndAngle(), isPinch: true, lastAngle: distanceAndAngle().angle, rotationAcc: 0 };
       }
@@ -122,7 +127,9 @@ export function useTacticalCamera({ floorRef, cells, onCellTap, rotateToken }) {
         vertical.y = 0;
         right.normalize();
         vertical.normalize();
-        camera.position.addScaledVector(right, step.dx * KEY_PAN_DISTANCE).addScaledVector(vertical, step.dy * KEY_PAN_DISTANCE);
+        camera.position
+          .addScaledVector(right, step.dx * KEY_PAN_DISTANCE)
+          .addScaledVector(vertical, step.dy * KEY_PAN_DISTANCE);
       }
     };
 

@@ -34,11 +34,25 @@ export function BeamEffect({ shot, camera }) {
   });
   return (
     <>
-      <Line ref={line} points={points} color={shot.hit ? '#ff705f' : '#57d8ed'} lineWidth={2.2} transparent opacity={0.95} />
+      <Line
+        ref={line}
+        points={points}
+        color={shot.hit ? '#ff705f' : '#57d8ed'}
+        lineWidth={2.2}
+        transparent
+        opacity={0.95}
+      />
       {shot.hit && <pointLight position={points[1]} color="#ff664f" intensity={3} distance={3} decay={2} />}
       <mesh position={[points[1].x, points[1].y + 1.1, points[1].z]} quaternion={camera.quaternion} renderOrder={10}>
         <planeGeometry args={[2.6, 1.3]} />
-        <meshBasicMaterial ref={damageMaterial} map={damageTexture} transparent depthWrite={false} depthTest={false} toneMapped={false} />
+        <meshBasicMaterial
+          ref={damageMaterial}
+          map={damageTexture}
+          transparent
+          depthWrite={false}
+          depthTest={false}
+          toneMapped={false}
+        />
       </mesh>
     </>
   );

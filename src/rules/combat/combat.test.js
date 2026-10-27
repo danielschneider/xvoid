@@ -1,6 +1,14 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { computeCritChance, computeDistanceModifier, computeHitChance, createInitialState, CRIT_CHANCE, CRIT_MULTIPLIER, gameReducer } from '../../engine/game.js';
+import {
+  computeCritChance,
+  computeDistanceModifier,
+  computeHitChance,
+  createInitialState,
+  CRIT_CHANCE,
+  CRIT_MULTIPLIER,
+  gameReducer,
+} from '../../engine/game.js';
 import { cellKey, hasLineOfSight } from '../../engine/map.js';
 import { adjacentWalkableCell, isolateEncounter, withDraws } from '../../../test/fixtures.js';
 
@@ -9,7 +17,7 @@ test('a revealed enemy can fire at a player in line of sight', () => {
   const nearbyCell = adjacentWalkableCell(state.map, state.units[0]);
   assert.ok(nearbyCell);
   const enemy = { ...state.units[3], x: nearbyCell.x, z: nearbyCell.z, level: nearbyCell.level };
-  const encounter = { ...state, units: state.units.map((unit) => unit.id === enemy.id ? enemy : unit) };
+  const encounter = { ...state, units: state.units.map((unit) => (unit.id === enemy.id ? enemy : unit)) };
   const enemyTurn = gameReducer(encounter, { type: 'end-turn' });
   const afterAction = gameReducer(enemyTurn, { type: 'enemy-step' });
   assert.equal(afterAction.lastShot?.enemyShot, true);
@@ -19,7 +27,7 @@ test('selected player turns toward the targeted enemy', () => {
   const state = createInitialState(42);
   const player = state.units[0];
   const enemy = { ...state.units[3], x: player.x, z: player.z + 1 };
-  const encounter = { ...state, units: state.units.map((unit) => unit.id === enemy.id ? enemy : unit) };
+  const encounter = { ...state, units: state.units.map((unit) => (unit.id === enemy.id ? enemy : unit)) };
   const aimed = gameReducer(encounter, { type: 'target', id: enemy.id });
   assert.equal(aimed.units[0].facing, 0);
 });
@@ -30,10 +38,13 @@ test('overwatch fires at a visible enemy that ends its move in range, without sp
   const nearby = adjacentWalkableCell(state.map, vanguard);
   assert.ok(nearby);
   const enemy = state.units.find((unit) => unit.id === 'raider-01');
-  const placed = isolateEncounter({ ...state, phase: 'enemy' }, {
-    vanguard: { status: 'overwatch', ap: 0 },
-    [enemy.id]: { x: nearby.x, z: nearby.z, level: nearby.level, ap: 1 },
-  });
+  const placed = isolateEncounter(
+    { ...state, phase: 'enemy' },
+    {
+      vanguard: { status: 'overwatch', ap: 0 },
+      [enemy.id]: { x: nearby.x, z: nearby.z, level: nearby.level, ap: 1 },
+    }
+  );
   const moving = { ...placed, movement: { id: 7, unitId: enemy.id, path: [enemy], step: 0 } };
   const result = gameReducer(withDraws(moving, [0]), { type: 'complete-movement', id: 7 });
   assert.equal(result.movement, null);
@@ -46,10 +57,13 @@ test('overwatch fires at a visible enemy that ends its move in range, without sp
 test('overwatch does not fire at enemies hidden in fog of war', () => {
   const state = createInitialState(42);
   const enemy = state.units.find((unit) => unit.id === 'raider-01');
-  const placed = isolateEncounter({ ...state, phase: 'enemy' }, {
-    vanguard: { status: 'overwatch' },
-    [enemy.id]: { x: 1, z: 1, level: 0 },
-  });
+  const placed = isolateEncounter(
+    { ...state, phase: 'enemy' },
+    {
+      vanguard: { status: 'overwatch' },
+      [enemy.id]: { x: 1, z: 1, level: 0 },
+    }
+  );
   const moving = { ...placed, movement: { id: 8, unitId: enemy.id, path: [enemy], step: 0 } };
   const result = gameReducer(withDraws(moving, [0]), { type: 'complete-movement', id: 8 });
   assert.equal(result.lastShot, null);
@@ -62,10 +76,13 @@ test('a single overwatch reaction shot consumes the watcher stance', () => {
   const nearby = adjacentWalkableCell(state.map, vanguard);
   assert.ok(nearby);
   const enemy = state.units.find((unit) => unit.id === 'raider-01');
-  const placed = isolateEncounter({ ...state, phase: 'enemy' }, {
-    vanguard: { status: 'overwatch' },
-    [enemy.id]: { x: nearby.x, z: nearby.z, level: nearby.level },
-  });
+  const placed = isolateEncounter(
+    { ...state, phase: 'enemy' },
+    {
+      vanguard: { status: 'overwatch' },
+      [enemy.id]: { x: nearby.x, z: nearby.z, level: nearby.level },
+    }
+  );
   const moving = { ...placed, movement: { id: 9, unitId: enemy.id, path: [enemy], step: 0 } };
   const first = gameReducer(withDraws(moving, [0]), { type: 'complete-movement', id: 9 });
   assert.equal(first.units.find((unit) => unit.id === 'vanguard').status, null);
@@ -96,8 +113,13 @@ test('a critical hit doubles base damage and reports crit on the shot', () => {
   const target = { ...state.units.find((unit) => unit.id === 'raider-01'), shield: 0, hp: 9, maxHp: 9 };
   const encounter = {
     ...isolateEncounter(state, { [shooter.id]: { ap: 2 }, [target.id]: target }),
-    units: state.units.map((unit) => (unit.id === shooter.id ? { ...unit, x: target.x, z: target.z + 1, level: 0, ap: 2 }
-      : unit.id === target.id ? target : { ...unit, hp: 0 })),
+    units: state.units.map((unit) =>
+      unit.id === shooter.id
+        ? { ...unit, x: target.x, z: target.z + 1, level: 0, ap: 2 }
+        : unit.id === target.id
+          ? target
+          : { ...unit, hp: 0 }
+    ),
   };
   const shooterNow = encounter.units.find((unit) => unit.id === shooter.id);
   const lineOpen = hasLineOfSight(encounter.map, shooterNow, target);
@@ -116,8 +138,13 @@ test('a non-critical hit keeps base damage and reports crit as false', () => {
   const target = { ...state.units.find((unit) => unit.id === 'raider-01'), shield: 0, hp: 9, maxHp: 9 };
   const encounter = {
     ...state,
-    units: state.units.map((unit) => (unit.id === shooter.id ? { ...unit, x: target.x, z: target.z + 1, level: 0, ap: 2 }
-      : unit.id === target.id ? target : { ...unit, hp: 0 })),
+    units: state.units.map((unit) =>
+      unit.id === shooter.id
+        ? { ...unit, x: target.x, z: target.z + 1, level: 0, ap: 2 }
+        : unit.id === target.id
+          ? target
+          : { ...unit, hp: 0 }
+    ),
   };
   const result = gameReducer(withDraws(encounter, [0, 0.99, 0]), { type: 'attack', id: target.id });
   assert.equal(result.lastShot.crit, false);
@@ -130,8 +157,13 @@ test('a miss never crits, so the crit roll is not consumed', () => {
   const target = { ...state.units.find((unit) => unit.id === 'raider-01'), shield: 0, hp: 9, maxHp: 9 };
   const encounter = {
     ...state,
-    units: state.units.map((unit) => (unit.id === shooter.id ? { ...unit, x: target.x, z: target.z + 1, level: 0, ap: 2 }
-      : unit.id === target.id ? target : { ...unit, hp: 0 })),
+    units: state.units.map((unit) =>
+      unit.id === shooter.id
+        ? { ...unit, x: target.x, z: target.z + 1, level: 0, ap: 2 }
+        : unit.id === target.id
+          ? target
+          : { ...unit, hp: 0 }
+    ),
   };
   const result = gameReducer(withDraws(encounter, [0.999, 0]), { type: 'attack', id: target.id });
   assert.equal(result.lastShot.hit, false);
@@ -151,8 +183,13 @@ test('player shooting power adds to damage, enemy shots ignore it', () => {
   const encounter = {
     ...state,
     selectedId: shooter.id,
-    units: state.units.map((unit) => (unit.id === shooter.id ? { ...shooter, x: target.x, z: target.z + 1, level: 0 }
-      : unit.id === target.id ? target : { ...unit, hp: 0 })),
+    units: state.units.map((unit) =>
+      unit.id === shooter.id
+        ? { ...shooter, x: target.x, z: target.z + 1, level: 0 }
+        : unit.id === target.id
+          ? target
+          : { ...unit, hp: 0 }
+    ),
   };
   // Hit (0), no crit (0.99), base roll 0 -> 2 + power 1 = 3.
   const result = gameReducer(withDraws(encounter, [0, 0.99, 0]), { type: 'attack', id: target.id });

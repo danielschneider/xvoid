@@ -12,10 +12,17 @@ const SIDE_STRIPS = {
 export function SideCoverMarkers({ state, unit }) {
   const sides = getSideCover(state.map, unit);
   const base = [toWorld(unit).x, toWorldY(unit) + 0.07, toWorld(unit).z];
-  return Object.entries(SIDE_STRIPS).filter(([side]) => sides[side] > 0).map(([side, { offset, size }]) => (
-    <mesh key={side} position={[base[0] + offset[0], base[1], base[2] + offset[1]]} rotation={[-Math.PI / 2, 0, 0]}>
-      <planeGeometry args={size} />
-      <meshBasicMaterial color={sides[side] === 2 ? '#8fd3ff' : '#a7e3b8'} transparent opacity={0.85} depthWrite={false} />
-    </mesh>
-  ));
+  return Object.entries(SIDE_STRIPS)
+    .filter(([side]) => sides[side] > 0)
+    .map(([side, { offset, size }]) => (
+      <mesh key={side} position={[base[0] + offset[0], base[1], base[2] + offset[1]]} rotation={[-Math.PI / 2, 0, 0]}>
+        <planeGeometry args={size} />
+        <meshBasicMaterial
+          color={sides[side] === 2 ? '#8fd3ff' : '#a7e3b8'}
+          transparent
+          opacity={0.85}
+          depthWrite={false}
+        />
+      </mesh>
+    ));
 }

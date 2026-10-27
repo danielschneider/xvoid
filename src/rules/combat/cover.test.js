@@ -8,7 +8,8 @@ test('side cover reads the four neighbouring cells on the same level', () => {
   const state = createInitialState(42);
   const cell = { x: 10, z: 10, level: 0 };
   const cells = state.map.cells;
-  for (const key of Object.keys(cells)) if (cells[key].x >= 8 && cells[key].x <= 12 && cells[key].z >= 8 && cells[key].z <= 12) cells[key].cover = 0;
+  for (const key of Object.keys(cells))
+    if (cells[key].x >= 8 && cells[key].x <= 12 && cells[key].z >= 8 && cells[key].z <= 12) cells[key].cover = 0;
   cells[cellKey({ x: 10, z: 9, level: 0 })].cover = 2;
   cells[cellKey({ x: 11, z: 10, level: 0 })].cover = 1;
   assert.deepEqual(getSideCover(state.map, cell), { N: 2, E: 1, S: 0, W: 0 });
@@ -67,9 +68,13 @@ test('getFlankedBy reports enemies that flank a covered player', () => {
   const state = createInitialState(42);
   const player = { x: 10, z: 10, level: 0, team: 'player', hp: 5, id: 'p' };
   setSides(state, player, { N: 2 });
-  for (const x of [11, 12]) Object.assign(state.map.cells[cellKey({ x, z: 10, level: 0 })], { terrain: 'floor', walkable: true, cover: 0 });
+  for (const x of [11, 12])
+    Object.assign(state.map.cells[cellKey({ x, z: 10, level: 0 })], { terrain: 'floor', walkable: true, cover: 0 });
   const flanker = { x: 13, z: 10, level: 0, team: 'alien', hp: 3, id: 'e' };
   const frontal = { x: 10, z: 7, level: 0, team: 'alien', hp: 3, id: 'f' };
   const withUnits = { ...state, units: [player, flanker, frontal] };
-  assert.deepEqual(getFlankedBy(withUnits, player).map((unit) => unit.id), ['e']);
+  assert.deepEqual(
+    getFlankedBy(withUnits, player).map((unit) => unit.id),
+    ['e']
+  );
 });

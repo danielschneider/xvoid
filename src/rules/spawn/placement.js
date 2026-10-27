@@ -25,7 +25,7 @@ function* squadClusters(map, candidates, random) {
   for (const center of shuffle(candidates, random)) {
     const near = shuffle(
       candidates.filter((cell) => cell !== center && spawnDistance(cell, center) <= SQUAD_RADIUS),
-      random,
+      random
     );
     if (near.length < 2) continue;
     const reachable = new Set(getReachable(map, center, new Set(), map.size * 2).keys());
@@ -48,9 +48,8 @@ const FARTHEST_POOL = 6;
 
 function placeEnemyGroups(candidates, count, random) {
   const placed = [];
-  const distanceToPlaced = (cell) => (
-    placed.length === 0 ? Infinity : Math.min(...placed.map((other) => spawnDistance(other, cell)))
-  );
+  const distanceToPlaced = (cell) =>
+    placed.length === 0 ? Infinity : Math.min(...placed.map((other) => spawnDistance(other, cell)));
   const pickLeader = () => {
     const ranked = shuffle(candidates, random)
       .filter((cell) => !placed.some((unit) => spawnDistance(unit, cell) === 0))
@@ -66,7 +65,7 @@ function placeEnemyGroups(candidates, count, random) {
     if (placed.length < count && random() < 0.5) {
       const partner = shuffle(
         candidates.filter((other) => spawnDistance(other, leader) >= 1 && spawnDistance(other, leader) <= 2),
-        random,
+        random
       ).find((other) => !placed.some((unit) => spawnDistance(unit, other) === 0));
       if (partner) placed.push(partner);
     }
@@ -76,18 +75,19 @@ function placeEnemyGroups(candidates, count, random) {
 
 export function createStartingUnits(map, random) {
   const middle = Math.floor(map.size / 2);
-  const openGround = Object.values(map.cells).filter((cell) => (
-    isPassable(cell) && cell.level === 0 && !cell.structure
-  ));
+  const openGround = Object.values(map.cells).filter((cell) => isPassable(cell) && cell.level === 0 && !cell.structure);
   const enemyCount = map.size >= 48 ? 20 : map.size >= 40 ? 10 : 5;
-  const safeCells = openGround.filter((cell) => (
-    cell.x > VISION_RANGE && cell.z > VISION_RANGE
-    && cell.x < map.size - VISION_RANGE - 1 && cell.z < map.size - VISION_RANGE - 1
-  ));
+  const safeCells = openGround.filter(
+    (cell) =>
+      cell.x > VISION_RANGE &&
+      cell.z > VISION_RANGE &&
+      cell.x < map.size - VISION_RANGE - 1 &&
+      cell.z < map.size - VISION_RANGE - 1
+  );
   // The player squad always lands on the map border (the landing point).
-  const borderCells = openGround.filter((cell) => (
-    cell.x === 0 || cell.z === 0 || cell.x === map.size - 1 || cell.z === map.size - 1
-  ));
+  const borderCells = openGround.filter(
+    (cell) => cell.x === 0 || cell.z === 0 || cell.x === map.size - 1 || cell.z === map.size - 1
+  );
   const quadrants = [
     (cell) => cell.x < middle && cell.z < middle,
     (cell) => cell.x >= middle && cell.z < middle,
@@ -106,13 +106,15 @@ export function createStartingUnits(map, random) {
   for (const { area, strict } of passes) {
     for (const cluster of squadClusters(map, area, random)) {
       if (enemySpawns) break;
-      const enemyCandidates = safeCells.filter((cell) => (
-        cluster.reachable.has(cellKey(cell))
-        && cluster.squad.every((player) => spawnDistance(player, cell) > MIN_ENEMY_SPAWN_DISTANCE)
-        && (!strict || cluster.squad.every((player) => (
-          spawnDistance(cell, player) > VISION_RANGE || !hasLineOfSight(map, player, cell)
-        )))
-      ));
+      const enemyCandidates = safeCells.filter(
+        (cell) =>
+          cluster.reachable.has(cellKey(cell)) &&
+          cluster.squad.every((player) => spawnDistance(player, cell) > MIN_ENEMY_SPAWN_DISTANCE) &&
+          (!strict ||
+            cluster.squad.every(
+              (player) => spawnDistance(cell, player) > VISION_RANGE || !hasLineOfSight(map, player, cell)
+            ))
+      );
       const placed = placeEnemyGroups(enemyCandidates, enemyCount, random);
       if (placed) {
         playerSpawns = cluster.squad;
@@ -122,7 +124,12 @@ export function createStartingUnits(map, random) {
     if (enemySpawns) break;
   }
 
-  if (!playerSpawns || !enemySpawns || playerSpawns.length < PLAYER_TEMPLATES.length || enemySpawns.length < enemyCount) {
+  if (
+    !playerSpawns ||
+    !enemySpawns ||
+    playerSpawns.length < PLAYER_TEMPLATES.length ||
+    enemySpawns.length < enemyCount
+  ) {
     throw new Error(`Unable to place a fair ${map.size}x${map.size} starting force`);
   }
   const randomizedRoles = shuffle(ENEMY_TEMPLATES, random);

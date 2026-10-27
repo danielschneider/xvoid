@@ -19,19 +19,23 @@ test('new seeds vary map size, squad size, and spawn positions deterministically
     assert.equal(enemies.length, state.map.size === 32 ? 5 : state.map.size === 40 ? 10 : 20);
     assert.equal(new Set(state.units.map(cellKey)).size, state.units.length);
     assert.ok(state.units.every((unit) => state.map.cells[cellKey(unit)]?.walkable));
-    assert.ok(players.every((player) => (
-      player.x === 0 || player.z === 0 || player.x === state.map.size - 1 || player.z === state.map.size - 1
-    )));
+    assert.ok(
+      players.every(
+        (player) =>
+          player.x === 0 || player.z === 0 || player.x === state.map.size - 1 || player.z === state.map.size - 1
+      )
+    );
     const visibleCells = getVisibleCells(state.map, players);
-    assert.ok([...visibleCells].every((key) => {
-      const cell = state.map.cells[key];
-      return cell.x >= 0 && cell.z >= 0 && cell.x < state.map.size && cell.z < state.map.size;
-    }));
+    assert.ok(
+      [...visibleCells].every((key) => {
+        const cell = state.map.cells[key];
+        return cell.x >= 0 && cell.z >= 0 && cell.x < state.map.size && cell.z < state.map.size;
+      })
+    );
 
     const reachable = new Set(getReachable(state.map, players[0], new Set(), state.map.size * 2).keys());
     reachable.add(cellKey(players[0]));
     assert.ok(state.units.every((unit) => reachable.has(cellKey(unit))));
-
 
     const middle = state.map.size / 2;
     const quadrants = [
@@ -45,13 +49,19 @@ test('new seeds vary map size, squad size, and spawn positions deterministically
       assert.ok(Object.values(state.map.cells).some((cell) => inQuadrant(cell) && cell.level > 0));
     }
   }
-  assert.deepEqual([...sizes].sort((a, b) => a - b), [32, 40, 48]);
+  assert.deepEqual(
+    [...sizes].sort((a, b) => a - b),
+    [32, 40, 48]
+  );
   assert.ok(spawnLayouts.size > 1);
   assert.ok(roleLayouts.size > 1);
 
   const first = createInitialState(42);
   const second = createInitialState(42);
-  assert.deepEqual(first.units.map(({ id, x, z, aiRole }) => [id, x, z, aiRole]), second.units.map(({ id, x, z, aiRole }) => [id, x, z, aiRole]));
+  assert.deepEqual(
+    first.units.map(({ id, x, z, aiRole }) => [id, x, z, aiRole]),
+    second.units.map(({ id, x, z, aiRole }) => [id, x, z, aiRole])
+  );
 });
 
 test('regenerate increments the generation so views remount units on level reset', () => {

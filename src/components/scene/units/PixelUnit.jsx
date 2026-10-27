@@ -9,7 +9,17 @@ import { UnitBody, applyBodyPose, moveBody } from './UnitBody.jsx';
 import { updateSpriteView, useSpriteTextures } from './UnitSprite.jsx';
 
 // Composition entry for one unit: wires refs, the shared frame loop and the three sub-parts.
-export function PixelUnit({ unit, selected, targeted, shootable, hitChance, camera, movement, visibleCellKeys, lastShot }) {
+export function PixelUnit({
+  unit,
+  selected,
+  targeted,
+  shootable,
+  hitChance,
+  camera,
+  movement,
+  visibleCellKeys,
+  lastShot,
+}) {
   const refs = {
     group: useRef(),
     bodyGroup: useRef(),
@@ -39,9 +49,8 @@ export function PixelUnit({ unit, selected, targeted, shootable, hitChance, came
   const ground = [toWorld(unit).x, toWorldY(unit) + 0.035, toWorld(unit).z];
   const destination = useMemo(() => new THREE.Vector3(...ground), [cellHeight(unit), unit.x, unit.z]);
   const fullRoute = movement?.unitId === unit.id ? movement.path : null;
-  const firstVisibleIndex = unit.team === 'alien' && fullRoute
-    ? fullRoute.findIndex((cell) => visibleCellKeys.has(cellKey(cell)))
-    : 0;
+  const firstVisibleIndex =
+    unit.team === 'alien' && fullRoute ? fullRoute.findIndex((cell) => visibleCellKeys.has(cellKey(cell))) : 0;
   const route = fullRoute && firstVisibleIndex >= 0 ? fullRoute.slice(firstVisibleIndex) : null;
   const dead = unit.hp <= 0;
   const fallenOrientation = useMemo(() => new THREE.Quaternion().setFromEuler(new THREE.Euler(-Math.PI / 2, 0, 0)), []);

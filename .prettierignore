@@ -1,0 +1,7 @@
+dist
+node_modules
+coverage
+package-lock.json
+test/fixtures/golden-hashes.json
+# refactoring.md: hand-written plan; prettier changes markdown code spans (`#` wall -> `#`wall) and reflows tables.
+refactoring.md

@@ -5,13 +5,22 @@ export function installCanvasStub() {
   globalThis.document = {
     createElement(tag) {
       const calls = [];
-      const context = new Proxy({}, {
-        get(target, key) {
-          if (key in target) return target[key];
-          return (...args) => { calls.push({ op: String(key), args }); };
-        },
-        set(target, key, value) { target[key] = value; calls.push({ op: 'set', key: String(key), value }); return true; },
-      });
+      const context = new Proxy(
+        {},
+        {
+          get(target, key) {
+            if (key in target) return target[key];
+            return (...args) => {
+              calls.push({ op: String(key), args });
+            };
+          },
+          set(target, key, value) {
+            target[key] = value;
+            calls.push({ op: 'set', key: String(key), value });
+            return true;
+          },
+        }
+      );
       const canvas = { tagName: tag, width: 0, height: 0, calls, getContext: () => context };
       created.push(canvas);
       return canvas;
@@ -19,6 +28,8 @@ export function installCanvasStub() {
   };
   return {
     created,
-    uninstall() { delete globalThis.document; },
+    uninstall() {
+      delete globalThis.document;
+    },
   };
 }

@@ -19,7 +19,10 @@ test('boxes (pillar/console) are never passable and never reachable', () => {
     assert.ok(boxes.length > 0, `seed ${seed} has boxes`);
     assert.ok(boxes.every((box) => !isPassable(box)));
     const reachable = getReachable(map, { x: 0, z: 0, level: 0 }, new Set(), map.size * 4);
-    assert.ok(boxes.every((box) => !reachable.has(cellKey(box))), `seed ${seed}: no path enters a box`);
+    assert.ok(
+      boxes.every((box) => !reachable.has(cellKey(box))),
+      `seed ${seed}: no path enters a box`
+    );
   }
 });
 
@@ -28,7 +31,9 @@ test('boxes never disconnect the battlefield', () => {
     const map = createInitialState(seed).map;
     const passable = Object.values(map.cells).filter(isPassable);
     const reachable = getReachable(map, { x: 0, z: 0, level: 0 }, new Set(), map.size * 4);
-    const reachableCount = passable.filter((cell) => cell.x === 0 && cell.z === 0 || reachable.has(cellKey(cell))).length;
+    const reachableCount = passable.filter(
+      (cell) => (cell.x === 0 && cell.z === 0) || reachable.has(cellKey(cell))
+    ).length;
     assert.equal(reachableCount, passable.length, `seed ${seed}: all passable cells connected`);
   }
 });

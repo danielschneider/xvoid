@@ -18,9 +18,9 @@ export function useAbility(state) {
   if (!unit || unit.ap < AP_ACTION_COST || unit.team !== 'player') return { state, events: [] };
   const next = {
     ...state,
-    units: state.units.map((entry) => entry.id === unit.id
-      ? { ...entry, ap: entry.ap - AP_ACTION_COST, status: 'overwatch' }
-      : entry),
+    units: state.units.map((entry) =>
+      entry.id === unit.id ? { ...entry, ap: entry.ap - AP_ACTION_COST, status: 'overwatch' } : entry
+    ),
   };
   return { state: next, events: [overwatchEvent({ unitId: unit.id, name: unit.name })] };
 }

@@ -3,9 +3,45 @@
 import { AP_PER_TURN } from './constants.js';
 
 export const PLAYER_TEMPLATES = [
-  { id: 'vanguard', name: 'Vanguard', className: 'BREACHER', team: 'player', hp: 7, maxHp: 7, shield: 2, ap: AP_PER_TURN, moveRange: 6, power: 0, color: '#62e6c4' },
-  { id: 'spectre', name: 'Spectre', className: 'RECON', team: 'player', hp: 4, maxHp: 4, shield: 1, ap: AP_PER_TURN, moveRange: 9, power: 1, color: '#87b5ff' },
-  { id: 'medic', name: 'Medic', className: 'FIELD MEDIC', team: 'player', hp: 5, maxHp: 5, shield: 2, ap: AP_PER_TURN, moveRange: 7, power: -1, color: '#f0d77e' },
+  {
+    id: 'vanguard',
+    name: 'Vanguard',
+    className: 'BREACHER',
+    team: 'player',
+    hp: 7,
+    maxHp: 7,
+    shield: 2,
+    ap: AP_PER_TURN,
+    moveRange: 6,
+    power: 0,
+    color: '#62e6c4',
+  },
+  {
+    id: 'spectre',
+    name: 'Spectre',
+    className: 'RECON',
+    team: 'player',
+    hp: 4,
+    maxHp: 4,
+    shield: 1,
+    ap: AP_PER_TURN,
+    moveRange: 9,
+    power: 1,
+    color: '#87b5ff',
+  },
+  {
+    id: 'medic',
+    name: 'Medic',
+    className: 'FIELD MEDIC',
+    team: 'player',
+    hp: 5,
+    maxHp: 5,
+    shield: 2,
+    ap: AP_PER_TURN,
+    moveRange: 7,
+    power: -1,
+    color: '#f0d77e',
+  },
 ];
 
 export const ENEMY_TEMPLATES = [

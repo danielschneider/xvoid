@@ -27,7 +27,14 @@ test('enemy turn throws when the acting enemy has no role', () => {
   const state = createInitialState(42);
   const enemy = state.units.find((unit) => unit.team === 'alien');
   const units = state.units.map((unit) => (unit.id === enemy.id ? { ...unit, aiRole: undefined } : unit));
-  const enemyTurn = { ...state, units, phase: 'enemy', enemyTurnOrder: [enemy.id], enemyTurnIndex: 0, alertedGroups: [enemy.groupId] };
+  const enemyTurn = {
+    ...state,
+    units,
+    phase: 'enemy',
+    enemyTurnOrder: [enemy.id],
+    enemyTurnIndex: 0,
+    alertedGroups: [enemy.groupId],
+  };
   assert.throws(() => gameReducer(enemyTurn, { type: 'enemy-step' }), /missing or unknown role/);
 });
 
@@ -35,6 +42,13 @@ test('enemy turn throws when the acting enemy has an unknown role', () => {
   const state = createInitialState(42);
   const enemy = state.units.find((unit) => unit.team === 'alien');
   const units = state.units.map((unit) => (unit.id === enemy.id ? { ...unit, aiRole: 'berserker' } : unit));
-  const enemyTurn = { ...state, units, phase: 'enemy', enemyTurnOrder: [enemy.id], enemyTurnIndex: 0, alertedGroups: [enemy.groupId] };
+  const enemyTurn = {
+    ...state,
+    units,
+    phase: 'enemy',
+    enemyTurnOrder: [enemy.id],
+    enemyTurnIndex: 0,
+    alertedGroups: [enemy.groupId],
+  };
   assert.throws(() => gameReducer(enemyTurn, { type: 'enemy-step' }), /unknown role: berserker/);
 });

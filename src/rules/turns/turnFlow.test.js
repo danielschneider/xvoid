@@ -8,23 +8,56 @@ import { createInitialState } from '../spawn/initialState.js';
 // 12x3 open floor on level 0 with no transitions: enough for sight, pathing and fog.
 const openMap = {
   transitions: {},
-  cells: Object.fromEntries(Array.from({ length: 36 }, (_, index) => {
-    const x = index % 12;
-    const z = Math.floor(index / 12);
-    return [`${x},${z},0`, { x, z, level: 0, terrain: 'floor', walkable: true, cover: 0 }];
-  })),
+  cells: Object.fromEntries(
+    Array.from({ length: 36 }, (_, index) => {
+      const x = index % 12;
+      const z = Math.floor(index / 12);
+      return [`${x},${z},0`, { x, z, level: 0, terrain: 'floor', walkable: true, cover: 0 }];
+    })
+  ),
 };
 
 const unit = (overrides) => ({
-  id: 1, team: 'player', name: 'A', x: 0, z: 0, level: 0, ap: 2, hp: 5, maxHp: 5, shield: 0,
-  status: null, facing: 0, power: 0, groupId: null, postX: 0, postZ: 0, aiRole: 'raider', ...overrides,
+  id: 1,
+  team: 'player',
+  name: 'A',
+  x: 0,
+  z: 0,
+  level: 0,
+  ap: 2,
+  hp: 5,
+  maxHp: 5,
+  shield: 0,
+  status: null,
+  facing: 0,
+  power: 0,
+  groupId: null,
+  postX: 0,
+  postZ: 0,
+  aiRole: 'raider',
+  ...overrides,
 });
 
 function stateWith(units, extra = {}) {
   return {
-    map: openMap, units, selectedId: 1, targetId: null, shootMode: false, moveMode: true,
-    logs: [], lastShot: null, eventLog: [], rng: 0, nextId: 1, phase: 'player', turn: 1,
-    movement: null, alertedGroups: [], enemyTurnOrder: [], enemyTurnIndex: 0, ...extra,
+    map: openMap,
+    units,
+    selectedId: 1,
+    targetId: null,
+    shootMode: false,
+    moveMode: true,
+    logs: [],
+    lastShot: null,
+    eventLog: [],
+    rng: 0,
+    nextId: 1,
+    phase: 'player',
+    turn: 1,
+    movement: null,
+    alertedGroups: [],
+    enemyTurnOrder: [],
+    enemyTurnIndex: 0,
+    ...extra,
   };
 }
 
@@ -80,7 +113,10 @@ test('an alerted enemy that cannot act emits hold, then enemy-turn-end', () => {
   const state = stateWith(units, { phase: 'enemy', enemyTurnOrder: [2], enemyTurnIndex: 0, alertedGroups: [7] });
   const { state: next, events } = enemyStep(state);
   assert.equal(next.enemyTurnIndex, 1);
-  assert.deepEqual(events.map((event) => event.type), ['hold', 'enemy-turn-end']);
+  assert.deepEqual(
+    events.map((event) => event.type),
+    ['hold', 'enemy-turn-end']
+  );
   assert.deepEqual(events[0], { type: 'hold', unitId: 2, name: 'E', role: 'raider' });
   assert.deepEqual(events[1], { type: 'enemy-turn-end', enemyId: 2 });
 });
@@ -123,8 +159,12 @@ test('an enemy finishing its move under player overwatch emits a reaction shot e
   const watcher = unit({ id: 1, status: 'overwatch', ap: 0 });
   const mover = unit({ id: 2, team: 'alien', name: 'E', x: 3, z: 0, groupId: 7, ap: 0 });
   const state = stateWith([watcher, mover], {
-    phase: 'enemy', alertedGroups: [7], enemyTurnOrder: [2], enemyTurnIndex: 1,
-    movement: { id: 5, unitId: 2, path: [mover], step: 0 }, nextId: 6,
+    phase: 'enemy',
+    alertedGroups: [7],
+    enemyTurnOrder: [2],
+    enemyTurnIndex: 1,
+    movement: { id: 5, unitId: 2, path: [mover], step: 0 },
+    nextId: 6,
   });
   const after = gameReducer(state, { type: 'complete-movement', id: 5 });
   assert.equal(after.movement, null);

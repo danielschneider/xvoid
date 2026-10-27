@@ -1,7 +1,13 @@
 import { AP_MOVE_CHEAP, AP_MOVE_FULL, DEFAULT_MOVE_RANGE } from '../constants.js';
 import { cellKey, isPassable, neighborsOf } from '../grid/cells.js';
 
-export function getReachable(map, start, blocked = new Set(), maxSteps = DEFAULT_MOVE_RANGE, cheapSteps = Math.ceil(DEFAULT_MOVE_RANGE / 2)) {
+export function getReachable(
+  map,
+  start,
+  blocked = new Set(),
+  maxSteps = DEFAULT_MOVE_RANGE,
+  cheapSteps = Math.ceil(DEFAULT_MOVE_RANGE / 2)
+) {
   const startKey = cellKey(start);
   const queue = [start];
   const distance = new Map([[startKey, 0]]);

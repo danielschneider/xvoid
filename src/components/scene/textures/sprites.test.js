@@ -3,7 +3,8 @@ import assert from 'node:assert/strict';
 import { installCanvasStub } from '../../../../test/canvasStub.js';
 import { createSpriteTexture } from './sprites.js';
 
-const fills = (calls) => calls.filter((call) => call.op === 'set' && call.key === 'fillStyle').map((call) => call.value);
+const fills = (calls) =>
+  calls.filter((call) => call.op === 'set' && call.key === 'fillStyle').map((call) => call.value);
 
 test('createSpriteTexture draws a 48x64 sprite and flips only the left view', () => {
   const stub = installCanvasStub();

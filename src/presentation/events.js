@@ -14,19 +14,47 @@ export const EVENT_TYPES = Object.freeze({
   hold: 'hold',
 });
 
-export const shotEvent = ({ shooterId, shooterName, targetId, targetName, hit, crit, damage, enemyShot, reaction = false }) => ({
-  type: EVENT_TYPES.shot, shooterId, shooterName, targetId, targetName, hit, crit, damage, enemyShot, reaction,
+export const shotEvent = ({
+  shooterId,
+  shooterName,
+  targetId,
+  targetName,
+  hit,
+  crit,
+  damage,
+  enemyShot,
+  reaction = false,
+}) => ({
+  type: EVENT_TYPES.shot,
+  shooterId,
+  shooterName,
+  targetId,
+  targetName,
+  hit,
+  crit,
+  damage,
+  enemyShot,
+  reaction,
 });
 
 // A shot that never resolved. reason: 'sight' (line of sight blocked) or 'range' (target too far).
 export const blockedEvent = ({ shooterId, targetId, reason }) => ({
-  type: EVENT_TYPES.blocked, shooterId, targetId, reason,
+  type: EVENT_TYPES.blocked,
+  shooterId,
+  targetId,
+  reason,
 });
 
 // intent: 'walk' (player move), 'patrol', 'advance' or 'retreat' (enemy moves).
 // role: the enemy's aiRole for enemy moves, null for player moves.
 export const moveEvent = ({ unitId, name, steps, enemy = false, role = null, intent = 'walk' }) => ({
-  type: EVENT_TYPES.move, unitId, name, steps, enemy, role, intent,
+  type: EVENT_TYPES.move,
+  unitId,
+  name,
+  steps,
+  enemy,
+  role,
+  intent,
 });
 
 export const deathEvent = ({ unitId }) => ({ type: EVENT_TYPES.death, unitId });

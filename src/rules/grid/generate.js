@@ -36,7 +36,14 @@ function raiseBuilding(cells, transitions, room, topLevel) {
     for (let zz = z + 1; zz < z + h - 1; zz += 1) {
       for (let xx = x + 1; xx < x + w - 1; xx += 1) {
         const floor = { x: xx, z: zz, level };
-        cells[cellKey(floor)] = { ...floor, terrain: 'platform', walkable: true, cover: 0, structure: true, corridor: false };
+        cells[cellKey(floor)] = {
+          ...floor,
+          terrain: 'platform',
+          walkable: true,
+          cover: 0,
+          structure: true,
+          corridor: false,
+        };
       }
     }
   }
@@ -118,10 +125,13 @@ export function createBattlefield(seed) {
       w,
       h,
     };
-    const overlaps = buildings.some((other) => (
-      room.x - 1 <= other.x + other.w - 1 && other.x <= room.x + room.w
-      && room.z - 1 <= other.z + other.h - 1 && other.z <= room.z + room.h
-    ));
+    const overlaps = buildings.some(
+      (other) =>
+        room.x - 1 <= other.x + other.w - 1 &&
+        other.x <= room.x + room.w &&
+        room.z - 1 <= other.z + other.h - 1 &&
+        other.z <= room.z + room.h
+    );
     if (overlaps) continue;
     const topLevel = 1 + Math.floor(random() * MAX_BUILDING_LEVEL);
     const saved = snapshotRegion(cells, transitions, room, topLevel);
@@ -157,7 +167,7 @@ export function createBattlefield(seed) {
     if (random() < 0.1) placeBox(cells, transitions, cell, random() > 0.5 ? 2 : 1);
   }
 
-  for (let index = 0; index < Math.floor(size * size / 16); index += 1) {
+  for (let index = 0; index < Math.floor((size * size) / 16); index += 1) {
     const x = 2 + Math.floor(random() * (size - 4));
     const z = 2 + Math.floor(random() * (size - 4));
     const cell = cells[cellKey({ x, z })];

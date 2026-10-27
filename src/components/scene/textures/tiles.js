@@ -37,14 +37,20 @@ export function createGroundTexture(atlasImage, map, visibleCellKeys) {
       const cell = map.cells[cellKey({ x, z, level: 0 })];
       const variation = seededNoise(map.seed, x, z, 47);
       const tile = cell.structure
-        ? (variation < 0.5 ? [6, 14] : [7, 14])
+        ? variation < 0.5
+          ? [6, 14]
+          : [7, 14]
         : cell.corridor
-          ? (variation < 0.5 ? [5, 8] : [6, 8])
+          ? variation < 0.5
+            ? [5, 8]
+            : [6, 8]
           : cell.cover > 0
             ? [5, 14]
             : variation < 0.055
               ? [0, 9]
-              : variation < 0.16 ? [1, 15] : [0, 15];
+              : variation < 0.16
+                ? [1, 15]
+                : [0, 15];
       context.fillStyle = cell.corridor ? '#263332' : cell.structure ? '#303c39' : '#202b2b';
       context.fillRect(x * TILE_SIZE, z * TILE_SIZE, TILE_SIZE, TILE_SIZE);
       context.drawImage(
@@ -56,7 +62,7 @@ export function createGroundTexture(atlasImage, map, visibleCellKeys) {
         x * TILE_SIZE,
         z * TILE_SIZE,
         TILE_SIZE,
-        TILE_SIZE,
+        TILE_SIZE
       );
       if (!visibleCellKeys.has(cellKey({ x, z, level: 0 }))) {
         context.globalAlpha = 0.9;

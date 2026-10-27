@@ -4,7 +4,8 @@ import { installCanvasStub } from '../../../../test/canvasStub.js';
 import { createCritTexture, createDamageTexture } from './labels.js';
 
 const texts = (calls) => calls.filter((call) => call.op === 'fillText').map((call) => call.args[0]);
-const fillStyles = (calls) => calls.filter((call) => call.op === 'set' && call.key === 'fillStyle').map((call) => call.value);
+const fillStyles = (calls) =>
+  calls.filter((call) => call.op === 'set' && call.key === 'fillStyle').map((call) => call.value);
 
 test('createCritTexture paints the CRIT word on a 128x64 canvas', () => {
   const stub = installCanvasStub();

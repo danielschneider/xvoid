@@ -12,7 +12,7 @@ export function CameraRig({ floorRef, cells, onCellTap, focusUnit, focusToken, m
     const target = new THREE.Vector3(
       toWorld(focusUnit).x + mapOffset,
       toWorldY(focusUnit),
-      toWorld(focusUnit).z + mapOffset,
+      toWorld(focusUnit).z + mapOffset
     );
     const forward = camera.getWorldDirection(new THREE.Vector3());
     if (Math.abs(forward.y) < 1e-6) return;

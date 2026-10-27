@@ -21,7 +21,12 @@ export function CoverField({ cells, selected }) {
         </mesh>
         <mesh castShadow={false}>
           <boxGeometry args={cell.terrain === 'pillar' ? [0.64, height, 0.64] : [0.82, height, 0.56]} />
-          <meshStandardMaterial map={cell.terrain === 'pillar' ? stoneTexture : earthTexture} color="#ffffff" roughness={0.94} flatShading />
+          <meshStandardMaterial
+            map={cell.terrain === 'pillar' ? stoneTexture : earthTexture}
+            color="#ffffff"
+            roughness={0.94}
+            flatShading
+          />
         </mesh>
         <mesh position={[0, height * 0.14, cell.terrain === 'pillar' ? 0.331 : 0.29]}>
           <boxGeometry args={cell.terrain === 'pillar' ? [0.34, 0.48, 0.035] : [0.54, 0.17, 0.035]} />
@@ -35,7 +40,12 @@ export function CoverField({ cells, selected }) {
           <boxGeometry args={[0.68, 0.025, 0.6]} />
           <meshBasicMaterial color={selected ? '#54dfc1' : '#9cd2bd'} />
         </mesh>
-        {cell.terrain === 'pillar' && <mesh position={[0, height / 2 - 0.055, 0]}><boxGeometry args={[0.72, 0.055, 0.72]} /><meshStandardMaterial color="#849087" roughness={0.52} metalness={0.48} /></mesh>}
+        {cell.terrain === 'pillar' && (
+          <mesh position={[0, height / 2 - 0.055, 0]}>
+            <boxGeometry args={[0.72, 0.055, 0.72]} />
+            <meshStandardMaterial color="#849087" roughness={0.52} metalness={0.48} />
+          </mesh>
+        )}
       </group>
     );
   });

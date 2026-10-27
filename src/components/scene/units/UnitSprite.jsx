@@ -4,9 +4,13 @@ import { createSpriteTexture } from '../textures/sprites.js';
 import { angleDelta, selectSpriteView } from './spriteView.js';
 
 export function useSpriteTextures(team, color, className) {
-  return useMemo(() => Object.fromEntries(
-    ['front', 'right', 'back', 'left'].map((view) => [view, createSpriteTexture(team, color, className, view)]),
-  ), [team, color, className]);
+  return useMemo(
+    () =>
+      Object.fromEntries(
+        ['front', 'right', 'back', 'left'].map((view) => [view, createSpriteTexture(team, color, className, view)])
+      ),
+    [team, color, className]
+  );
 }
 
 // Outline and sprite planes inside the billboard group.
@@ -16,11 +20,26 @@ export function UnitSprite({ refs, team, spriteTextures }) {
     <>
       <mesh ref={outline} scale={[1.16, 1.14, 1]} position={[0, 0, -0.015]}>
         <planeGeometry args={[0.92, 1.38]} />
-        <meshBasicMaterial map={spriteTextures.front} color={team === 'alien' ? '#29151c' : '#10231e'} transparent alphaTest={0.2} depthWrite={false} side={THREE.DoubleSide} toneMapped={false} />
+        <meshBasicMaterial
+          map={spriteTextures.front}
+          color={team === 'alien' ? '#29151c' : '#10231e'}
+          transparent
+          alphaTest={0.2}
+          depthWrite={false}
+          side={THREE.DoubleSide}
+          toneMapped={false}
+        />
       </mesh>
       <mesh ref={sprite}>
         <planeGeometry args={[1.06, 1.52]} />
-        <meshBasicMaterial map={spriteTextures.front} transparent alphaTest={0.22} depthWrite={false} side={THREE.DoubleSide} toneMapped={false} />
+        <meshBasicMaterial
+          map={spriteTextures.front}
+          transparent
+          alphaTest={0.22}
+          depthWrite={false}
+          side={THREE.DoubleSide}
+          toneMapped={false}
+        />
       </mesh>
     </>
   );

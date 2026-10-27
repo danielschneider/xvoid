@@ -5,16 +5,20 @@ import { makeRandom } from '../src/rules/rng.js';
 // Shared test builders. Pure helpers only; no assertions.
 
 export function adjacentWalkableCell(map, unit) {
-  return Object.values(map.cells).find((cell) => (
-    cell.level === unit.level
-    && cell.walkable
-    && Math.abs(cell.x - unit.x) + Math.abs(cell.z - unit.z) === 1
-    && hasLineOfSight(map, unit, cell)
-  ));
+  return Object.values(map.cells).find(
+    (cell) =>
+      cell.level === unit.level &&
+      cell.walkable &&
+      Math.abs(cell.x - unit.x) + Math.abs(cell.z - unit.z) === 1 &&
+      hasLineOfSight(map, unit, cell)
+  );
 }
 
 export function isolateEncounter(state, keep) {
-  return { ...state, units: state.units.map((unit) => (keep[unit.id] ? { ...unit, ...keep[unit.id] } : { ...unit, hp: 0 })) };
+  return {
+    ...state,
+    units: state.units.map((unit) => (keep[unit.id] ? { ...unit, ...keep[unit.id] } : { ...unit, hp: 0 })),
+  };
 }
 
 export const setSides = (state, { x, z }, sides) => {
@@ -29,9 +33,12 @@ export const setSides = (state, { x, z }, sides) => {
 export function withDraws(state, targets) {
   for (let cursor = 1; ; cursor += 1) {
     const random = makeRandom(cursor);
-    if (targets.every((target) => {
-      const value = random();
-      return target === 0 ? value < 0.01 : value >= target && value < target + 0.01;
-    })) return { ...state, rng: cursor };
+    if (
+      targets.every((target) => {
+        const value = random();
+        return target === 0 ? value < 0.01 : value >= target && value < target + 0.01;
+      })
+    )
+      return { ...state, rng: cursor };
   }
 }
