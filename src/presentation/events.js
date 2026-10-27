@@ -3,6 +3,7 @@
 
 export const EVENT_TYPES = Object.freeze({
   shot: 'shot',
+  blocked: 'blocked',
   move: 'move',
   death: 'death',
   alert: 'alert',
@@ -13,12 +14,19 @@ export const EVENT_TYPES = Object.freeze({
   hold: 'hold',
 });
 
-export const shotEvent = ({ shooterId, targetId, hit, crit, damage, enemyShot, reaction = false }) => ({
-  type: EVENT_TYPES.shot, shooterId, targetId, hit, crit, damage, enemyShot, reaction,
+export const shotEvent = ({ shooterId, shooterName, targetId, targetName, hit, crit, damage, enemyShot, reaction = false }) => ({
+  type: EVENT_TYPES.shot, shooterId, shooterName, targetId, targetName, hit, crit, damage, enemyShot, reaction,
 });
 
-export const moveEvent = ({ unitId, steps, enemy = false }) => ({
-  type: EVENT_TYPES.move, unitId, steps, enemy,
+// A shot that never resolved. reason: 'sight' (line of sight blocked) or 'range' (target too far).
+export const blockedEvent = ({ shooterId, targetId, reason }) => ({
+  type: EVENT_TYPES.blocked, shooterId, targetId, reason,
+});
+
+// intent: 'walk' (player move), 'patrol', 'advance' or 'retreat' (enemy moves).
+// role: the enemy's aiRole for enemy moves, null for player moves.
+export const moveEvent = ({ unitId, name, steps, enemy = false, role = null, intent = 'walk' }) => ({
+  type: EVENT_TYPES.move, unitId, name, steps, enemy, role, intent,
 });
 
 export const deathEvent = ({ unitId }) => ({ type: EVENT_TYPES.death, unitId });
@@ -31,9 +39,9 @@ export const turnStartEvent = ({ turn }) => ({ type: EVENT_TYPES.turnStart, turn
 
 export const roundStartEvent = ({ turn, selectedId }) => ({ type: EVENT_TYPES.roundStart, turn, selectedId });
 
-export const overwatchEvent = ({ unitId }) => ({ type: EVENT_TYPES.overwatch, unitId });
+export const overwatchEvent = ({ unitId, name }) => ({ type: EVENT_TYPES.overwatch, unitId, name });
 
-export const holdEvent = ({ unitId }) => ({ type: EVENT_TYPES.hold, unitId });
+export const holdEvent = ({ unitId, name, role }) => ({ type: EVENT_TYPES.hold, unitId, name, role });
 
 // Appends events to the store's log and keeps only the newest `limit` entries.
 // Returns the same array when there is nothing to append.

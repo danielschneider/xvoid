@@ -2,11 +2,10 @@ import { cellKey } from '../grid/cells.js';
 import { getVisibleCells } from '../sight/fog.js';
 import { hasLineOfSight } from '../sight/line.js';
 import { makeRandom } from '../rng.js';
-import { addLog } from '../log.js';
 import { facingToward } from '../geometry.js';
 import { computeCritChance, computeHitChance } from './hitChance.js';
 import { AP_ACTION_COST, CRIT_MULTIPLIER, OVERWATCH_RANGE, SHOT_RANGE } from '../constants.js';
-import { deathEvent, shotEvent } from '../../presentation/events.js';
+import { blockedEvent, deathEvent, shotEvent } from '../../presentation/events.js';
 
 // Returns { state, events }. Blocked or out-of-range attempts resolve without a shot event.
 // Never mutates `state`.
@@ -17,10 +16,10 @@ export function fireAt(state, targetId, shooterId = state.selectedId, enemyShot 
   if (!shooter || !target || shooter.team === target.team || (!reaction && shooter.ap < AP_ACTION_COST) || target.hp <= 0) return { state, events: [] };
   const visible = hasLineOfSight(state.map, shooter, target);
   if (!visible) {
-    return { state: { ...state, targetId, logs: addLog(state, 'Schusslinie blockiert.', 'combat') }, events: [] };
+    return { state: { ...state, targetId }, events: [blockedEvent({ shooterId: shooter.id, targetId: target.id, reason: 'sight' })] };
   }
   if (Math.hypot(shooter.x - target.x, shooter.z - target.z) > SHOT_RANGE) {
-    return { state: { ...state, targetId, logs: addLog(state, 'Ziel außer Reichweite.', 'combat') }, events: [] };
+    return { state: { ...state, targetId }, events: [blockedEvent({ shooterId: shooter.id, targetId: target.id, reason: 'range' })] };
   }
   const hitChance = computeHitChance(state, shooter, target, enemyShot);
   const random = makeRandom(state.rng);
@@ -47,14 +46,12 @@ export function fireAt(state, targetId, shooterId = state.selectedId, enemyShot 
     units: nextUnits,
     targetId: enemyShot ? null : targetId,
     lastShot: { from: shooter, to: target, hit, crit, damage, enemyShot, id: state.nextId },
-    logs: addLog(state, (reaction ? 'Overwatch: ' : '') + (hit
-      ? crit
-        ? `${shooter.name} landet einen KRITISCHEN Treffer auf ${target.name} für ${damage} Schaden.`
-        : `${shooter.name} trifft ${target.name} für ${damage} Schaden.`
-      : `${shooter.name} verfehlt ${target.name}.`), hit ? 'hit' : 'combat'),
   };
   const events = [
-    shotEvent({ shooterId: shooter.id, targetId: target.id, hit, crit, damage, enemyShot, reaction }),
+    shotEvent({
+      shooterId: shooter.id, shooterName: shooter.name, targetId: target.id, targetName: target.name,
+      hit, crit, damage, enemyShot, reaction,
+    }),
     ...(defeated ? [deathEvent({ unitId: target.id })] : []),
   ];
   return { state: nextState, events };

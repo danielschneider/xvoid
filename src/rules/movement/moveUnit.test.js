@@ -30,7 +30,7 @@ test('a player move emits one move event with the path length and enemy false', 
   const state = stateWith([unit({ x: 0, z: 0 }), unit({ id: 2, team: 'alien', x: 11, z: 2, ap: 0, groupId: 3 })]);
   const { state: next, events } = moveUnit(state, { x: 3, z: 0, level: 0 });
   assert.equal(next.movement.unitId, 1);
-  assert.deepEqual(events, [{ type: 'move', unitId: 1, steps: 3, enemy: false }]);
+  assert.deepEqual(events, [{ type: 'move', unitId: 1, name: 'A', steps: 3, enemy: false, role: null, intent: 'walk' }]);
 });
 
 test('a rejected player move returns the same state and no events', () => {
@@ -41,18 +41,18 @@ test('a rejected player move returns the same state and no events', () => {
 });
 
 test('moveEnemy emits a move event flagged as enemy', () => {
-  const enemy = unit({ id: 2, team: 'alien', x: 5, z: 1, ap: 2 });
+  const enemy = unit({ id: 2, team: 'alien', x: 5, z: 1, ap: 2, aiRole: 'raider' });
   const state = stateWith([unit(), enemy], { phase: 'enemy', enemyTurnOrder: [2], enemyTurnIndex: 0 });
   const destination = { path: [{ x: 4, z: 1, level: 0 }], steps: 1 };
-  const { events } = moveEnemy(state, enemy, destination, 'E bewegt sich.');
-  assert.deepEqual(events, [{ type: 'move', unitId: 2, steps: 1, enemy: true }]);
+  const { events } = moveEnemy(state, enemy, destination, 'advance');
+  assert.deepEqual(events, [{ type: 'move', unitId: 2, name: 'A', steps: 1, enemy: true, role: 'raider', intent: 'advance' }]);
 });
 
 test('gameReducer move appends the move event to eventLog and leaves movement as before', () => {
   const state = stateWith([unit({ x: 0, z: 0 }), unit({ id: 2, team: 'alien', x: 11, z: 2, ap: 0, groupId: 3 })]);
   const after = gameReducer(state, { type: 'move', destination: { x: 2, z: 0, level: 0 } });
   const moves = after.eventLog.filter((event) => event.type === 'move');
-  assert.deepEqual(moves, [{ type: 'move', unitId: 1, steps: 2, enemy: false }]);
+  assert.deepEqual(moves, [{ type: 'move', unitId: 1, name: 'A', steps: 2, enemy: false, role: null, intent: 'walk' }]);
   assert.equal(after.movement.unitId, 1);
   assert.equal(after.movement.step, 0);
   assert.equal(after.logs[0].text, 'A rückt 2 Felder vor.');

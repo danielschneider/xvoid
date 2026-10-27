@@ -1,6 +1,5 @@
 import { getNextReadyUnit } from './readyUnit.js';
 import { refreshAlerts } from '../ai/alerts.js';
-import { addLog } from '../log.js';
 import { AP_ACTION_COST, AP_PER_TURN } from '../constants.js';
 import { overwatchEvent, roundStartEvent, turnStartEvent } from '../../presentation/events.js';
 
@@ -22,9 +21,8 @@ export function useAbility(state) {
     units: state.units.map((entry) => entry.id === unit.id
       ? { ...entry, ap: entry.ap - AP_ACTION_COST, status: 'overwatch' }
       : entry),
-    logs: addLog(state, `${unit.name}: Overwatch.`, 'system'),
   };
-  return { state: next, events: [overwatchEvent({ unitId: unit.id })] };
+  return { state: next, events: [overwatchEvent({ unitId: unit.id, name: unit.name })] };
 }
 
 // Returns { state, events }: the alerts raised by the end-of-turn check, then turn-start.
@@ -40,7 +38,6 @@ export function endTurn(stateIn) {
     enemyTurnIndex: 0,
     targetId: null,
     lastShot: null,
-    logs: addLog(state, 'Feindzug beginnt.', 'combat'),
   };
   return { state: next, events: [...alerts.events, turnStartEvent({ turn: state.turn })] };
 }
@@ -65,7 +62,6 @@ export function finishEnemyTurn(state) {
     shootMode: false,
     enemyTurnOrder: [],
     enemyTurnIndex: 0,
-    logs: addLog(state, `Runde ${turn}: Zug deiner Einheit.`, 'system'),
   };
   return { state: next, events: [roundStartEvent({ turn, selectedId })] };
 }

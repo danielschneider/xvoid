@@ -5,7 +5,6 @@ import { getVisibleCells } from '../sight/fog.js';
 import { hasLineOfSight } from '../sight/line.js';
 import { computeCoverFor } from '../combat/hitChance.js';
 import { fireAt } from '../combat/resolveShot.js';
-import { addLog } from '../log.js';
 import { refreshAlerts } from './alerts.js';
 import { wanderEnemy } from './wander.js';
 import { getRole } from './roles.js';
@@ -106,14 +105,9 @@ function takeEnemyTurn(state) {
 
   if (!destination || enemy.ap < AP_ACTION_COST) {
     return {
-      state: {
-        ...state,
-        enemyTurnIndex: state.enemyTurnIndex + 1,
-        logs: addLog(state, `${enemy.name} ${role.holdMessage}.`, 'combat'),
-      },
-      events: [holdEvent({ unitId: enemy.id })],
+      state: { ...state, enemyTurnIndex: state.enemyTurnIndex + 1 },
+      events: [holdEvent({ unitId: enemy.id, name: enemy.name, role: enemy.aiRole })],
     };
   }
-  const verb = retreating ? role.retreatMessage : role.moveMessage;
-  return moveEnemy(state, enemy, destination, `${enemy.name} ${verb}.`);
+  return moveEnemy(state, enemy, destination, retreating ? 'retreat' : 'advance');
 }

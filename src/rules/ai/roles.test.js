@@ -10,8 +10,7 @@ test('every role table entry defines the parameters enemyStep reads', () => {
     assert.equal(role.maxSteps, ENEMY_MOVE_STEPS[name], `${name} maxSteps`);
     assert.ok(['nearest', 'exposed'].includes(role.targetChoice), `${name} targetChoice`);
     assert.ok(['approach', 'post', 'conceal'].includes(role.movePreference), `${name} movePreference`);
-    assert.equal(typeof role.holdMessage, 'string');
-    assert.equal(typeof role.moveMessage, 'string');
+    assert.equal('holdMessage' in role, false, `${name} has no log wording in the role table`);
   }
 });
 

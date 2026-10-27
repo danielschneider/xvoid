@@ -1,7 +1,6 @@
 import { cellKey } from '../grid/cells.js';
 import { getReachable } from './pathfinding.js';
 import { AP_ACTION_COST, DEFAULT_MOVE_RANGE } from '../constants.js';
-import { addLog } from '../log.js';
 import { facingToward } from '../geometry.js';
 import { moveEvent } from '../../presentation/events.js';
 
@@ -31,13 +30,13 @@ export function moveUnit(state, destination) {
       ? { ...entry, x: last.x, z: last.z, level: last.level, ap: entry.ap - pathData.apCost, facing, status: null }
       : entry),
     targetId: null,
-    logs: addLog(state, `${unit.name} rückt ${pathData.steps} Felder vor.`, 'move'),
   };
-  return { state: next, events: [moveEvent({ unitId: unit.id, steps: pathData.steps, enemy: false })] };
+  return { state: next, events: [moveEvent({ unitId: unit.id, name: unit.name, steps: pathData.steps, enemy: false, intent: 'walk' })] };
 }
 
+// intent: 'patrol' | 'advance' | 'retreat' (wording lives in presentation/logText.js).
 // Returns { state, events }. Never mutates `state`.
-export function moveEnemy(state, enemy, destination, logText) {
+export function moveEnemy(state, enemy, destination, intent) {
   const last = destination.path[destination.path.length - 1];
   const previous = destination.path.length > 1 ? destination.path[destination.path.length - 2] : enemy;
   const facing = facingToward(previous, last);
@@ -49,7 +48,6 @@ export function moveEnemy(state, enemy, destination, logText) {
       ? { ...unit, x: last.x, z: last.z, level: last.level, ap: unit.ap - AP_ACTION_COST, facing }
       : unit),
     enemyTurnIndex: state.enemyTurnIndex + 1,
-    logs: addLog(state, logText, 'move'),
   };
-  return { state: next, events: [moveEvent({ unitId: enemy.id, steps: destination.steps, enemy: true })] };
+  return { state: next, events: [moveEvent({ unitId: enemy.id, name: enemy.name, steps: destination.steps, enemy: true, role: enemy.aiRole, intent })] };
 }

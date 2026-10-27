@@ -1,6 +1,7 @@
 import { createBattlefield } from '../grid/generate.js';
 import { makeRandom } from '../rng.js';
 import { createStartingUnits, initialSelection } from './placement.js';
+import { INTRO_LOG } from '../../presentation/logText.js';
 
 export function createInitialState(seed = 20261024, generation = 0) {
   const map = createBattlefield(seed);
@@ -24,7 +25,7 @@ export function createInitialState(seed = 20261024, generation = 0) {
     turn: 1,
     phase: 'player',
     showUpper: true,
-    logs: [{ id: 1, text: 'Einsatz bereit. Halte die Position.', kind: 'system' }],
+    logs: [INTRO_LOG],
     lastShot: null,
     // Bounded list of plain events emitted by the reducer (see presentation/events.js).
     eventLog: [],

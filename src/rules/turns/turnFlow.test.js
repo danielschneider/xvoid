@@ -62,12 +62,12 @@ test('useAbility emits overwatch for the unit that spent its AP', () => {
   const state = stateWith([unit({ ap: 2 })]);
   const { state: next, events } = useAbility(state);
   assert.equal(next.units[0].status, 'overwatch');
-  assert.deepEqual(events, [{ type: 'overwatch', unitId: 1 }]);
+  assert.deepEqual(events, [{ type: 'overwatch', unitId: 1, name: 'A' }]);
 });
 
 test('gameReducer ability appends the overwatch event to eventLog', () => {
   const after = gameReducer(stateWith([unit({ ap: 2 })]), { type: 'ability', name: 'overwatch' });
-  assert.deepEqual(ofType(after.eventLog, 'overwatch'), [{ type: 'overwatch', unitId: 1 }]);
+  assert.deepEqual(ofType(after.eventLog, 'overwatch'), [{ type: 'overwatch', unitId: 1, name: 'A' }]);
 });
 
 test('a spent unit cannot use the ability and emits nothing', () => {
@@ -81,7 +81,7 @@ test('an alerted enemy that cannot act emits hold, then enemy-turn-end', () => {
   const { state: next, events } = enemyStep(state);
   assert.equal(next.enemyTurnIndex, 1);
   assert.deepEqual(events.map((event) => event.type), ['hold', 'enemy-turn-end']);
-  assert.deepEqual(events[0], { type: 'hold', unitId: 2 });
+  assert.deepEqual(events[0], { type: 'hold', unitId: 2, name: 'E', role: 'raider' });
   assert.deepEqual(events[1], { type: 'enemy-turn-end', enemyId: 2 });
 });
 

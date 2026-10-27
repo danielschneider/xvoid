@@ -46,7 +46,9 @@ test('a resolved shot emits one shot event matching lastShot', () => {
   assert.deepEqual(events[0], {
     type: 'shot',
     shooterId: 1,
+    shooterName: 'A',
     targetId: 2,
+    targetName: 'E',
     hit: state.lastShot.hit,
     crit: state.lastShot.crit,
     damage: state.lastShot.damage,
@@ -76,17 +78,15 @@ test('a blocked line of sight returns no events and no shot', () => {
   const units = [shooter(), enemy()];
   const base = { ...stateWith(units), map: wall };
   const { state, events } = fireAt(base, 2, 1);
-  assert.deepEqual(events, []);
+  assert.deepEqual(events, [{ type: 'blocked', shooterId: 1, targetId: 2, reason: 'sight' }]);
   assert.equal(state.lastShot, null);
-  assert.equal(state.logs[0].text, 'Schusslinie blockiert.');
 });
 
 test('an out-of-range target returns no events and no shot', () => {
   const units = [shooter(), enemy({ x: 40 })];
   const { state, events } = fireAt(stateWith(units), 2, 1);
-  assert.deepEqual(events, []);
+  assert.deepEqual(events, [{ type: 'blocked', shooterId: 1, targetId: 2, reason: 'range' }]);
   assert.equal(state.lastShot, null);
-  assert.equal(state.logs[0].text, 'Ziel außer Reichweite.');
 });
 
 test('an action without AP returns no events and no shot', () => {
