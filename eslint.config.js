@@ -1,6 +1,5 @@
 // ESLint flat config for XVoid. Encodes the layer rules from refactoring.md
 // sections 2 and 4.1. Items deliberately NOT encoded yet:
-// - UI may import only rules/index.js and selectors/ (7d, needs rules/index.js).
 // - max-lines / max-lines-per-function (4.4): not added; the tree is not yet
 //   split to those limits (GameScene/TacticalHud still exceed 300 lines in 7d/7f),
 //   so enabling them now would be noise. Add as warnings when splits land.
@@ -42,6 +41,46 @@ export default [
               target: './src/rules',
               from: ['./src/App.jsx', './src/main.jsx'],
               message: 'rules/ is pure: it must not import the app shell.',
+            },
+          ],
+        },
+      ],
+    },
+  },
+  {
+    // UI and selectors read rules only through the public index (refactoring.md 2.1 principle 7, 4.1).
+    // import/no-restricted-paths: `target` files may import from `from` only when the path is an
+    // allowed `except` entry. Here the target is the importing file and `from` is the rules/ directory,
+    // with rules/index.js carved out.
+    files: ['src/components/**/*.{js,jsx}', 'src/App.jsx', 'src/main.jsx', 'src/selectors/**/*.js'],
+    rules: {
+      'import/no-restricted-paths': [
+        'error',
+        {
+          zones: [
+            {
+              target: './src/components',
+              from: './src/rules',
+              except: ['./index.js'],
+              message: 'UI imports rules/ only via rules/index.js (public API).',
+            },
+            {
+              target: './src/App.jsx',
+              from: './src/rules',
+              except: ['./index.js'],
+              message: 'UI imports rules/ only via rules/index.js (public API).',
+            },
+            {
+              target: './src/main.jsx',
+              from: './src/rules',
+              except: ['./index.js'],
+              message: 'UI imports rules/ only via rules/index.js (public API).',
+            },
+            {
+              target: './src/selectors',
+              from: './src/rules',
+              except: ['./index.js'],
+              message: 'selectors/ imports rules/ only via rules/index.js (public API).',
             },
           ],
         },

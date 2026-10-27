@@ -1,5 +1,4 @@
-import { computeHitChance, computePlayerHitParts, SHOT_RANGE } from '../engine/game.js';
-import { hasLineOfSight } from '../engine/map.js';
+import { computeHitChance, computePlayerHitParts, hasLineOfSight, SHOT_RANGE } from '../rules/index.js';
 
 // View data for the combat preview. All numbers come from engine helpers; no formula here.
 export function selectCombatPreview(state, shooter, target) {
