@@ -10,6 +10,7 @@ import { refreshAlerts } from './alerts.js';
 import { wanderEnemy } from './wander.js';
 import { getRole } from './roles.js';
 import { AP_ACTION_COST, ENEMY_SHOT_RANGE } from '../constants.js';
+import { enemyTurnEndEvent, holdEvent } from '../../presentation/events.js';
 
 const dist = (a, b) => Math.hypot(a.x - b.x, a.z - b.z);
 const postOf = (enemy) => ({ x: enemy.postX, z: enemy.postZ });
@@ -60,11 +61,17 @@ function chooseDestinations(state, enemy, target, role, retreating, visibleCells
 }
 
 // Returns { state, events } for one enemy's turn: alert events from refreshAlerts first,
-// then the events of the step itself. Never mutates `stateIn`.
+// then the events of the step itself, then enemy-turn-end when a living enemy's turn was used up.
+// Never mutates `stateIn`.
 export function enemyStep(stateIn) {
   const alerts = refreshAlerts(stateIn);
+  const enemyId = alerts.state.enemyTurnOrder[alerts.state.enemyTurnIndex];
+  const enemy = alerts.state.units.find((unit) => unit.id === enemyId && unit.hp > 0);
   const step = takeEnemyTurn(alerts.state);
-  return { state: step.state, events: [...alerts.events, ...step.events] };
+  const ended = enemy && step.state.enemyTurnIndex > alerts.state.enemyTurnIndex
+    ? [enemyTurnEndEvent({ enemyId: enemy.id })]
+    : [];
+  return { state: step.state, events: [...alerts.events, ...step.events, ...ended] };
 }
 
 function takeEnemyTurn(state) {
@@ -98,11 +105,14 @@ function takeEnemyTurn(state) {
   const destination = chooseDestinations(state, enemy, target, role, retreating, visibleCells)[0];
 
   if (!destination || enemy.ap < AP_ACTION_COST) {
-    return none({
-      ...state,
-      enemyTurnIndex: state.enemyTurnIndex + 1,
-      logs: addLog(state, `${enemy.name} ${role.holdMessage}.`, 'combat'),
-    });
+    return {
+      state: {
+        ...state,
+        enemyTurnIndex: state.enemyTurnIndex + 1,
+        logs: addLog(state, `${enemy.name} ${role.holdMessage}.`, 'combat'),
+      },
+      events: [holdEvent({ unitId: enemy.id })],
+    };
   }
   const verb = retreating ? role.retreatMessage : role.moveMessage;
   return moveEnemy(state, enemy, destination, `${enemy.name} ${verb}.`);

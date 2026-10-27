@@ -2,6 +2,7 @@ import { getNextReadyUnit } from './readyUnit.js';
 import { refreshAlerts } from '../ai/alerts.js';
 import { addLog } from '../log.js';
 import { AP_ACTION_COST, AP_PER_TURN } from '../constants.js';
+import { overwatchEvent, roundStartEvent, turnStartEvent } from '../../presentation/events.js';
 
 // Hands selection to the next ready unit only once the selected unit is spent.
 export function selectNextReadyPlayer(state) {
@@ -12,19 +13,21 @@ export function selectNextReadyPlayer(state) {
   return next ? { ...state, selectedId: next.id, targetId: null, moveMode: true, shootMode: false } : state;
 }
 
+// Returns { state, events }; emits an overwatch event when the ability is spent.
 export function useAbility(state) {
   const unit = state.units.find((entry) => entry.id === state.selectedId);
-  if (!unit || unit.ap < AP_ACTION_COST || unit.team !== 'player') return state;
-  return {
+  if (!unit || unit.ap < AP_ACTION_COST || unit.team !== 'player') return { state, events: [] };
+  const next = {
     ...state,
     units: state.units.map((entry) => entry.id === unit.id
       ? { ...entry, ap: entry.ap - AP_ACTION_COST, status: 'overwatch' }
       : entry),
     logs: addLog(state, `${unit.name}: Overwatch.`, 'system'),
   };
+  return { state: next, events: [overwatchEvent({ unitId: unit.id })] };
 }
 
-// Returns { state, events }; the events are the alerts raised by the end-of-turn check.
+// Returns { state, events }: the alerts raised by the end-of-turn check, then turn-start.
 export function endTurn(stateIn) {
   if (stateIn.phase !== 'player' || stateIn.movement) return { state: stateIn, events: [] };
   const alerts = refreshAlerts(stateIn);
@@ -39,17 +42,18 @@ export function endTurn(stateIn) {
     lastShot: null,
     logs: addLog(state, 'Feindzug beginnt.', 'combat'),
   };
-  return { state: next, events: alerts.events };
+  return { state: next, events: [...alerts.events, turnStartEvent({ turn: state.turn })] };
 }
 
+// Returns { state, events }: round-start for the new round when the enemy phase is over.
 export function finishEnemyTurn(state) {
-  if (state.phase !== 'enemy' || state.enemyTurnIndex < state.enemyTurnOrder.length) return state;
+  if (state.phase !== 'enemy' || state.enemyTurnIndex < state.enemyTurnOrder.length) return { state, events: [] };
   const players = state.units.filter((unit) => unit.team === 'player' && unit.hp > 0);
   const units = state.units.map((unit) => ({ ...unit, ap: unit.hp > 0 ? AP_PER_TURN : 0, status: null }));
   // Every new round starts with the first living player unit in roster order.
   const selectedId = players[0]?.id || null;
   const turn = state.turn + 1;
-  return {
+  const next = {
     ...state,
     units,
     turn,
@@ -63,4 +67,5 @@ export function finishEnemyTurn(state) {
     enemyTurnIndex: 0,
     logs: addLog(state, `Runde ${turn}: Zug deiner Einheit.`, 'system'),
   };
+  return { state: next, events: [roundStartEvent({ turn, selectedId })] };
 }

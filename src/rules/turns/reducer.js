@@ -27,6 +27,8 @@ function reduce(state, action) {
     }
     case 'end-turn':
       return endTurn(state);
+    case 'finish-enemy-turn':
+      return finishEnemyTurn(state);
     case 'complete-movement': {
       if (state.movement?.id !== action.id) return { state, events: [] };
       const mover = state.units.find((unit) => unit.id === state.movement.unitId);
@@ -40,9 +42,18 @@ function reduce(state, action) {
     }
     case 'enemy-step':
       return enemyStep(state);
+    case 'ability':
+      if (state.phase !== 'player' || state.movement) return { state, events: [] };
+      return ability(state);
     default:
       return { state: applyAction(state, action), events: [] };
   }
+}
+
+// Spending the ability may hand selection on; both steps' events are returned.
+function ability(state) {
+  const used = useAbility(state);
+  return { state: selectNextReadyPlayer(used.state), events: used.events };
 }
 
 // The only public mutation entry point for game state. Helpers never mutate.
@@ -76,15 +87,10 @@ function applyAction(state, action) {
       // Tapping a non-target leaves shoot mode and returns to move mode.
       if (state.phase !== 'player' || state.movement) return state;
       return { ...state, moveMode: true, shootMode: false, targetId: null };
-    case 'ability':
-      if (state.phase !== 'player' || state.movement) return state;
-      return selectNextReadyPlayer(useAbility(state));
     case 'advance-movement':
       if (!state.movement || state.movement.id !== action.id) return state;
       if (state.movement.step >= state.movement.path.length - 1) return state;
       return { ...state, movement: { ...state.movement, step: state.movement.step + 1 } };
-    case 'finish-enemy-turn':
-      return finishEnemyTurn(state);
     case 'regenerate':
       return createInitialState(action.seed, state.generation + 1);
     case 'toggle-levels':
