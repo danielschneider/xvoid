@@ -4,6 +4,7 @@ import { TacticalHud } from './components/TacticalHud.jsx';
 import { cellKey, computeHitChance, createInitialState, gameReducer, getReachable, movementLimits, SHOT_RANGE } from './engine/game.js';
 import { getCoverProfile, getVisibleCells, hasLineOfSight } from './engine/map.js';
 import { getNextReadyUnit } from './rules/turns/readyUnit.js';
+import { createDirector } from './presentation/director.js';
 
 export default function App() {
   const [state, dispatch] = useReducer(gameReducer, undefined, () => createInitialState());
@@ -97,44 +98,14 @@ export default function App() {
     if (pendingMove && !pendingPath) setPendingMove(null);
   }, [pendingMove, pendingPath]);
 
+  // Timers for shots, enemy steps and movement live in the director (presentation/director.js).
+  // sync() runs after every render and re-arms only the steps whose inputs changed.
+  const directorRef = useRef(null);
+  if (!directorRef.current) directorRef.current = createDirector({ dispatch });
   useEffect(() => {
-    if (!state.lastShot) return undefined;
-    // Player shots keep the shooter selected for a moment so the shot or death is visible before the next unit takes over.
-    const timer = window.setTimeout(
-      () => dispatch({ type: 'finish-shot', id: state.lastShot.id }),
-      state.lastShot.enemyShot ? 1300 : 1000,
-    );
-    return () => window.clearTimeout(timer);
-  }, [state.lastShot]);
-
-  useEffect(() => {
-    if (state.phase !== 'enemy' || state.movement) return undefined;
-    const finished = state.enemyTurnIndex >= state.enemyTurnOrder.length;
-    const delay = !finished && activeEnemyHidden ? 0 : 1400;
-    const timer = window.setTimeout(() => {
-      dispatch({ type: finished ? 'finish-enemy-turn' : 'enemy-step' });
-    }, delay);
-    return () => window.clearTimeout(timer);
-  }, [state.enemyTurnIndex, state.enemyTurnOrder.length, state.phase, state.movement, activeEnemyHidden]);
-
-  useEffect(() => {
-    if (!state.movement || movementHidden) return undefined;
-    const movementId = state.movement.id;
-    const timer = window.setInterval(
-      () => dispatch({ type: 'advance-movement', id: movementId }),
-      220,
-    );
-    return () => window.clearInterval(timer);
-  }, [state.movement?.id, movementHidden]);
-
-  useEffect(() => {
-    if (!state.movement) return undefined;
-    const timer = window.setTimeout(
-      () => dispatch({ type: 'complete-movement', id: state.movement.id }),
-      movementHidden ? 0 : state.movement.path.length * 220 + 80,
-    );
-    return () => window.clearTimeout(timer);
-  }, [state.movement, movementHidden]);
+    directorRef.current.sync(state, { activeEnemyHidden, movementHidden });
+  });
+  useEffect(() => () => directorRef.current.dispose(), []);
 
   useEffect(() => {
     const onKeyDown = (event) => {
