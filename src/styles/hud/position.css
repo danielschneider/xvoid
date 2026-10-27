@@ -1,0 +1,133 @@
+.enemy-hit-chance {
+  display: inline-block;
+  padding: 2px 5px;
+  border: 1px solid #f3bd76;
+  background: rgba(12, 18, 16, 0.85);
+  color: #f3bd76;
+  font: 700 11px/1 monospace;
+  white-space: nowrap;
+  border-radius: 2px;
+}
+
+.stance-badge,
+.flank-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  margin-top: 6px;
+  padding: 3px 6px;
+  font-size: 8px;
+  letter-spacing: 0.06em;
+  border: 1px solid;
+}
+.stance-badge {
+  color: var(--mint);
+  border-color: #2f5f52;
+}
+.flank-badge {
+  color: #ff8a80;
+  border-color: #8c3a33;
+  background: rgba(255, 77, 66, 0.1);
+}
+.flank-badge span {
+  color: #cbd9cf;
+  font-weight: 500;
+}
+.flank-warning {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  color: #ff8a80;
+  font-size: 8px;
+  letter-spacing: 0.04em;
+}
+
+.position-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 8px 0 2px;
+  border-top: 1px solid #1f2d29;
+}
+.position-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  color: #73867d;
+  font-size: 8px;
+  letter-spacing: 0.06em;
+}
+.position-heading span {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+}
+.position-heading b {
+  font-weight: 600;
+}
+.position-sides {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 4px;
+}
+.side-cell {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 4px;
+  border: 1px solid #22332e;
+  font-size: 7px;
+  color: #73867d;
+}
+.side-cell small {
+  font-size: 7px;
+}
+.side-cell b {
+  font-size: 8px;
+  font-weight: 500;
+}
+.position-note {
+  margin: 0;
+  color: #708279;
+  font-size: 7px;
+}
+.cover-full {
+  color: #8fd3ff;
+}
+.cover-half {
+  color: #a7e3b8;
+}
+.cover-open {
+  color: #9aa7a1;
+}
+.side-cell.cover-full {
+  border-color: #2d5a7a;
+}
+.side-cell.cover-half {
+  border-color: #2f6b45;
+}
+.map-legend {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  font-size: 7px;
+  color: #9aa7a1;
+  letter-spacing: 0.04em;
+}
+.map-legend i {
+  display: inline-block;
+  width: 8px;
+  height: 8px;
+  margin-right: 4px;
+  vertical-align: middle;
+}
+.legend-full {
+  background: var(--color-cyan-blue);
+}
+.legend-half {
+  background: var(--color-green);
+}
+.legend-open {
+  background: var(--color-grey);
+}

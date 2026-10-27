@@ -1,0 +1,104 @@
+.left-rail {
+  pointer-events: auto;
+  position: absolute;
+  top: 86px;
+  left: 20px;
+  width: 248px;
+  padding: 14px 12px 13px;
+  background: linear-gradient(120deg, rgba(16, 25, 23, 0.93), rgba(17, 25, 24, 0.76));
+  border: 1px solid var(--line);
+  border-left: 2px solid rgba(111, 228, 196, 0.62);
+  box-shadow: 0 16px 42px rgba(0, 0, 0, 0.14);
+  backdrop-filter: blur(10px);
+}
+.objective-count {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  color: #82958b;
+  font-size: 8px;
+  letter-spacing: 0.09em;
+}
+.mission-toggle {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  min-height: 26px;
+  padding: 0 2px;
+  color: #8fa298;
+  background: transparent;
+  border: 0;
+  font-size: 8px;
+  letter-spacing: 0.08em;
+  cursor: pointer;
+}
+.mission-toggle:hover {
+  color: var(--mint);
+}
+.mission-toggle .stack-chevron {
+  transition: transform 0.2s;
+}
+.mission-toggle[aria-expanded='false'] .stack-chevron {
+  transform: rotate(-90deg);
+}
+.mission-label {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+}
+.left-rail.is-collapsed {
+  padding-bottom: 8px;
+}
+.left-rail.is-collapsed .mission-body {
+  display: none;
+}
+.mission-label svg {
+  color: var(--mint);
+}
+.mission-objective {
+  margin: 11px 0 12px;
+  color: #c8d5cb;
+  font: 500 15px/1.38 var(--display);
+}
+.objective-meter,
+.chance-track {
+  height: 3px;
+  background: rgba(152, 177, 160, 0.15);
+}
+.objective-meter i,
+.chance-track i {
+  display: block;
+  height: 100%;
+  background: var(--mint);
+  transition: width 0.25s;
+}
+.objective-count {
+  margin-top: 8px;
+  font-size: 7px;
+}
+.objective-count b {
+  color: #d0ded4;
+  font-weight: 500;
+}
+.right-stack {
+  pointer-events: none;
+  position: absolute;
+  top: 84px;
+  right: 20px;
+  display: flex;
+  width: 278px;
+  flex-direction: column;
+  gap: 9px;
+}
+.right-stack > * {
+  pointer-events: auto;
+}
+.stack-body {
+  display: flex;
+  flex-direction: column;
+  gap: 9px;
+}
+.stack-toggle {
+  display: none;
+}

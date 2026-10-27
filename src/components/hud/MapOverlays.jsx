@@ -5,15 +5,15 @@ export function MapLegend() {
   return (
     <div className="map-legend" aria-label={COPY.map.legendLabel}>
       <span>
-        <i style={{ background: '#4aa8ff' }} />
+        <i className="legend-full" />
         {COPY.map.legendFull}
       </span>
       <span>
-        <i style={{ background: '#7fe08a' }} />
+        <i className="legend-half" />
         {COPY.map.legendHalf}
       </span>
       <span>
-        <i style={{ background: '#8c9a94' }} />
+        <i className="legend-open" />
         {COPY.map.legendOpen}
       </span>
     </div>
