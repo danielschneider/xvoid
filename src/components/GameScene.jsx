@@ -1,6 +1,7 @@
 import { useMemo, useRef } from 'react';
 import { Canvas, useThree } from '@react-three/fiber';
 import { cellKey, hasLineOfSight } from '../engine/map.js';
+import { getCoverAgainst } from '../rules/index.js';
 import { CELL_OFFSET } from './scene/coords.js';
 import { TilemapGround } from './scene/terrain/TilemapGround.jsx';
 import { InstancedGround } from './scene/terrain/InstancedGround.jsx';
@@ -55,6 +56,15 @@ function Battlefield({
     [paths, state.map, state.showUpper, visibleCellKeys]
   );
   const groundData = useMemo(() => visibleCells.filter((cell) => cell.walkable), [visibleCells]);
+  // Cover the target has against the last shot, as { cover, flanked } for the impact effect.
+  const lastShotCover = useMemo(() => {
+    const shot = state.lastShot;
+    if (!shot) return null;
+    const shooter = state.units.find((unit) => unit.id === shot.from.id);
+    const target = state.units.find((unit) => unit.id === shot.to.id);
+    if (!shooter || !target) return null;
+    return getCoverAgainst(state.map, target, shooter);
+  }, [state.lastShot, state.units, state.map]);
   const pendingPath = pendingMove ? paths.get(cellKey(pendingMove))?.path : null;
   const mapOffset = CELL_OFFSET - (state.map.size - 1) / 2;
   return (
@@ -97,7 +107,9 @@ function Battlefield({
               lastShot={state.lastShot}
             />
           ))}
-        {state.lastShot && <BeamEffect key={state.lastShot.id} shot={state.lastShot} camera={camera} />}
+        {state.lastShot && (
+          <BeamEffect key={state.lastShot.id} shot={state.lastShot} camera={camera} cover={lastShotCover} />
+        )}
       </group>
       <CameraRig
         floorRef={floorRef}
