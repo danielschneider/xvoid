@@ -8,6 +8,7 @@ import { CELL_OFFSET, STEP_HEIGHT, toWorld, toWorldY } from './scene/coords.js';
 import { createTileTexture, createGroundTexture } from './scene/textures/tiles.js';
 import { createDamageTexture } from './scene/textures/labels.js';
 import { PixelUnit } from './scene/units/PixelUnit.jsx';
+import { useTacticalCamera } from './scene/camera/useTacticalCamera.js';
 const ROGUELIKE_SHEET = `${import.meta.env.BASE_URL}assets/kenney-roguelike/Spritesheet/roguelikeSheet_transparent.png`;
 
 function TilemapGround({ map, visibleCellKeys }) {
@@ -301,9 +302,7 @@ function BeamEffect({ shot, camera }) {
 }
 
 function CameraRig({ floorRef, cells, onCellTap, focusUnit, focusToken, mapOffset, movingUnitId, rotateToken }) {
-  const { camera, gl, size, scene } = useThree();
-  const raycaster = useMemo(() => new THREE.Raycaster(), []);
-  const pointer = useMemo(() => new THREE.Vector2(), []);
+  const { camera, scene } = useThree();
   const focusId = focusUnit?.id;
 
   useEffect(() => {
@@ -325,13 +324,6 @@ function CameraRig({ floorRef, cells, onCellTap, focusUnit, focusToken, mapOffse
   const worldPos = useMemo(() => new THREE.Vector3(), []);
   const forward = useMemo(() => new THREE.Vector3(), []);
 
-  // Quarter-turn requests from the HUD (rotateToken changes) and keyboard use the same rotator.
-  useEffect(() => {
-    if (!rotateToken) return;
-    rotateCamera(camera, rotateToken.direction);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [rotateToken]);
-
   useFrame((_, delta) => {
     if (!movingUnitId) return;
     const obj = scene.getObjectByName(`unit-${movingUnitId}`);
@@ -348,136 +340,9 @@ function CameraRig({ floorRef, cells, onCellTap, focusUnit, focusToken, mapOffse
     }
   });
 
-  useEffect(() => {
-    const element = gl.domElement;
-    const pointers = new Map();
-    let gesture = null;
-    let moved = false;
-
-    const distanceAndAngle = () => {
-      const [first, second] = [...pointers.values()];
-      if (!first || !second) return null;
-      return {
-        distance: Math.hypot(second.x - first.x, second.y - first.y),
-        angle: Math.atan2(second.y - first.y, second.x - first.x),
-      };
-    };
-    const pan = (dx, dy) => {
-      const scale = (camera.top - camera.bottom) / (camera.zoom * size.height);
-      const right = new THREE.Vector3().setFromMatrixColumn(camera.matrixWorld, 0);
-      const vertical = new THREE.Vector3().setFromMatrixColumn(camera.matrixWorld, 1);
-      right.y = 0;
-      vertical.y = 0;
-      right.normalize();
-      vertical.normalize();
-      camera.position.addScaledVector(right, -dx * scale);
-      camera.position.addScaledVector(vertical, dy * scale);
-    };
-    const pointerDown = (event) => {
-      pointers.set(event.pointerId, { x: event.clientX, y: event.clientY });
-      element.setPointerCapture?.(event.pointerId);
-      moved = false;
-      if (pointers.size === 1) gesture = { last: { x: event.clientX, y: event.clientY }, origin: { x: event.clientX, y: event.clientY }, isPinch: false };
-      if (pointers.size === 2) {
-        gesture = { ...distanceAndAngle(), isPinch: true, lastAngle: distanceAndAngle().angle, rotationAcc: 0 };
-      }
-    };
-    const pointerMove = (event) => {
-      if (!pointers.has(event.pointerId)) return;
-      pointers.set(event.pointerId, { x: event.clientX, y: event.clientY });
-      if (pointers.size >= 2 && gesture?.isPinch) {
-        const current = distanceAndAngle();
-        if (!current) return;
-        camera.zoom = THREE.MathUtils.clamp(camera.zoom * (current.distance / Math.max(1, gesture.distance)), 18, 72);
-        gesture.distance = current.distance;
-        let angleDelta = current.angle - gesture.lastAngle;
-        if (angleDelta > Math.PI) angleDelta -= Math.PI * 2;
-        if (angleDelta < -Math.PI) angleDelta += Math.PI * 2;
-        gesture.lastAngle = current.angle;
-        gesture.rotationAcc += angleDelta;
-        const STEP = Math.PI / 2;
-        while (Math.abs(gesture.rotationAcc) >= STEP / 2) {
-          const dir = Math.sign(gesture.rotationAcc);
-          rotateCamera(camera, dir);
-          gesture.rotationAcc -= dir * STEP;
-        }
-        moved = true;
-        camera.updateProjectionMatrix();
-      } else if (pointers.size === 1 && gesture && !gesture.isPinch) {
-        const dx = event.clientX - gesture.last.x;
-        const dy = event.clientY - gesture.last.y;
-        if (Math.hypot(event.clientX - gesture.origin.x, event.clientY - gesture.origin.y) > 6) moved = true;
-        if (moved) pan(dx, dy);
-        gesture.last = { x: event.clientX, y: event.clientY };
-      }
-    };
-    const pointerUp = (event) => {
-      const point = pointers.get(event.pointerId);
-      if (point && !moved && pointers.size === 1 && floorRef.current) {
-        const rect = element.getBoundingClientRect();
-        pointer.set(((point.x - rect.left) / rect.width) * 2 - 1, -((point.y - rect.top) / rect.height) * 2 + 1);
-        raycaster.setFromCamera(pointer, camera);
-        const hit = raycaster.intersectObject(floorRef.current)[0];
-        if (hit?.instanceId !== undefined) onCellTap(cells[hit.instanceId]);
-      }
-      pointers.delete(event.pointerId);
-      if (pointers.size === 1) {
-        const [remaining] = pointers.values();
-        gesture = { last: remaining, origin: remaining, isPinch: false };
-        moved = false;
-      } else if (pointers.size === 0) {
-        gesture = null;
-      }
-    };
-    const wheel = (event) => {
-      event.preventDefault();
-      camera.zoom = THREE.MathUtils.clamp(camera.zoom * (event.deltaY > 0 ? 0.92 : 1.08), 18, 72);
-      camera.updateProjectionMatrix();
-    };
-    const keydown = (event) => {
-      if (event.target instanceof HTMLElement && ['INPUT', 'TEXTAREA', 'BUTTON'].includes(event.target.tagName)) return;
-      const key = event.key.toLowerCase();
-      if (key === 'q' || key === 'e') {
-        rotateCamera(camera, key === 'q' ? -1 : 1);
-      } else if (['w', 'a', 's', 'd', 'arrowup', 'arrowleft', 'arrowdown', 'arrowright'].includes(key)) {
-        const distance = 1.2;
-        const right = new THREE.Vector3().setFromMatrixColumn(camera.matrixWorld, 0);
-        const vertical = new THREE.Vector3().setFromMatrixColumn(camera.matrixWorld, 1);
-        right.y = 0;
-        vertical.y = 0;
-        right.normalize();
-        vertical.normalize();
-        const dx = key === 'a' || key === 'arrowleft' ? 1 : key === 'd' || key === 'arrowright' ? -1 : 0;
-        const dy = key === 'w' || key === 'arrowup' ? -1 : key === 's' || key === 'arrowdown' ? 1 : 0;
-        camera.position.addScaledVector(right, dx * distance).addScaledVector(vertical, dy * distance);
-      }
-    };
-
-    element.addEventListener('pointerdown', pointerDown);
-    element.addEventListener('pointermove', pointerMove);
-    element.addEventListener('pointerup', pointerUp);
-    element.addEventListener('pointercancel', pointerUp);
-    element.addEventListener('wheel', wheel, { passive: false });
-    window.addEventListener('keydown', keydown);
-    return () => {
-      element.removeEventListener('pointerdown', pointerDown);
-      element.removeEventListener('pointermove', pointerMove);
-      element.removeEventListener('pointerup', pointerUp);
-      element.removeEventListener('pointercancel', pointerUp);
-      element.removeEventListener('wheel', wheel);
-      window.removeEventListener('keydown', keydown);
-    };
-  }, [camera, cells, floorRef, gl, onCellTap, pointer, raycaster, size.height]);
+  useTacticalCamera({ floorRef, cells, onCellTap, rotateToken });
 
   return null;
-}
-
-// Rotates the orbit camera a quarter turn around the map centre.
-function rotateCamera(camera, direction) {
-  const offset = camera.position.clone();
-  offset.applyAxisAngle(new THREE.Vector3(0, 1, 0), direction * Math.PI / 2);
-  camera.position.copy(offset);
-  camera.lookAt(0, 0, 0);
 }
 
 function Battlefield({ state, selected, coverProfiles, focusUnit, focusToken, target, paths, pendingMove, visibleCellKeys, shootableEnemyIds, enemyHitChances, onCellTap, movingUnitId, rotateToken }) {
