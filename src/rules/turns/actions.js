@@ -24,11 +24,13 @@ export function useAbility(state) {
   };
 }
 
+// Returns { state, events }; the events are the alerts raised by the end-of-turn check.
 export function endTurn(stateIn) {
-  if (stateIn.phase !== 'player' || stateIn.movement) return stateIn;
-  const state = refreshAlerts(stateIn);
+  if (stateIn.phase !== 'player' || stateIn.movement) return { state: stateIn, events: [] };
+  const alerts = refreshAlerts(stateIn);
+  const state = alerts.state;
   const enemyTurnOrder = state.units.filter((unit) => unit.team === 'alien' && unit.hp > 0).map((unit) => unit.id);
-  return {
+  const next = {
     ...state,
     phase: 'enemy',
     enemyTurnOrder,
@@ -37,6 +39,7 @@ export function endTurn(stateIn) {
     lastShot: null,
     logs: addLog(state, 'Feindzug beginnt.', 'combat'),
   };
+  return { state: next, events: alerts.events };
 }
 
 export function finishEnemyTurn(state) {

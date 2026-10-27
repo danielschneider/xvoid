@@ -13,7 +13,6 @@ import { AP_ACTION_COST, ENEMY_SHOT_RANGE } from '../constants.js';
 
 const dist = (a, b) => Math.hypot(a.x - b.x, a.z - b.z);
 const postOf = (enemy) => ({ x: enemy.postX, z: enemy.postZ });
-// Wraps a step result that emits no events yet (movement and alerts move to events in 5c).
 const none = (state) => ({ state, events: [] });
 
 // Picks the shot target from revealed players (already sorted nearest first).
@@ -60,9 +59,15 @@ function chooseDestinations(state, enemy, target, role, retreating, visibleCells
   return sortDestinations(destinations, target, enemy, role, retreating);
 }
 
-// Returns { state, events } for one enemy's turn. Never mutates `stateIn`.
+// Returns { state, events } for one enemy's turn: alert events from refreshAlerts first,
+// then the events of the step itself. Never mutates `stateIn`.
 export function enemyStep(stateIn) {
-  const state = refreshAlerts(stateIn);
+  const alerts = refreshAlerts(stateIn);
+  const step = takeEnemyTurn(alerts.state);
+  return { state: step.state, events: [...alerts.events, ...step.events] };
+}
+
+function takeEnemyTurn(state) {
   if (state.phase !== 'enemy' || state.enemyTurnIndex >= state.enemyTurnOrder.length) return none(state);
   const enemy = state.units.find((unit) => unit.id === state.enemyTurnOrder[state.enemyTurnIndex] && unit.hp > 0);
   if (!enemy) return none({ ...state, enemyTurnIndex: state.enemyTurnIndex + 1 });
@@ -72,7 +77,7 @@ export function enemyStep(stateIn) {
   const target = [...players].sort((a, b) => dist(a, enemy) - dist(b, enemy))[0];
   if (!target) return none({ ...state, enemyTurnIndex: state.enemyTurnIndex + 1 });
 
-  if (!state.alertedGroups.includes(enemy.groupId)) return none(wanderEnemy(state, enemy));
+  if (!state.alertedGroups.includes(enemy.groupId)) return wanderEnemy(state, enemy);
 
   const distance = dist(target, enemy);
   const visibleCells = getVisibleCells(state.map, players);
@@ -100,5 +105,5 @@ export function enemyStep(stateIn) {
     });
   }
   const verb = retreating ? role.retreatMessage : role.moveMessage;
-  return none(moveEnemy(state, enemy, destination, `${enemy.name} ${verb}.`));
+  return moveEnemy(state, enemy, destination, `${enemy.name} ${verb}.`);
 }

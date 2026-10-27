@@ -119,7 +119,8 @@ test('gameReducer appends shot events to eventLog and keeps lastShot unchanged',
   const units = [shooter(), enemy()];
   const before = stateWith(units);
   const after = gameReducer(before, { type: 'attack', id: 2 });
-  assert.equal(after.eventLog.at(-1).type, 'shot');
-  assert.equal(after.eventLog.at(-1).targetId, 2);
+  const shotEvents = after.eventLog.filter((event) => event.type === 'shot');
+  assert.equal(shotEvents.length, 1);
+  assert.equal(shotEvents[0].targetId, 2);
   assert.equal(after.lastShot.to.id, 2);
 });

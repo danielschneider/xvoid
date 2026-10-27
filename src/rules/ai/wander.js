@@ -6,13 +6,17 @@ import { addLog } from '../log.js';
 import { AP_ACTION_COST, WANDER_CHANCE, WANDER_RADIUS, WANDER_STEPS } from '../constants.js';
 
 // Unalerted enemy: drifts randomly around its post without knowing where the squad is.
+// Returns { state, events }. Never mutates `state`.
 export function wanderEnemy(state, enemy) {
   const random = makeRandom(state.rng);
   const skip = (text) => ({
-    ...state,
-    rng: random.cursor,
-    enemyTurnIndex: state.enemyTurnIndex + 1,
-    logs: text ? addLog(state, text, 'combat') : state.logs,
+    state: {
+      ...state,
+      rng: random.cursor,
+      enemyTurnIndex: state.enemyTurnIndex + 1,
+      logs: text ? addLog(state, text, 'combat') : state.logs,
+    },
+    events: [],
   });
   if (enemy.ap < AP_ACTION_COST || random() > WANDER_CHANCE) return skip(null);
   const blocked = new Set(state.units.filter((unit) => unit.id !== enemy.id && unit.hp > 0).map(cellKey));

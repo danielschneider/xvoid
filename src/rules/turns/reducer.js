@@ -16,13 +16,26 @@ function reduce(state, action) {
       if (state.phase !== 'player' || state.movement) return { state, events: [] };
       // Selection moves on only after the shot has been shown (see finish-shot).
       const shot = fireAt(state, action.id);
-      return { state: { ...refreshAlerts(shot.state), shootMode: false }, events: shot.events };
+      const alerts = refreshAlerts(shot.state);
+      return { state: { ...alerts.state, shootMode: false }, events: [...shot.events, ...alerts.events] };
     }
+    case 'move': {
+      if (state.phase !== 'player' || state.movement) return { state, events: [] };
+      const moved = moveUnit(state, action.destination);
+      const alerts = refreshAlerts(moved.state);
+      return { state: selectNextReadyPlayer(alerts.state), events: [...moved.events, ...alerts.events] };
+    }
+    case 'end-turn':
+      return endTurn(state);
     case 'complete-movement': {
       if (state.movement?.id !== action.id) return { state, events: [] };
       const mover = state.units.find((unit) => unit.id === state.movement.unitId);
       const cleared = { ...state, movement: null };
-      if (mover?.team === 'alien' && state.phase === 'enemy') return resolveOverwatch(refreshAlerts(cleared), mover.id);
+      if (mover?.team === 'alien' && state.phase === 'enemy') {
+        const alerts = refreshAlerts(cleared);
+        const overwatch = resolveOverwatch(alerts.state, mover.id);
+        return { state: overwatch.state, events: [...alerts.events, ...overwatch.events] };
+      }
       return { state: cleared, events: [] };
     }
     case 'enemy-step':
@@ -63,14 +76,9 @@ function applyAction(state, action) {
       // Tapping a non-target leaves shoot mode and returns to move mode.
       if (state.phase !== 'player' || state.movement) return state;
       return { ...state, moveMode: true, shootMode: false, targetId: null };
-    case 'move':
-      if (state.phase !== 'player' || state.movement) return state;
-      return selectNextReadyPlayer(refreshAlerts(moveUnit(state, action.destination)));
     case 'ability':
       if (state.phase !== 'player' || state.movement) return state;
       return selectNextReadyPlayer(useAbility(state));
-    case 'end-turn':
-      return endTurn(state);
     case 'advance-movement':
       if (!state.movement || state.movement.id !== action.id) return state;
       if (state.movement.step >= state.movement.path.length - 1) return state;
