@@ -36,6 +36,8 @@ export function TacticalHud({
   onRotateCamera,
   onToggleLevels,
   onSelect,
+  roundsBack,
+  onUndoRound,
 }) {
   const [stackOpen, setStackOpen] = useState(() => window.innerWidth > 900);
   const [missionOpen, setMissionOpen] = useState(() => window.innerWidth > 900);
@@ -56,6 +58,8 @@ export function TacticalHud({
         onToggleLevels={onToggleLevels}
         onRotateCamera={onRotateCamera}
         onRequestRegenerate={onRequestRegenerate}
+        roundsBack={roundsBack}
+        onUndoRound={onUndoRound}
       />
 
       <MissionPanel state={state} open={missionOpen} onToggle={() => setMissionOpen((open) => !open)} />

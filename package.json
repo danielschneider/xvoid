@@ -7,7 +7,7 @@
     "dev": "vite --host 0.0.0.0",
     "build": "vite build",
     "preview": "vite preview --host 0.0.0.0",
-    "test": "node --test src/engine/*.test.js src/selectors/*.test.js src/rules/index.test.js src/rules/grid/*.test.js src/rules/sight/*.test.js src/rules/spawn/*.test.js src/rules/turns/*.test.js src/rules/ai/*.test.js src/rules/combat/*.test.js src/rules/movement/*.test.js src/presentation/*.test.js src/components/scene/*.test.js src/components/scene/textures/*.test.js src/components/scene/units/*.test.js src/components/scene/camera/*.test.js src/components/*.test.js",
+    "test": "node --test src/engine/*.test.js src/selectors/*.test.js src/rules/index.test.js src/rules/grid/*.test.js src/rules/sight/*.test.js src/rules/spawn/*.test.js src/rules/turns/*.test.js src/rules/ai/*.test.js src/rules/combat/*.test.js src/rules/movement/*.test.js src/presentation/*.test.js src/persistence/*.test.js src/components/scene/*.test.js src/components/scene/textures/*.test.js src/components/scene/units/*.test.js src/components/scene/camera/*.test.js src/components/*.test.js",
     "lint": "eslint .",
     "typecheck": "tsc --noEmit -p jsconfig.json",
     "check": "npm run lint && npm run typecheck && npm run format:check && npm run test && npm run build",

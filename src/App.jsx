@@ -12,10 +12,52 @@ import {
 } from './engine/game.js';
 import { getCoverProfile, getVisibleCells, hasLineOfSight } from './engine/map.js';
 import { getNextReadyUnit } from './rules/index.js';
+import { loadGame, MAX_ROUNDS_BACK, saveGame } from './persistence/save.js';
 import { createDirector } from './presentation/director.js';
+import { parseFastFactor, scaledScheduler } from './presentation/fastScheduler.js';
 
 export default function App() {
-  const [state, dispatch] = useReducer(gameReducer, undefined, () => createInitialState());
+  // Loaded once on mount: the live state plus round-start checkpoints (oldest first, last = current round start).
+  const [initialSave] = useState(() => {
+    const loaded = loadGame();
+    if (loaded) return loaded;
+    const fresh = createInitialState();
+    return { current: fresh, checkpoints: [fresh] };
+  });
+  const [state, dispatch] = useReducer(gameReducer, initialSave.current);
+  // Round history for undo. `start` is the current round's start; `previous` holds up to
+  // MAX_ROUNDS_BACK earlier round starts, oldest first. Kept in a ref so it survives re-renders
+  // without triggering them. Synced during render, which is idempotent.
+  const roundsRef = useRef(null);
+  if (!roundsRef.current) {
+    roundsRef.current = {
+      start: initialSave.checkpoints[initialSave.checkpoints.length - 1],
+      previous: initialSave.checkpoints.slice(0, -1),
+    };
+  }
+  const rounds = roundsRef.current;
+  if (state.generation !== rounds.start.generation || state.turn < rounds.start.turn) {
+    // New map or a reset: history of the old game no longer applies.
+    rounds.start = state;
+    rounds.previous = [];
+  } else if (state.turn > rounds.start.turn) {
+    rounds.previous = [...rounds.previous, rounds.start].slice(-MAX_ROUNDS_BACK);
+    rounds.start = state;
+  }
+  const roundsBack = rounds.previous.length;
+  const undoRound = () => {
+    const { previous } = roundsRef.current;
+    if (previous.length === 0 || state.phase !== 'player' || state.movement) return;
+    const target = previous[previous.length - 1];
+    roundsRef.current = { start: target, previous: previous.slice(0, -1) };
+    setPendingMove(null);
+    dispatch({ type: 'restore-state', state: target });
+  };
+  // Auto-save only settled player-phase states: enemy turns and animations are not restorable.
+  useEffect(() => {
+    if (state.phase !== 'player' || state.movement || state.lastShot) return;
+    saveGame({ current: state, checkpoints: [...roundsRef.current.previous, roundsRef.current.start] });
+  }, [state]);
   const [pendingMove, setPendingMove] = useState(null);
   const [showNewGameWarning, setShowNewGameWarning] = useState(false);
   const [seedCopied, setSeedCopied] = useState(false);
@@ -130,7 +172,14 @@ export default function App() {
   // Timers for shots, enemy steps and movement live in the director (presentation/director.js).
   // sync() runs after every render and re-arms only the steps whose inputs changed.
   const directorRef = useRef(null);
-  if (!directorRef.current) directorRef.current = createDirector({ dispatch });
+  if (!directorRef.current) {
+    // ?fast=4 (or ?fast) speeds up all presentation delays for testing; default is normal speed.
+    const fastFactor = parseFastFactor(new URLSearchParams(window.location.search).get('fast'));
+    directorRef.current = createDirector({
+      dispatch,
+      scheduler: scaledScheduler(globalThis, fastFactor),
+    });
+  }
   useEffect(() => {
     directorRef.current.sync(state, { activeEnemyHidden, movementHidden });
   });
@@ -234,6 +283,8 @@ export default function App() {
         onRequestEndTurn={requestEndTurn}
         showNewGameWarning={showNewGameWarning}
         onRequestRegenerate={requestRegenerate}
+        roundsBack={roundsBack}
+        onUndoRound={undoRound}
         onConfirmRegenerate={regenerate}
         onCancelRegenerate={() => setShowNewGameWarning(false)}
         onAction={dispatch}

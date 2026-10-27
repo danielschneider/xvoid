@@ -100,6 +100,9 @@ function applyAction(state, action) {
       return { ...state, movement: { ...state.movement, step: state.movement.step + 1 } };
     case 'regenerate':
       return createInitialState(action.seed, state.generation + 1);
+    case 'restore-state':
+      // Used by round undo: the snapshot is a full round-start state taken earlier.
+      return action.state;
     case 'toggle-levels':
       return { ...state, showUpper: !state.showUpper };
     case 'clear-shot':

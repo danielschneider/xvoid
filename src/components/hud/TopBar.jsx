@@ -1,9 +1,11 @@
-import { Activity, Layers3, RotateCcw, Sparkles } from 'lucide-react';
+import { Activity, Layers3, RotateCcw, Sparkles, Undo2 } from 'lucide-react';
 import { selectEnemyCounts } from '../../selectors/hud.js';
 import { COPY } from '../copy.js';
 
-export function TopBar({ state, onToggleLevels, onRotateCamera, onRequestRegenerate }) {
+export function TopBar({ state, onToggleLevels, onRotateCamera, onRequestRegenerate, roundsBack, onUndoRound }) {
   const { living } = selectEnemyCounts(state);
+  const canUndo = roundsBack > 0 && state.phase === 'player' && !state.movement;
+  const undoTitle = !canUndo ? COPY.topBar.undoRoundDisabled : COPY.topBar.undoRoundTitle(roundsBack);
   return (
     <header className="topbar">
       <div className="brand-lockup">
@@ -38,6 +40,16 @@ export function TopBar({ state, onToggleLevels, onRotateCamera, onRequestRegener
           onClick={() => onRotateCamera(-1)}
         >
           <RotateCcw size={16} />
+        </button>
+        <button
+          className="icon-button undo-round-button"
+          onClick={onUndoRound}
+          disabled={!canUndo}
+          title={undoTitle}
+          aria-label={undoTitle}
+        >
+          <Undo2 size={16} />
+          <span>{COPY.topBar.undoRound}</span>
         </button>
         <button className="icon-button regenerate-button" onClick={onRequestRegenerate} title={COPY.topBar.regenerate}>
           <Sparkles size={16} />

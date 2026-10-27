@@ -5,17 +5,22 @@ import { getFlankedBy } from '../../../engine/game.js';
 import { cellKey } from '../../../engine/map.js';
 import { toWorld, toWorldY } from '../coords.js';
 // Red lines from every enemy that flanks a player unit to that unit.
+// Hidden while any unit is moving: positions already show the destination, but the
+// bodies are still walking there, so flank lines would point at units not yet in place.
 export function FlankLines({ state, visibleCellKeys }) {
+  const moving = !!state.movement;
   const pairs = useMemo(
     () =>
-      state.units
-        .filter((unit) => unit.team === 'player' && unit.hp > 0)
-        .flatMap((unit) =>
-          getFlankedBy(state, unit)
-            .filter((enemy) => visibleCellKeys.has(cellKey(enemy)))
-            .map((enemy) => ({ key: `${unit.id}-${enemy.id}`, from: enemy, to: unit }))
-        ),
-    [state, visibleCellKeys]
+      moving
+        ? []
+        : state.units
+            .filter((unit) => unit.team === 'player' && unit.hp > 0)
+            .flatMap((unit) =>
+              getFlankedBy(state, unit)
+                .filter((enemy) => visibleCellKeys.has(cellKey(enemy)))
+                .map((enemy) => ({ key: `${unit.id}-${enemy.id}`, from: enemy, to: unit }))
+            ),
+    [state, visibleCellKeys, moving]
   );
   return pairs.map(({ key, from, to }) => {
     const points = [from, to].map((cell) => new THREE.Vector3(toWorld(cell).x, toWorldY(cell) + 0.9, toWorld(cell).z));

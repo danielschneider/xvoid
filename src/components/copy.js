@@ -25,6 +25,9 @@ export const COPY = {
     levelZero: 'LEVEL 0',
     cameraRotate: 'Kamera drehen',
     regenerate: 'Karte neu generieren',
+    undoRound: 'RUNDE ZURÜCK',
+    undoRoundTitle: (count) => `Eine Runde zurück · noch ${count} möglich`,
+    undoRoundDisabled: 'Keine vorherige Runde verfügbar',
   },
   touch: {
     cameraRotate: 'Kamera drehen',
