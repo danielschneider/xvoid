@@ -9,7 +9,8 @@
     "preview": "vite preview --host 0.0.0.0",
     "test": "node --test src/engine/*.test.js src/selectors/*.test.js src/rules/grid/*.test.js src/rules/sight/*.test.js src/rules/spawn/*.test.js src/rules/turns/*.test.js src/rules/ai/*.test.js src/rules/combat/*.test.js src/rules/movement/*.test.js src/presentation/*.test.js src/components/scene/*.test.js src/components/scene/textures/*.test.js src/components/scene/units/*.test.js src/components/scene/camera/*.test.js",
     "lint": "eslint .",
-    "check": "npm run lint && npm run test && npm run build"
+    "typecheck": "tsc --noEmit -p jsconfig.json",
+    "check": "npm run lint && npm run typecheck && npm run test && npm run build"
   },
   "dependencies": {
     "@react-three/drei": "^9.122.0",
@@ -25,6 +26,7 @@
     "eslint": "^9.39.5",
     "eslint-plugin-import": "^2.32.0",
     "globals": "^17.13.0",
+    "typescript": "^7.0.2",
     "vite": "^6.0.5"
   }
 }
