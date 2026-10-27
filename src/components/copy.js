@@ -1,0 +1,122 @@
+// All user-visible UI text under src/components, grouped by panel.
+// Each string value is the exact text run that was written in the markup before 7e1, with
+// its surrounding spaces, so server-rendered HTML stays byte-identical. Parameterised text is
+// a function that returns the same output the old template produced.
+// The English HUD labels (ENEMY TURN, OVERWATCH, FLANKIERT, SEKTOR 07 / NEMESIS) are pending
+// decision D11 (7e2). Change them here only after that decision is recorded in refactoring.md.
+
+export const COPY = {
+  shared: {
+    flanked: 'FLANKIERT',
+    actionTitle: (label, hint) => `${label}${hint ? ` · ${hint}` : ''}`,
+    healthLabel: (value, total) => `${value} von ${total}`,
+  },
+  tactical: {
+    enemyTurn: ' ENEMY TURN',
+  },
+  topBar: {
+    brandName: 'XVOID',
+    brandMode: 'TACTICAL OPERATIONS',
+    mission: 'SEKTOR 07 / NEMESIS',
+    round: (turn) => `R-${String(turn).padStart(2, '0')}`,
+    hostiles: ' HOSTILES',
+    levelsHide: 'Obere Etagen ausblenden',
+    levelsShow: 'Obere Etagen einblenden',
+    allLevels: 'ALLE LEVEL',
+    levelZero: 'LEVEL 0',
+    cameraRotate: 'Kamera drehen',
+    regenerate: 'Karte neu generieren',
+  },
+  touch: {
+    cameraRotate: 'Kamera drehen',
+    levels: 'Etagen umschalten',
+    nextUnit: 'Nächste Einheit',
+    endTurn: 'Zug beenden',
+  },
+  stack: {
+    toggle: 'EINSATZSYSTEM',
+  },
+  mission: {
+    title: 'MISSION STATUS',
+    objective: 'Eliminiere feindliche Kräfte.',
+    eliminated: 'HOSTILES ELIMINIERT',
+  },
+  squad: {
+    team: ' EINSATZTEAM',
+    tabsLabel: 'Operative auswählen',
+    operativeTitle: (name, className) => `${name} · ${className}`,
+    apLabel: (ap) => `${ap} Aktionspunkte`,
+    apTitle: 'Aktions-Punkte',
+    levelPrefix: '· L',
+    vital: ' VITAL',
+    overwatch: ' OVERWATCH',
+    flankedBadge: ' FLANKIERT ',
+    noUnit: 'Keine Einheit ausgewählt',
+  },
+  position: {
+    label: ' ZIELPOSITION',
+    ariaLabel: 'Deckung der Zielposition',
+    coverFull: 'VOLLE DECKUNG',
+    coverHalf: 'HALBE DECKUNG',
+    coverNone: 'KEINE DECKUNG',
+    sides: { N: 'Nord', E: 'Ost', S: 'Süd', W: 'West' },
+    tiers: { 2: 'voll', 1: 'halb', 0: 'offen' },
+    openSides: (sides) => `Offen: ${sides.join(', ')} · Angriffe von dort flankieren`,
+    allCovered: 'Von allen Seiten gedeckt',
+    apSuffix: (cost) => ` · ${cost} AP`,
+  },
+  combat: {
+    shootable: 'FEIND IM SCHUSSFELD',
+    shootableHint: 'Gegner antippen, dann Feuern drücken',
+    noTarget: 'KEIN ZIEL ERFASST',
+    noTargetHint: 'Wähle eine feindliche Einheit',
+    targetMeta: (className, distance) => `${className} · ${Math.round(distance)} M`,
+    hidden: '—',
+    blocked: 'SCHUSSLINIE BLOCKIERT',
+    outOfRange: 'AUSSER REICHWEITE',
+    flankWarning: ' Flankiert: Deckung entfällt für diesen Schuss',
+    base: 'Basis ',
+    cover: 'Deckung ',
+    coverValue: (penalty) => `−${penalty}%`,
+    height: 'Höhe ',
+    distance: 'Distanz',
+  },
+  log: {
+    title: 'COMMS LOG',
+    live: 'LIVE',
+  },
+  dock: {
+    confirmMove: 'Bewegen',
+    confirmMoveTitle: (cost) => `Bewegung für ${cost} AP bestätigen`,
+    fire: 'Feuern',
+    outOfRange: 'Ziel außer Reichweite',
+    overwatch: 'Feuerschutz',
+    overwatchHint: 'O',
+    nextUnit: 'NÄCHSTE',
+    endTurn: 'ZUG BEENDEN',
+    enterKey: '↵',
+  },
+  dialog: {
+    title: 'NEUES SPIEL STARTEN',
+    body: 'Der aktuelle Einsatz geht verloren. Karte, Einheiten und Fortschritt werden neu generiert. Fortfahren?',
+    stay: 'WEITER SPIELEN',
+    confirm: ' NEUES SPIEL',
+  },
+  map: {
+    legendLabel: 'Deckungsfarben',
+    legendFull: 'voll',
+    legendHalf: 'halb',
+    legendOpen: 'offen',
+    procGen: ' PROC-GEN',
+    times: ' × ',
+    seedPrefix: 'SEED ',
+    copySeedLabel: 'Kartenseed kopieren',
+    seedCopied: 'Seed kopiert',
+    copySeed: 'Seed kopieren',
+  },
+  labels: {
+    crit: 'CRIT',
+    critPrefix: 'CRIT ',
+    miss: 'MISS',
+  },
+};

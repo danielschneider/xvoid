@@ -1,5 +1,6 @@
 import { AlertTriangle, Eye, HeartPulse, Shield, Zap } from 'lucide-react';
 import { HealthBar } from './primitives.jsx';
+import { COPY } from '../copy.js';
 
 // Single source for the squad: operative tabs for selection, detail stats for the selected unit.
 export function SquadPanel({ unit, onSelect, units, flankedBy, canSwitch }) {
@@ -8,12 +9,13 @@ export function SquadPanel({ unit, onSelect, units, flankedBy, canSwitch }) {
   return (
     <section className="unit-panel">
       <div className="panel-eyebrow">
-        <span className="status-dot" /> EINSATZTEAM{' '}
+        <span className="status-dot" />
+        {COPY.squad.team}{' '}
         <span className="panel-index">
           {alive} / {operatives.length}
         </span>
       </div>
-      <div className="operative-tabs" role="group" aria-label="Operative auswählen">
+      <div className="operative-tabs" role="group" aria-label={COPY.squad.tabsLabel}>
         {operatives.map((operative, index) => (
           <button
             key={operative.id}
@@ -21,7 +23,7 @@ export function SquadPanel({ unit, onSelect, units, flankedBy, canSwitch }) {
             onClick={() => onSelect(operative.id)}
             disabled={!canSwitch || operative.hp <= 0}
             aria-pressed={operative.id === unit?.id}
-            title={`${operative.name} · ${operative.className}`}
+            title={COPY.squad.operativeTitle(operative.name, operative.className)}
             className={`operative-tab ${operative.id === unit?.id ? 'is-selected' : ''} ${operative.hp <= 0 ? 'is-fallen' : ''}`}
           >
             <span className="op-number">0{index + 1}</span>
@@ -41,10 +43,14 @@ export function SquadPanel({ unit, onSelect, units, flankedBy, canSwitch }) {
             <div className="unit-title">
               <h2>{unit.name}</h2>
               <p>
-                {unit.className} <span>· L{unit.level}</span>
+                {unit.className}{' '}
+                <span>
+                  {COPY.squad.levelPrefix}
+                  {unit.level}
+                </span>
               </p>
             </div>
-            <div className="ap-inline" aria-label={`${unit.ap} Aktionspunkte`} title="Aktions-Punkte">
+            <div className="ap-inline" aria-label={COPY.squad.apLabel(unit.ap)} title={COPY.squad.apTitle}>
               {[0, 1].map((point) => (
                 <i key={point} className={point < unit.ap ? 'ap-filled' : ''}>
                   <Zap size={11} fill="currentColor" />
@@ -54,7 +60,8 @@ export function SquadPanel({ unit, onSelect, units, flankedBy, canSwitch }) {
           </div>
           <div className="stat-row">
             <span>
-              <HeartPulse size={13} /> VITAL
+              <HeartPulse size={13} />
+              {COPY.squad.vital}
             </span>
             <HealthBar value={unit.hp} total={unit.maxHp} />
             <b>
@@ -66,17 +73,20 @@ export function SquadPanel({ unit, onSelect, units, flankedBy, canSwitch }) {
           </div>
           {unit.status && (
             <div className="stance-badge">
-              <Eye size={12} /> OVERWATCH
+              <Eye size={12} />
+              {COPY.squad.overwatch}
             </div>
           )}
           {flankedBy?.length > 0 && (
             <div className="flank-badge" role="status">
-              <AlertTriangle size={12} /> FLANKIERT <span>{flankedBy.map((enemy) => enemy.name).join(', ')}</span>
+              <AlertTriangle size={12} />
+              {COPY.squad.flankedBadge}
+              <span>{flankedBy.map((enemy) => enemy.name).join(', ')}</span>
             </div>
           )}
         </>
       ) : (
-        <p className="empty-note">Keine Einheit ausgewählt</p>
+        <p className="empty-note">{COPY.squad.noUnit}</p>
       )}
     </section>
   );

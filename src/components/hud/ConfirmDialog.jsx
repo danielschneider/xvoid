@@ -1,4 +1,5 @@
 import { AlertTriangle, RotateCcw } from 'lucide-react';
+import { COPY } from '../copy.js';
 
 export function ConfirmDialog({ onCancel, onConfirm }) {
   return (
@@ -13,16 +14,15 @@ export function ConfirmDialog({ onCancel, onConfirm }) {
         <div className="end-turn-warning-icon">
           <AlertTriangle size={20} />
         </div>
-        <h2 id="new-game-warning-title">NEUES SPIEL STARTEN</h2>
-        <p id="new-game-warning-copy">
-          Der aktuelle Einsatz geht verloren. Karte, Einheiten und Fortschritt werden neu generiert. Fortfahren?
-        </p>
+        <h2 id="new-game-warning-title">{COPY.dialog.title}</h2>
+        <p id="new-game-warning-copy">{COPY.dialog.body}</p>
         <div className="end-turn-warning-actions">
           <button className="warning-continue-button" onClick={onCancel}>
-            WEITER SPIELEN
+            {COPY.dialog.stay}
           </button>
           <button className="warning-confirm-button" onClick={onConfirm}>
-            <RotateCcw size={15} /> NEUES SPIEL
+            <RotateCcw size={15} />
+            {COPY.dialog.confirm}
           </button>
         </div>
       </section>

@@ -1,5 +1,6 @@
 import { AlertTriangle, Crosshair, Target } from 'lucide-react';
 import { selectCombatPreview } from '../../selectors/combatPreview.js';
+import { COPY } from '../copy.js';
 
 export function CombatPreview({ shooter, target, state, hasShootableEnemy }) {
   const preview = selectCombatPreview(state, shooter, target);
@@ -10,8 +11,8 @@ export function CombatPreview({ shooter, target, state, hasShootableEnemy }) {
           <Crosshair size={19} />
         </div>
         <div>
-          <strong>{hasShootableEnemy ? 'FEIND IM SCHUSSFELD' : 'KEIN ZIEL ERFASST'}</strong>
-          <span>{hasShootableEnemy ? 'Gegner antippen, dann Feuern drücken' : 'Wähle eine feindliche Einheit'}</span>
+          <strong>{hasShootableEnemy ? COPY.combat.shootable : COPY.combat.noTarget}</strong>
+          <span>{hasShootableEnemy ? COPY.combat.shootableHint : COPY.combat.noTargetHint}</span>
         </div>
       </section>
     );
@@ -37,34 +38,40 @@ export function CombatPreview({ shooter, target, state, hasShootableEnemy }) {
           <strong>{target.name}</strong>
           <span>
             {visible
-              ? `${target.className} · ${Math.round(distance)} M`
+              ? COPY.combat.targetMeta(target.className, distance)
               : inRange
-                ? 'SCHUSSLINIE BLOCKIERT'
-                : 'AUSSER REICHWEITE'}
+                ? COPY.combat.blocked
+                : COPY.combat.outOfRange}
           </span>
         </div>
-        <b>{visible ? `${hit}%` : '—'}</b>
+        <b>{visible ? `${hit}%` : COPY.combat.hidden}</b>
       </div>
       <div className="chance-track">
         <i style={{ width: `${hit}%` }} />
       </div>
       {visible && flanked && (
         <div className="flank-warning" role="status">
-          <AlertTriangle size={12} /> Flankiert: Deckung entfällt für diesen Schuss
+          <AlertTriangle size={12} />
+          {COPY.combat.flankWarning}
         </div>
       )}
       <div className="chance-breakdown">
         <span>
-          Basis <b>{basePercent}%</b>
+          {COPY.combat.base}
+          <b>{basePercent}%</b>
         </span>
         <span>
-          Deckung <b className={coverPenalty ? 'negative' : ''}>{flanked ? 'FLANKIERT' : `−${coverPenalty}%`}</b>
+          {COPY.combat.cover}
+          <b className={coverPenalty ? 'negative' : ''}>
+            {flanked ? COPY.shared.flanked : COPY.combat.coverValue(coverPenalty)}
+          </b>
         </span>
         <span>
-          Höhe <b className="positive">+{elevation}%</b>
+          {COPY.combat.height}
+          <b className="positive">+{elevation}%</b>
         </span>
         <span>
-          Distanz{' '}
+          {COPY.combat.distance}{' '}
           <b className={distanceModifier > 0 ? 'positive' : distanceModifier < 0 ? 'negative' : ''}>
             {distanceModifier > 0 ? '+' : ''}
             {distanceModifier}%

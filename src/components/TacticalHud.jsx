@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { ChevronDown, Radio } from 'lucide-react';
 import { selectFlankedBy } from '../selectors/hud.js';
+import { COPY } from './copy.js';
 import { TopBar } from './hud/TopBar.jsx';
 import { MissionPanel } from './hud/MissionPanel.jsx';
 import { SquadPanel } from './hud/SquadPanel.jsx';
@@ -42,7 +43,8 @@ export function TacticalHud({
     return (
       <div className="hud-layer">
         <div className="enemy-turn-banner" role="status" aria-live="polite">
-          <Radio size={15} /> ENEMY TURN
+          <Radio size={15} />
+          {COPY.tactical.enemyTurn}
         </div>
       </div>
     );
@@ -65,7 +67,7 @@ export function TacticalHud({
           aria-controls="einsatz-stack-body"
           onClick={() => setStackOpen((open) => !open)}
         >
-          <span>EINSATZSYSTEM</span>
+          <span>{COPY.stack.toggle}</span>
           <ChevronDown size={14} className="stack-chevron" />
         </button>
         <div id="einsatz-stack-body" className="stack-body">

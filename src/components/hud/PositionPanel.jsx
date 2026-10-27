@@ -1,7 +1,8 @@
 import { ShieldCheck } from 'lucide-react';
+import { COPY } from '../copy.js';
 
-const SIDE_LABEL = { N: 'Nord', E: 'Ost', S: 'Süd', W: 'West' };
-const TIER_LABEL = { 2: 'voll', 1: 'halb', 0: 'offen' };
+const SIDE_LABEL = COPY.position.sides;
+const TIER_LABEL = COPY.position.tiers;
 
 // Cover of a cell per side. Shown for the destination the player is about to confirm,
 // so the protection is known before the move is spent.
@@ -11,13 +12,18 @@ export function PositionPanel({ cover, pendingMoveCost }) {
     .filter(([, tier]) => tier === 0)
     .map(([side]) => SIDE_LABEL[side]);
   return (
-    <section className="position-panel" aria-label="Deckung der Zielposition">
+    <section className="position-panel" aria-label={COPY.position.ariaLabel}>
       <div className="position-heading">
         <span>
-          <ShieldCheck size={12} /> ZIELPOSITION
+          <ShieldCheck size={12} />
+          {COPY.position.label}
         </span>
         <b className={`cover-${cover.label}`}>
-          {cover.label === 'full' ? 'VOLLE DECKUNG' : cover.label === 'half' ? 'HALBE DECKUNG' : 'KEINE DECKUNG'}
+          {cover.label === 'full'
+            ? COPY.position.coverFull
+            : cover.label === 'half'
+              ? COPY.position.coverHalf
+              : COPY.position.coverNone}
         </b>
       </div>
       <div className="position-sides">
@@ -29,8 +35,8 @@ export function PositionPanel({ cover, pendingMoveCost }) {
         ))}
       </div>
       <p className="position-note">
-        {open.length > 0 ? `Offen: ${open.join(', ')} · Angriffe von dort flankieren` : 'Von allen Seiten gedeckt'}
-        {pendingMoveCost ? ` · ${pendingMoveCost} AP` : ''}
+        {open.length > 0 ? COPY.position.openSides(open) : COPY.position.allCovered}
+        {pendingMoveCost ? COPY.position.apSuffix(pendingMoveCost) : ''}
       </p>
     </section>
   );

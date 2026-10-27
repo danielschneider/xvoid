@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import { COPY } from '../../copy.js';
 
 // Floating "CRIT" label shown above a unit hit by a critical shot.
 export function createCritTexture() {
@@ -12,8 +13,8 @@ export function createCritTexture() {
   context.lineWidth = 8;
   context.strokeStyle = '#17201c';
   context.fillStyle = '#ffd34d';
-  context.strokeText('CRIT', 64, 34);
-  context.fillText('CRIT', 64, 34);
+  context.strokeText(COPY.labels.crit, 64, 34);
+  context.fillText(COPY.labels.crit, 64, 34);
   const texture = new THREE.CanvasTexture(canvas);
   texture.magFilter = THREE.NearestFilter;
   texture.minFilter = THREE.NearestFilter;
@@ -33,7 +34,7 @@ export function createDamageTexture(shot) {
   context.lineWidth = 12;
   context.strokeStyle = '#17201c';
   context.fillStyle = shot.hit ? (shot.crit ? '#ffd34d' : '#ff9580') : '#9ce3e3';
-  const label = shot.hit ? `${shot.crit ? 'CRIT ' : ''}-${shot.damage}` : 'MISS';
+  const label = shot.hit ? `${shot.crit ? COPY.labels.critPrefix : ''}-${shot.damage}` : COPY.labels.miss;
   context.strokeText(label, 128, 68);
   context.fillText(label, 128, 68);
   const texture = new THREE.CanvasTexture(canvas);

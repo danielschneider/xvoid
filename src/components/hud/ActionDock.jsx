@@ -1,6 +1,7 @@
 import { Check, Crosshair, Eye, SkipForward } from 'lucide-react';
 import { ActionButton } from './primitives.jsx';
 import { selectTargetWindow } from '../../selectors/hud.js';
+import { COPY } from '../copy.js';
 
 export function ActionDock({
   state,
@@ -20,9 +21,9 @@ export function ActionDock({
         {pendingMove && pendingMoveCost ? (
           <ActionButton
             icon={Check}
-            label="Bewegen"
+            label={COPY.dock.confirmMove}
             onClick={onConfirmMove}
-            title={`Bewegung für ${pendingMoveCost} AP bestätigen`}
+            title={COPY.dock.confirmMoveTitle(pendingMoveCost)}
             active
             kind="confirm-move"
           />
@@ -30,8 +31,8 @@ export function ActionDock({
           targetVisible && (
             <ActionButton
               icon={Crosshair}
-              label="Feuern"
-              title={targetInRange ? undefined : 'Ziel außer Reichweite'}
+              label={COPY.dock.fire}
+              title={targetInRange ? undefined : COPY.dock.outOfRange}
               active={state.shootMode && targetInRange}
               onClick={() => onAction({ type: 'attack', id: target.id })}
               disabled={state.phase !== 'player' || !selected?.ap || !targetInRange}
@@ -41,8 +42,8 @@ export function ActionDock({
         )}
         <ActionButton
           icon={Eye}
-          label="Feuerschutz"
-          hint="O"
+          label={COPY.dock.overwatch}
+          hint={COPY.dock.overwatchHint}
           onClick={() => onAction({ type: 'ability', name: 'overwatch' })}
           disabled={state.phase !== 'player' || !selected?.ap}
         />
@@ -50,8 +51,8 @@ export function ActionDock({
       <div className="dock-end">
         <button className="end-turn-button" onClick={onRequestEndTurn} disabled={state.phase !== 'player'}>
           <SkipForward size={16} />
-          <span>{nextReadyUnit ? 'NÄCHSTE' : 'ZUG BEENDEN'}</span>
-          <kbd>↵</kbd>
+          <span>{nextReadyUnit ? COPY.dock.nextUnit : COPY.dock.endTurn}</span>
+          <kbd>{COPY.dock.enterKey}</kbd>
         </button>
       </div>
     </footer>
