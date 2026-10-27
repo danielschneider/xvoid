@@ -13,6 +13,8 @@ import { AP_ACTION_COST, ENEMY_SHOT_RANGE } from '../constants.js';
 
 const dist = (a, b) => Math.hypot(a.x - b.x, a.z - b.z);
 const postOf = (enemy) => ({ x: enemy.postX, z: enemy.postZ });
+// Wraps a step result that emits no events yet (movement and alerts move to events in 5c).
+const none = (state) => ({ state, events: [] });
 
 // Picks the shot target from revealed players (already sorted nearest first).
 function chooseShotTarget(state, enemy, revealed, role) {
@@ -58,18 +60,19 @@ function chooseDestinations(state, enemy, target, role, retreating, visibleCells
   return sortDestinations(destinations, target, enemy, role, retreating);
 }
 
+// Returns { state, events } for one enemy's turn. Never mutates `stateIn`.
 export function enemyStep(stateIn) {
   const state = refreshAlerts(stateIn);
-  if (state.phase !== 'enemy' || state.enemyTurnIndex >= state.enemyTurnOrder.length) return state;
+  if (state.phase !== 'enemy' || state.enemyTurnIndex >= state.enemyTurnOrder.length) return none(state);
   const enemy = state.units.find((unit) => unit.id === state.enemyTurnOrder[state.enemyTurnIndex] && unit.hp > 0);
-  if (!enemy) return { ...state, enemyTurnIndex: state.enemyTurnIndex + 1 };
+  if (!enemy) return none({ ...state, enemyTurnIndex: state.enemyTurnIndex + 1 });
   const role = getRole(enemy);
 
   const players = state.units.filter((unit) => unit.team === 'player' && unit.hp > 0);
   const target = [...players].sort((a, b) => dist(a, enemy) - dist(b, enemy))[0];
-  if (!target) return { ...state, enemyTurnIndex: state.enemyTurnIndex + 1 };
+  if (!target) return none({ ...state, enemyTurnIndex: state.enemyTurnIndex + 1 });
 
-  if (!state.alertedGroups.includes(enemy.groupId)) return wanderEnemy(state, enemy);
+  if (!state.alertedGroups.includes(enemy.groupId)) return none(wanderEnemy(state, enemy));
 
   const distance = dist(target, enemy);
   const visibleCells = getVisibleCells(state.map, players);
@@ -84,18 +87,18 @@ export function enemyStep(stateIn) {
   if (!retreating && enemy.ap > 0 && revealedTargets.length > 0) {
     const targetToShoot = chooseShotTarget(state, enemy, revealedTargets, role);
     const shot = fireAt(state, targetToShoot.id, enemy.id, true);
-    return { ...shot, enemyTurnIndex: state.enemyTurnIndex + 1 };
+    return { state: { ...shot.state, enemyTurnIndex: state.enemyTurnIndex + 1 }, events: shot.events };
   }
 
   const destination = chooseDestinations(state, enemy, target, role, retreating, visibleCells)[0];
 
   if (!destination || enemy.ap < AP_ACTION_COST) {
-    return {
+    return none({
       ...state,
       enemyTurnIndex: state.enemyTurnIndex + 1,
       logs: addLog(state, `${enemy.name} ${role.holdMessage}.`, 'combat'),
-    };
+    });
   }
   const verb = retreating ? role.retreatMessage : role.moveMessage;
-  return moveEnemy(state, enemy, destination, `${enemy.name} ${verb}.`);
+  return none(moveEnemy(state, enemy, destination, `${enemy.name} ${verb}.`));
 }

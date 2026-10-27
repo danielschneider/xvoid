@@ -9,8 +9,27 @@ import { appendEvents } from '../../presentation/events.js';
 import { EVENT_LOG_LIMIT } from '../constants.js';
 
 // Pure state transition. Returns { state, events }; events are plain objects (see presentation/events.js).
+// Actions that resolve shots or enemy steps return their events; everything else returns none.
 function reduce(state, action) {
-  return { state: applyAction(state, action), events: [] };
+  switch (action.type) {
+    case 'attack': {
+      if (state.phase !== 'player' || state.movement) return { state, events: [] };
+      // Selection moves on only after the shot has been shown (see finish-shot).
+      const shot = fireAt(state, action.id);
+      return { state: { ...refreshAlerts(shot.state), shootMode: false }, events: shot.events };
+    }
+    case 'complete-movement': {
+      if (state.movement?.id !== action.id) return { state, events: [] };
+      const mover = state.units.find((unit) => unit.id === state.movement.unitId);
+      const cleared = { ...state, movement: null };
+      if (mover?.team === 'alien' && state.phase === 'enemy') return resolveOverwatch(refreshAlerts(cleared), mover.id);
+      return { state: cleared, events: [] };
+    }
+    case 'enemy-step':
+      return enemyStep(state);
+    default:
+      return { state: applyAction(state, action), events: [] };
+  }
 }
 
 // The only public mutation entry point for game state. Helpers never mutate.
@@ -47,10 +66,6 @@ function applyAction(state, action) {
     case 'move':
       if (state.phase !== 'player' || state.movement) return state;
       return selectNextReadyPlayer(refreshAlerts(moveUnit(state, action.destination)));
-    case 'attack':
-      if (state.phase !== 'player' || state.movement) return state;
-      // Selection moves on only after the shot has been shown (see finish-shot).
-      return { ...refreshAlerts(fireAt(state, action.id)), shootMode: false };
     case 'ability':
       if (state.phase !== 'player' || state.movement) return state;
       return selectNextReadyPlayer(useAbility(state));
@@ -60,16 +75,6 @@ function applyAction(state, action) {
       if (!state.movement || state.movement.id !== action.id) return state;
       if (state.movement.step >= state.movement.path.length - 1) return state;
       return { ...state, movement: { ...state.movement, step: state.movement.step + 1 } };
-    case 'complete-movement': {
-      if (state.movement?.id !== action.id) return state;
-      const mover = state.units.find((unit) => unit.id === state.movement.unitId);
-      const cleared = { ...state, movement: null };
-      return mover?.team === 'alien' && state.phase === 'enemy'
-        ? resolveOverwatch(refreshAlerts(cleared), mover.id)
-        : cleared;
-    }
-    case 'enemy-step':
-      return enemyStep(state);
     case 'finish-enemy-turn':
       return finishEnemyTurn(state);
     case 'regenerate':
