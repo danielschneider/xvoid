@@ -2,6 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { createInitialState, gameReducer } from '../../engine/game.js';
 import { cellKey, getReachable, isPassable } from '../../engine/map.js';
+import { movementLimits } from '../../engine/game.js';
 
 test('movement follows reachable cells and spends one AP nearby', () => {
   const state = createInitialState(42);
@@ -62,18 +63,21 @@ test('a player cannot move onto a box cell', () => {
   assert.equal(rejected.units.find((unit) => unit.id === 'vanguard').x, box.x - 1);
 });
 
-test('movement range per type caps reachable cells at full AP and at 1 AP', () => {
+test('each AP moves moveRange steps: 1 AP reaches moveRange, 2 AP reaches double', () => {
   const state = createInitialState(42);
   for (const unit of state.units.filter((entry) => entry.team === 'player')) {
     const blocked = new Set(state.units.filter((entry) => entry.id !== unit.id && entry.hp > 0).map(cellKey));
-    const full = [...getReachable(state.map, unit, blocked, unit.moveRange, Math.ceil(unit.moveRange / 2)).values()];
-    assert.ok(full.every((entry) => entry.steps <= unit.moveRange));
-    assert.ok(full.some((entry) => entry.steps === unit.moveRange));
-    assert.ok(full.every((entry) => entry.apCost === (entry.steps <= Math.ceil(unit.moveRange / 2) ? 1 : 2)));
+    const one = [...getReachable(state.map, unit, blocked, unit.moveRange, unit.moveRange).values()];
+    const two = [...getReachable(state.map, unit, blocked, unit.moveRange * 2, unit.moveRange).values()];
+    assert.ok(one.every((entry) => entry.steps <= unit.moveRange));
+    assert.ok(two.every((entry) => entry.steps <= unit.moveRange * 2));
+    assert.ok(two.some((entry) => entry.steps > unit.moveRange));
+    assert.ok(one.every((entry) => entry.apCost === 1));
+    assert.ok(two.every((entry) => entry.apCost === Math.ceil(entry.steps / unit.moveRange)));
   }
 });
 
-test('a unit with 1 AP can only move its cheap half of moveRange', () => {
+test('a unit with 1 AP can only move moveRange steps', () => {
   const state = createInitialState(42);
   const unit = state.units.find((entry) => entry.id === 'spectre');
   const encounter = {
@@ -81,8 +85,9 @@ test('a unit with 1 AP can only move its cheap half of moveRange', () => {
     units: state.units.map((entry) => (entry.id === unit.id ? { ...entry, ap: 1 } : entry)),
   };
   const blocked = new Set(state.units.filter((entry) => entry.id !== unit.id && entry.hp > 0).map(cellKey));
-  const reachable = [...getReachable(encounter.map, unit, blocked, 5, 5).values()];
-  const far = reachable.find((entry) => entry.steps > 5);
+  const { maxSteps, stepsPerAp } = movementLimits(encounter.units.find((entry) => entry.id === unit.id));
+  const reachable = [...getReachable(encounter.map, unit, blocked, maxSteps, stepsPerAp).values()];
+  const far = reachable.find((entry) => entry.steps > unit.moveRange);
   assert.equal(far, undefined);
   assert.ok(encounter.units.find((entry) => entry.id === unit.id).ap === 1);
 });

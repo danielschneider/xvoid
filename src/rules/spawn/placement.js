@@ -165,8 +165,8 @@ export function createStartingUnits(map, random) {
 export function initialSelection(map, units) {
   const canMove = (unit) => {
     const blocked = new Set(units.filter((other) => other.id !== unit.id && other.hp > 0).map(cellKey));
-    const { maxSteps, cheapSteps } = movementLimits(unit);
-    return getReachable(map, unit, blocked, maxSteps, cheapSteps).size > 0;
+    const { maxSteps, stepsPerAp } = movementLimits(unit);
+    return getReachable(map, unit, blocked, maxSteps, stepsPerAp).size > 0;
   };
   const players = units.filter((unit) => unit.team === 'player' && unit.hp > 0);
   return (players.find(canMove) ?? players[0]).id;

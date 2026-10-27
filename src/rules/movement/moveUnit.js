@@ -1,14 +1,14 @@
 import { cellKey } from '../grid/cells.js';
 import { getReachable } from './pathfinding.js';
-import { AP_ACTION_COST, CHEAP_MOVE_STEPS, DEFAULT_MOVE_RANGE } from '../constants.js';
+import { AP_ACTION_COST, DEFAULT_MOVE_RANGE } from '../constants.js';
 import { facingToward } from '../geometry.js';
 import { moveEvent } from '../../presentation/events.js';
 
-// Step limits for a unit's move. With 1 AP left only the cheap (1 AP) half is reachable.
+// Each AP the unit has moves it independently by moveRange steps, so the reach is
+// moveRange * ap. Every moveRange steps (or part of them) cost one AP.
 export function movementLimits(unit) {
   const moveRange = unit.moveRange ?? DEFAULT_MOVE_RANGE;
-  const cheapSteps = Math.min(CHEAP_MOVE_STEPS, moveRange);
-  return { maxSteps: unit.ap === 1 ? cheapSteps : moveRange, cheapSteps };
+  return { maxSteps: moveRange * Math.max(0, unit.ap), stepsPerAp: moveRange };
 }
 
 // Returns { state, events }. Never mutates `state`.
@@ -16,8 +16,8 @@ export function moveUnit(state, destination) {
   const unit = state.units.find((entry) => entry.id === state.selectedId);
   if (!unit || unit.team !== 'player' || unit.ap < AP_ACTION_COST) return { state, events: [] };
   const occupied = new Set(state.units.filter((entry) => entry.id !== unit.id && entry.hp > 0).map(cellKey));
-  const { maxSteps, cheapSteps } = movementLimits(unit);
-  const pathData = getReachable(state.map, unit, occupied, maxSteps, cheapSteps).get(cellKey(destination));
+  const { maxSteps, stepsPerAp } = movementLimits(unit);
+  const pathData = getReachable(state.map, unit, occupied, maxSteps, stepsPerAp).get(cellKey(destination));
   if (!pathData || pathData.apCost > unit.ap) return { state, events: [] };
   const last = pathData.path[pathData.path.length - 1];
   const previous = pathData.path.length > 1 ? pathData.path[pathData.path.length - 2] : unit;

@@ -5,9 +5,6 @@
 export const AP_PER_TURN = 2;
 // AP spent by one shot, one overwatch activation, or one ability use.
 export const AP_ACTION_COST = 1;
-// AP spent by a move: cheap (within cheapSteps) and full (beyond cheapSteps).
-export const AP_MOVE_CHEAP = 1;
-export const AP_MOVE_FULL = 2;
 
 // Shooting and sight.
 export const SHOT_RANGE = 10;
@@ -21,9 +18,7 @@ export const FOG_REVEAL_RANGE = 18;
 // Movement. moveRange is the max steps per turn at full AP; half of it (rounded up)
 // is the cheap range that costs 1 AP. DEFAULT_MOVE_RANGE applies to units without moveRange.
 export const DEFAULT_MOVE_RANGE = 10;
-// Steps reachable for 1 AP (the cheap move). Full AP reaches the unit's moveRange.
-export const CHEAP_MOVE_STEPS = 8;
-export const ENEMY_MOVE_STEPS = { raider: 5, stalker: 6, scout: 7, guard: 5 };
+export const ENEMY_MOVE_STEPS = { raider: 5, stalker: 6, scout: 7, guard: 5, crawler: 7, soldier: 5, monster: 4 };
 // A scout retreats when it is within this distance of its target and below half HP.
 export const SCOUT_RETREAT_RANGE = 5;
 // Unalerted enemies drift around their post: at most WANDER_STEPS per move, never

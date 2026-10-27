@@ -38,6 +38,23 @@ test('createSpriteTexture uses the alien palette for alien units', () => {
   }
 });
 
+test('enemy models draw different bodies and the default is the humanoid', () => {
+  const stub = installCanvasStub();
+  try {
+    createSpriteTexture('alien', '#ff7770', 'RAIDER', 'front');
+    createSpriteTexture('alien', '#ff7770', 'RAIDER', 'front', 'humanoid');
+    createSpriteTexture('alien', '#ff7770', 'CRAWLER', 'front', 'crawler');
+    createSpriteTexture('alien', '#ff7770', 'SOLDIER', 'front', 'soldier');
+    createSpriteTexture('alien', '#ff7770', 'MONSTER', 'front', 'monster');
+    const [humanoid, humanoidExplicit, crawler, soldier, monster] = stub.created.map((canvas) => canvas.calls);
+    assert.deepEqual(humanoid, humanoidExplicit);
+    const shapes = [crawler, soldier, monster].map((calls) => JSON.stringify(calls));
+    assert.equal(new Set([...shapes, JSON.stringify(humanoid)]).size, 4);
+  } finally {
+    stub.uninstall();
+  }
+});
+
 test('class accessories are added only for their class', () => {
   const stub = installCanvasStub();
   try {

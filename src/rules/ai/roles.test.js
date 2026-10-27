@@ -5,7 +5,7 @@ import { ROLES, getRole } from './roles.js';
 import { ENEMY_MOVE_STEPS } from '../constants.js';
 
 test('every role table entry defines the parameters enemyStep reads', () => {
-  assert.deepEqual(Object.keys(ROLES).sort(), ['guard', 'raider', 'scout', 'stalker']);
+  assert.deepEqual(Object.keys(ROLES).sort(), ['crawler', 'guard', 'monster', 'raider', 'scout', 'soldier', 'stalker']);
   for (const [name, role] of Object.entries(ROLES)) {
     assert.equal(role.maxSteps, ENEMY_MOVE_STEPS[name], `${name} maxSteps`);
     assert.ok(['nearest', 'exposed'].includes(role.targetChoice), `${name} targetChoice`);

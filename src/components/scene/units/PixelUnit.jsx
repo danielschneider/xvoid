@@ -45,7 +45,7 @@ export function PixelUnit({
     cameraDirection: useMemo(() => new THREE.Vector3(), []),
   };
   const critTexture = useMemo(() => createCritTexture(), []);
-  const spriteTextures = useSpriteTextures(unit.team, unit.color, unit.className);
+  const spriteTextures = useSpriteTextures(unit.team, unit.color, unit.className, unit.model);
   const ground = [toWorld(unit).x, toWorldY(unit) + 0.035, toWorld(unit).z];
   const destination = useMemo(() => new THREE.Vector3(...ground), [cellHeight(unit), unit.x, unit.z]);
   const fullRoute = movement?.unitId === unit.id ? movement.path : null;

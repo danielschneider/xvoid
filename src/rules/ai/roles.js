@@ -32,6 +32,27 @@ export const ROLES = Object.freeze({
     targetChoice: 'nearest',
     movePreference: 'post',
   },
+  // Fast, fragile swarm unit: closes distance quickly and shoots the nearest target.
+  crawler: {
+    maxSteps: ENEMY_MOVE_STEPS.crawler,
+    retreat: null,
+    targetChoice: 'nearest',
+    movePreference: 'approach',
+  },
+  // Disciplined infantry: holds its post and picks shots by cover.
+  soldier: {
+    maxSteps: ENEMY_MOVE_STEPS.soldier,
+    retreat: null,
+    targetChoice: 'exposed',
+    movePreference: 'post',
+  },
+  // Slow heavy: advances on the nearest target and absorbs damage.
+  monster: {
+    maxSteps: ENEMY_MOVE_STEPS.monster,
+    retreat: null,
+    targetChoice: 'nearest',
+    movePreference: 'approach',
+  },
 });
 
 // Returns the role entry for an enemy. Throws for a missing or unknown role; no fallback.

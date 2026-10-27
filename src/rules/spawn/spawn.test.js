@@ -2,6 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { createInitialState, gameReducer } from '../../engine/game.js';
 import { cellKey, getReachable, getVisibleCells } from '../../engine/map.js';
+import { ROLES } from '../ai/roles.js';
 
 test('new seeds vary map size, squad size, and spawn positions deterministically', () => {
   const sizes = new Set();
@@ -15,7 +16,7 @@ test('new seeds vary map size, squad size, and spawn positions deterministically
     sizes.add(state.map.size);
     spawnLayouts.add(state.units.map(({ id, x, z }) => `${id}:${x},${z}`).join('|'));
     roleLayouts.add(enemies.map((unit) => unit.aiRole).join('|'));
-    assert.deepEqual(new Set(enemies.map((unit) => unit.aiRole)), new Set(['raider', 'stalker', 'scout', 'guard']));
+    assert.ok(enemies.every((unit) => Object.hasOwn(ROLES, unit.aiRole)));
     assert.equal(enemies.length, state.map.size === 32 ? 5 : state.map.size === 40 ? 10 : 20);
     assert.equal(new Set(state.units.map(cellKey)).size, state.units.length);
     assert.ok(state.units.every((unit) => state.map.cells[cellKey(unit)]?.walkable));

@@ -3,13 +3,16 @@ import * as THREE from 'three';
 import { createSpriteTexture } from '../textures/sprites.js';
 import { angleDelta, selectSpriteView } from './spriteView.js';
 
-export function useSpriteTextures(team, color, className) {
+export function useSpriteTextures(team, color, className, model) {
   return useMemo(
     () =>
       Object.fromEntries(
-        ['front', 'right', 'back', 'left'].map((view) => [view, createSpriteTexture(team, color, className, view)])
+        ['front', 'right', 'back', 'left'].map((view) => [
+          view,
+          createSpriteTexture(team, color, className, view, model),
+        ])
       ),
-    [team, color, className]
+    [team, color, className, model]
   );
 }
 

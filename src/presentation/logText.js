@@ -16,6 +16,9 @@ export const ENEMY_TEXT = Object.freeze({
   stalker: { hold: 'bleibt verborgen', advance: 'rückt vor' },
   scout: { hold: 'hält die Position', advance: 'rückt vor', retreat: 'zieht sich zurück' },
   guard: { hold: 'hält den Posten', advance: 'kehrt zum Posten zurück' },
+  crawler: { hold: 'kauert lauernd', advance: 'kriecht vor' },
+  soldier: { hold: 'hält die Deckung', advance: 'rückt vor' },
+  monster: { hold: 'brüllt und wartet', advance: 'stürmt vor' },
 });
 
 const BLOCKED_TEXT = Object.freeze({

@@ -152,8 +152,8 @@ export default function App() {
     )
       return new Map();
     const blocked = new Set(state.units.filter((unit) => unit.id !== selected.id && unit.hp > 0).map(cellKey));
-    const { maxSteps, cheapSteps } = movementLimits(selected);
-    return getReachable(state.map, selected, blocked, maxSteps, cheapSteps);
+    const { maxSteps, stepsPerAp } = movementLimits(selected);
+    return getReachable(state.map, selected, blocked, maxSteps, stepsPerAp);
   }, [selected, state.map, state.moveMode, state.movement, state.phase, state.units]);
   // Protection of every cell the selected unit could move to, shown as ground tint.
   const coverProfiles = useMemo(() => {
