@@ -140,9 +140,6 @@ test('a miss never crits, so the crit roll is not consumed', () => {
 });
 
 test('enemy shots never crit', () => {
-  const state = createInitialState(42);
-  const target = state.units.find((unit) => unit.id === 'vanguard');
-  const enemy = state.units.find((unit) => unit.id === 'raider-01');
   assert.equal(computeCritChance(true), 0);
   assert.equal(computeCritChance(false), CRIT_CHANCE);
 });

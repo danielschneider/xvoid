@@ -1,7 +1,7 @@
 import { useEffect, useMemo } from 'react';
 import * as THREE from 'three';
 import { toWorld, toWorldY } from '../coords.js';
-export function InstancedGround({ cells, visibleCells, meshRef }) {
+export function InstancedGround({ visibleCells, meshRef }) {
   const data = useMemo(() => visibleCells.filter((cell) => cell.walkable), [visibleCells]);
   const dummy = useMemo(() => new THREE.Object3D(), []);
   const material = useMemo(() => new THREE.MeshStandardMaterial({ roughness: 0.94, metalness: 0.12 }), []);

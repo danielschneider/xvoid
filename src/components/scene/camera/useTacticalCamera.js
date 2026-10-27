@@ -31,7 +31,6 @@ export function useTacticalCamera({ floorRef, cells, onCellTap, rotateToken }) {
   useEffect(() => {
     if (!rotateToken) return;
     rotateCamera(camera, rotateToken.direction);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [rotateToken]);
 
   useEffect(() => {

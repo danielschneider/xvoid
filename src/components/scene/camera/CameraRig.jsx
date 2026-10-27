@@ -21,7 +21,7 @@ export function CameraRig({ floorRef, cells, onCellTap, focusUnit, focusToken, m
     const center = camera.position.clone().addScaledVector(forward, t);
     camera.position.x += target.x - center.x;
     camera.position.z += target.z - center.z;
-  }, [focusId, focusToken, movingUnitId]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [focusId, focusToken, movingUnitId]);
 
   const worldPos = useMemo(() => new THREE.Vector3(), []);
   const forward = useMemo(() => new THREE.Vector3(), []);
