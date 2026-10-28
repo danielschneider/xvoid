@@ -123,7 +123,7 @@ test('scouts retreat along a route when critically hurt and nearby', () => {
   assert.equal(afterAction.lastShot, null);
 });
 
-test('raiders prioritize exposed players over equally close covered players', () => {
+test('raiders under fire take cover before shooting, so no shot is fired from an exposed cell', () => {
   const state = withFirstEnemyRole(createInitialState(42), 'raider');
   const raider = state.units.find((unit) => unit.team === 'alien' && unit.aiRole === 'raider');
   const vanguard = state.units.find((unit) => unit.id === 'vanguard');
@@ -142,7 +142,9 @@ test('raiders prioritize exposed players over equally close covered players', ()
   });
   const enemyTurn = { ...state, units, phase: 'enemy', enemyTurnOrder: [raider.id], enemyTurnIndex: 0 };
   const afterAction = gameReducer(enemyTurn, { type: 'enemy-step' });
-  assert.equal(afterAction.lastShot?.to.id, exposed.id);
+  assert.equal(afterAction.lastShot, null);
+  const moved = afterAction.units.find((unit) => unit.id === raider.id);
+  assert.ok(moved.x !== center || moved.z !== center);
 });
 
 test('stalkers choose a concealed forward route when one is available', () => {

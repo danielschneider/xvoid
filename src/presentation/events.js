@@ -45,7 +45,7 @@ export const blockedEvent = ({ shooterId, targetId, reason }) => ({
   reason,
 });
 
-// intent: 'walk' (player move), 'patrol', 'advance' or 'retreat' (enemy moves).
+// intent: 'walk' (player move), 'patrol', 'advance', 'retreat' or 'cover' (enemy moves).
 // role: the enemy's aiRole for enemy moves, null for player moves.
 export const moveEvent = ({ unitId, name, steps, enemy = false, role = null, intent = 'walk' }) => ({
   type: EVENT_TYPES.move,

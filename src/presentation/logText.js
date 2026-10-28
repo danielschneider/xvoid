@@ -10,16 +10,16 @@ export const INTRO_LOG = Object.freeze({ id: 1, text: 'Einsatz bereit. Halte die
 
 const entry = (text, kind) => ({ text, kind });
 
-// Enemy wording per role and intent (the intents are 'hold', 'advance' and 'retreat').
+// Enemy wording per role and intent (the intents are 'hold', 'advance', 'retreat' and 'cover').
 export const ENEMY_TEXT = Object.freeze({
-  raider: { hold: 'hält die Position', advance: 'rückt vor' },
-  stalker: { hold: 'bleibt verborgen', advance: 'rückt vor' },
-  scout: { hold: 'hält die Position', advance: 'rückt vor', retreat: 'zieht sich zurück' },
-  guard: { hold: 'hält den Posten', advance: 'kehrt zum Posten zurück' },
-  crawler: { hold: 'kauert lauernd', advance: 'kriecht vor' },
-  soldier: { hold: 'hält die Deckung', advance: 'rückt vor' },
+  raider: { hold: 'hält die Position', advance: 'rückt vor', cover: 'geht in Deckung' },
+  stalker: { hold: 'bleibt verborgen', advance: 'rückt vor', cover: 'verschwindet hinter Deckung' },
+  scout: { hold: 'hält die Position', advance: 'rückt vor', retreat: 'zieht sich zurück', cover: 'geht in Deckung' },
+  guard: { hold: 'hält den Posten', advance: 'kehrt zum Posten zurück', cover: 'geht in Deckung' },
+  crawler: { hold: 'kauert lauernd', advance: 'kriecht vor', cover: 'duckt sich weg' },
+  soldier: { hold: 'hält die Deckung', advance: 'rückt vor', cover: 'geht in Deckung' },
   monster: { hold: 'brüllt und wartet', advance: 'stürmt vor' },
-  sneaker: { hold: 'lauert im Schatten', advance: 'schleicht sich heran' },
+  sneaker: { hold: 'lauert im Schatten', advance: 'schleicht sich heran', cover: 'verschwindet im Schatten' },
 });
 
 const BLOCKED_TEXT = Object.freeze({

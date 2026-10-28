@@ -7,6 +7,7 @@ import { computeCoverFor } from '../combat/hitChance.js';
 import { fireAt } from '../combat/resolveShot.js';
 import { refreshAlerts } from './alerts.js';
 import { wanderEnemy } from './wander.js';
+import { chooseCoverDestination } from './takeCover.js';
 import { getRole } from './roles.js';
 import { rearDistance } from './rearApproach.js';
 import { AP_ACTION_COST, ENEMY_SHOT_RANGE } from '../constants.js';
@@ -100,6 +101,12 @@ function takeEnemyTurn(state) {
         .sort((a, b) => dist(a, enemy) - dist(b, enemy))
     : [];
   const retreating = role.retreat !== null && enemy.hp <= Math.ceil(enemy.maxHp / 2) && distance <= role.retreat.range;
+
+  // Only enemies that players can actually see seek cover; hidden enemies keep their own movement rules.
+  if (!retreating && role.seeksCover && enemy.ap >= AP_ACTION_COST && visibleCells.has(cellKey(enemy))) {
+    const cover = chooseCoverDestination(state, enemy, role, players);
+    if (cover) return moveEnemy(state, enemy, cover, 'cover');
+  }
 
   if (!retreating && enemy.ap > 0 && revealedTargets.length > 0) {
     const targetToShoot = chooseShotTarget(state, enemy, revealedTargets, role);

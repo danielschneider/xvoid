@@ -20,6 +20,7 @@ test('every role table entry defines the parameters enemyStep reads', () => {
     assert.ok(['nearest', 'exposed'].includes(role.targetChoice), `${name} targetChoice`);
     assert.ok(['approach', 'post', 'conceal', 'flank'].includes(role.movePreference), `${name} movePreference`);
     assert.equal('holdMessage' in role, false, `${name} has no log wording in the role table`);
+    assert.equal(typeof role.seeksCover, 'boolean', `${name} seeksCover`);
   }
 });
 
