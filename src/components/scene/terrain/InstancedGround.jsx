@@ -15,11 +15,9 @@ export function InstancedGround({ visibleCells, meshRef }) {
       meshRef.current.setMatrixAt(index, dummy.matrix);
       const color =
         cell.level === 0
-          ? cell.corridor
-            ? '#263332'
-            : cell.structure
-              ? '#303c39'
-              : '#202b2b'
+          ? cell.structure
+            ? '#303c39'
+            : '#202b2b'
           : cell.level === 1
             ? '#52605a'
             : '#6d7568';
