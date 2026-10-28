@@ -6,7 +6,7 @@ export const cellHeight = (cell) => cell?.level || 0;
 // Terrain that physically blocks movement. Boxes (pillar/console) are rendered as
 // solid cover objects, so they must never be walkable. Single source of truth for
 // movement, spawning, and map-connectivity checks.
-export const BLOCKING_TERRAIN = new Set(['wall', 'pillar', 'console']);
+export const BLOCKING_TERRAIN = new Set(['wall', 'partition', 'rail', 'pillar', 'console']);
 export const isPassable = (cell) => Boolean(cell && cell.walkable && !BLOCKING_TERRAIN.has(cell.terrain));
 
 export const neighborsOf = (current, transitions) => [

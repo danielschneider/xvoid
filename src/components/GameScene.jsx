@@ -7,6 +7,7 @@ import { TilemapGround } from './scene/terrain/TilemapGround.jsx';
 import { InstancedGround } from './scene/terrain/InstancedGround.jsx';
 import { WallField } from './scene/terrain/WallField.jsx';
 import { CoverField } from './scene/terrain/CoverField.jsx';
+import { StructureField } from './scene/terrain/StructureField.jsx';
 import { FogOfWar } from './scene/terrain/FogOfWar.jsx';
 import { ReachableOverlay } from './scene/overlays/ReachableOverlay.jsx';
 import { MoveTrace } from './scene/overlays/MoveTrace.jsx';
@@ -77,6 +78,7 @@ function Battlefield({
         <InstancedGround cells={allCells} visibleCells={visibleCells} meshRef={floorRef} />
         <WallField cells={revealedCells} selected={selected} />
         <CoverField cells={revealedCells} selected={selected} />
+        <StructureField cells={revealedCells} />
         <FogOfWar cells={visibleCells} visibleCellKeys={visibleCellKeys} />
         {selected?.ap > 0 && <ReachableOverlay paths={shownPaths} map={state.map} coverProfiles={coverProfiles} />}
         {pendingPath && selected && <MoveTrace path={pendingPath} start={selected} />}

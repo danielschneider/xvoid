@@ -1,5 +1,8 @@
 import { cellKey } from '../grid/cells.js';
 
+// Terrain that stops sight. Rails are see-through; boxes give cover instead.
+const SIGHT_BLOCKERS = new Set(['wall', 'partition']);
+
 export function hasLineOfSight(map, from, to) {
   const steps = Math.max(Math.abs(to.x - from.x), Math.abs(to.z - from.z));
   if (steps === 0) return true;
@@ -10,7 +13,7 @@ export function hasLineOfSight(map, from, to) {
     const cell = map.cells[cellKey({ x, z, level: Math.min(from.level, to.level) })];
     // Only walls block sight. Boxes (pillar/console) give cover, which lowers the hit chance
     // in cover.js instead of making the target unshootable.
-    if (cell?.terrain === 'wall') return false;
+    if (SIGHT_BLOCKERS.has(cell?.terrain)) return false;
   }
   return true;
 }

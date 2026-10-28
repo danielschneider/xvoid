@@ -75,12 +75,15 @@ test('enemies in one spawn cluster share a group, and a sighting alerts the whol
 });
 
 test('guards hold their assigned post when no player is visible', () => {
-  const state = createInitialState(42);
+  const seeded = createInitialState(42);
+  // Pin the first alien to guard: spawn roles are shuffled per seed, so the seed alone is not enough.
+  const state = withFirstEnemyRole(seeded, 'guard');
   const guard = state.units.find((unit) => unit.aiRole === 'guard');
   const corners = [
     { x: 1, z: 1 },
     { x: state.map.size - 2, z: state.map.size - 2 },
   ];
+  // Corners may be walls on some layouts; the guard test only needs a far-away player position.
   const corner = corners.sort(
     (a, b) => Math.hypot(b.x - guard.x, b.z - guard.z) - Math.hypot(a.x - guard.x, a.z - guard.z)
   )[0];

@@ -10,13 +10,14 @@ import {
   gameReducer,
 } from '../../engine/game.js';
 import { cellKey, hasLineOfSight } from '../../engine/map.js';
-import { adjacentWalkableCell, isolateEncounter, withDraws } from '../../../test/fixtures.js';
+import { adjacentWalkableCell, isolateEncounter, openCellAt, withDraws } from '../../../test/fixtures.js';
 
 test('a revealed enemy can fire at a player in line of sight', () => {
   const state = createInitialState(42);
-  const nearbyCell = adjacentWalkableCell(state.map, state.units[0]);
+  const nearbyCell = adjacentWalkableCell(state.map, state.units[0]) ?? openCellAt(state.map, state.units[0], 2);
   assert.ok(nearbyCell);
-  const enemy = { ...state.units[3], x: nearbyCell.x, z: nearbyCell.z, level: nearbyCell.level };
+  // Pin the role: the spawn shuffle assigns roles per seed, and this test is about firing.
+  const enemy = { ...state.units[3], aiRole: 'guard', x: nearbyCell.x, z: nearbyCell.z, level: nearbyCell.level };
   const encounter = { ...state, units: state.units.map((unit) => (unit.id === enemy.id ? enemy : unit)) };
   const enemyTurn = gameReducer(encounter, { type: 'end-turn' });
   const afterAction = gameReducer(enemyTurn, { type: 'enemy-step' });
@@ -97,11 +98,16 @@ test('shooting at close range gets a distance bonus while long range keeps its p
   assert.ok(Math.abs(computeDistanceModifier(8) + 0.15) < 1e-9);
 
   const state = createInitialState(42);
-  state.map.cells[cellKey({ x: 10, z: 10, level: 0 })].cover = 0;
-  const target = { x: 10, z: 10, level: 0, status: null, id: 'x' };
-  const close = computeHitChance(state, { x: 10, z: 13, level: 0 }, target);
-  const neutral = computeHitChance(state, { x: 10, z: 15, level: 0 }, target);
-  const far = computeHitChance(state, { x: 10, z: 18, level: 0 }, target);
+  // Clear a straight open lane on a fresh spot so the layout of the seed does not matter.
+  const column = 10;
+  for (let z = 6; z <= 18; z += 1) {
+    const cell = state.map.cells[cellKey({ x: column, z, level: 0 })];
+    Object.assign(cell, { terrain: 'floor', walkable: true, cover: 0 });
+  }
+  const target = { x: column, z: 10, level: 0, status: null, id: 'x' };
+  const close = computeHitChance(state, { x: column, z: 13, level: 0 }, target);
+  const neutral = computeHitChance(state, { x: column, z: 15, level: 0 }, target);
+  const far = computeHitChance(state, { x: column, z: 18, level: 0 }, target);
 
   assert.ok(close > neutral);
   assert.ok(neutral > far);

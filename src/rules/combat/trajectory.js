@@ -20,7 +20,7 @@ export function missOvershoot(map, shooter, target) {
     const along = step / SAMPLES_PER_FIELD;
     const x = Math.round(target.x + ux * along);
     const z = Math.round(target.z + uz * along);
-    if (map.cells[cellKey({ x, z, level })]?.terrain === 'wall') break;
+    if (['wall', 'partition'].includes(map.cells[cellKey({ x, z, level })]?.terrain)) break;
     clear = step;
   }
   return clear / SAMPLES_PER_FIELD;

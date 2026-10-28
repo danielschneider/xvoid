@@ -23,7 +23,7 @@ function hasSightRay(map, from, targetX, targetZ, level) {
     const z = Math.round(from.z + dz * ratio);
     const cell = map.cells[cellKey({ x, z, level })];
     // Boxes give cover, not blindness: only walls stop sight (see line.js).
-    if (cell?.terrain === 'wall') return false;
+    if (cell?.terrain === 'wall' || cell?.terrain === 'partition') return false;
   }
   return true;
 }
@@ -33,7 +33,7 @@ function canSeeCell(map, observer, cell) {
   return SIGHT_OFFSETS.some(([ox, oz]) => hasSightRay(map, observer, cell.x + ox, cell.z + oz, level));
 }
 
-const SOLID_TERRAIN = new Set(['wall', 'pillar', 'console']);
+const SOLID_TERRAIN = new Set(['wall', 'partition', 'pillar', 'console']);
 const SIGHT_DIRECTIONS = [
   [1, 0],
   [-1, 0],

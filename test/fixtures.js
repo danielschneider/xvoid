@@ -14,6 +14,19 @@ export function adjacentWalkableCell(map, unit) {
   );
 }
 
+// Finds any open walkable cell at `distance` (Manhattan) from `from` on the same level,
+// with a clear line of sight. Used when a fixed seed's layout is not known in advance.
+export function openCellAt(map, from, distance) {
+  return Object.values(map.cells).find(
+    (cell) =>
+      cell.level === from.level &&
+      cell.walkable &&
+      cell.terrain === 'floor' &&
+      Math.abs(cell.x - from.x) + Math.abs(cell.z - from.z) === distance &&
+      hasLineOfSight(map, from, cell)
+  );
+}
+
 export function isolateEncounter(state, keep) {
   return {
     ...state,
