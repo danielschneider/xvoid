@@ -18,7 +18,12 @@ function reduce(state, action) {
       // Selection moves on only after the shot has been shown (see finish-shot).
       const shot = fireAt(state, action.id);
       const alerts = refreshAlerts(shot.state);
-      return { state: { ...alerts.state, shootMode: false }, events: [...shot.events, ...alerts.events] };
+      // A killed target leaves nothing to shoot at, so the selected unit returns to move mode.
+      const killed = shot.events.some((event) => event.type === 'death');
+      return {
+        state: { ...alerts.state, shootMode: false, ...(killed ? { moveMode: true, targetId: null } : {}) },
+        events: [...shot.events, ...alerts.events],
+      };
     }
     case 'move': {
       if (state.phase !== 'player' || state.movement) return { state, events: [] };
@@ -117,7 +122,15 @@ function applyAction(state, action) {
       // Runs after the shot/death animation: clear the shot and hand over to the next ready player unit.
       if (!state.lastShot || state.lastShot.id !== action.id) return state;
       const cleared = { ...state, lastShot: null };
-      return state.lastShot.enemyShot ? cleared : selectNextReadyPlayer(cleared);
+      if (state.lastShot.enemyShot) return cleared;
+      // A shooter with AP left stays selected: keep the target marking and return to fire mode.
+      const shooter = cleared.units.find((unit) => unit.id === cleared.selectedId);
+      const target = cleared.units.find((unit) => unit.id === cleared.targetId);
+      const canFireAgain =
+        shooter?.team === 'player' && shooter.hp > 0 && shooter.ap > 0 && target && target.team !== 'player' && target.hp > 0;
+      if (canFireAgain) return { ...cleared, shootMode: true, moveMode: false };
+      // Otherwise the target marking is dropped so no crosshair lingers through the rest of the player round.
+      return selectNextReadyPlayer({ ...cleared, targetId: null, shootMode: false });
     }
     default:
       return state;

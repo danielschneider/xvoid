@@ -3,8 +3,10 @@ import { hasLineOfSight } from '../sight/line.js';
 import { clamp, spawnDistance } from '../geometry.js';
 import { COVER_VALUE, CRIT_CHANCE, ENEMY_COVER_FACTOR, FLANK_COVER_VALUE, SHOT_RANGE } from '../constants.js';
 
+// Per-cell distance modifier: +0.05 per cell inside 5, -0.05 per cell beyond it.
+// Max range (SHOT_RANGE) costs -0.25 instead of -0.5.
 export function computeDistanceModifier(distance) {
-  return (5 - distance) * 0.1;
+  return (5 - distance) * 0.05;
 }
 
 // Cover from the side the shot arrives at. A flanking shot gets no cover.

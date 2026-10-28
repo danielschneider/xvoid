@@ -22,7 +22,8 @@ function hasSightRay(map, from, targetX, targetZ, level) {
     const x = Math.round(from.x + dx * ratio);
     const z = Math.round(from.z + dz * ratio);
     const cell = map.cells[cellKey({ x, z, level })];
-    if (cell?.terrain === 'wall' || cell?.terrain === 'pillar') return false;
+    // Boxes give cover, not blindness: only walls stop sight (see line.js).
+    if (cell?.terrain === 'wall') return false;
   }
   return true;
 }

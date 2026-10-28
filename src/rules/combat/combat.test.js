@@ -92,9 +92,9 @@ test('a single overwatch reaction shot consumes the watcher stance', () => {
 });
 
 test('shooting at close range gets a distance bonus while long range keeps its penalty', () => {
-  assert.ok(Math.abs(computeDistanceModifier(3) - 0.2) < 1e-9);
+  assert.ok(Math.abs(computeDistanceModifier(3) - 0.1) < 1e-9);
   assert.equal(computeDistanceModifier(5), 0);
-  assert.ok(Math.abs(computeDistanceModifier(8) + 0.3) < 1e-9);
+  assert.ok(Math.abs(computeDistanceModifier(8) + 0.15) < 1e-9);
 
   const state = createInitialState(42);
   state.map.cells[cellKey({ x: 10, z: 10, level: 0 })].cover = 0;

@@ -8,7 +8,9 @@ export function hasLineOfSight(map, from, to) {
     const x = Math.round(from.x + (to.x - from.x) * ratio);
     const z = Math.round(from.z + (to.z - from.z) * ratio);
     const cell = map.cells[cellKey({ x, z, level: Math.min(from.level, to.level) })];
-    if (cell?.terrain === 'wall' || cell?.terrain === 'pillar') return false;
+    // Only walls block sight. Boxes (pillar/console) give cover, which lowers the hit chance
+    // in cover.js instead of making the target unshootable.
+    if (cell?.terrain === 'wall') return false;
   }
   return true;
 }
