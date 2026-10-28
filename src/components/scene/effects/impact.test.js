@@ -53,9 +53,10 @@ test('travelDuration: same travel time for player and enemy shots', () => {
   assert.equal(travelDuration(true), 0.3);
 });
 
-test('tracerLength: hits stop at the target, misses run past it', () => {
-  assert.equal(tracerLength(5, true), 5);
-  assert.ok(tracerLength(5, false) > 5);
+test('tracerLength: hits stop at the target, misses add their overshoot', () => {
+  assert.equal(tracerLength(5, 0), 5);
+  assert.equal(tracerLength(5), 5);
+  assert.equal(tracerLength(5, 3), 8);
 });
 
 test('shakeAt: starts at full amplitude, is zero at and after duration', () => {

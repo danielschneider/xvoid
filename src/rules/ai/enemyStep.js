@@ -8,6 +8,7 @@ import { fireAt } from '../combat/resolveShot.js';
 import { refreshAlerts } from './alerts.js';
 import { wanderEnemy } from './wander.js';
 import { getRole } from './roles.js';
+import { rearDistance } from './rearApproach.js';
 import { AP_ACTION_COST, ENEMY_SHOT_RANGE } from '../constants.js';
 import { enemyTurnEndEvent, holdEvent } from '../../presentation/events.js';
 
@@ -29,6 +30,11 @@ function sortDestinations(destinations, target, enemy, role, retreating) {
   if (role.movePreference === 'post') {
     return [...destinations].sort((a, b) => dist(a.cell, postOf(enemy)) - dist(b.cell, postOf(enemy)));
   }
+  if (role.movePreference === 'flank') {
+    return [...destinations].sort(
+      (a, b) => rearDistance(target, a.cell) - rearDistance(target, b.cell) || a.steps - b.steps
+    );
+  }
   return [...destinations].sort((a, b) => toTarget(a.cell) - toTarget(b.cell) || b.steps - a.steps);
 }
 
@@ -37,19 +43,23 @@ function chooseDestinations(state, enemy, target, role, retreating, visibleCells
   const distance = dist(target, enemy);
   const blocked = new Set(state.units.filter((unit) => unit.id !== enemy.id && unit.hp > 0).map(cellKey));
   const paths = getReachable(state.map, enemy, blocked, role.maxSteps);
-  let destinations = [...paths.entries()]
-    .map(([key, path]) => ({ cell: state.map.cells[key], ...path }))
-    .filter(({ cell }) => {
+  let destinations = [...paths.entries()].map(([key, path]) => ({ cell: state.map.cells[key], ...path }));
+  if (role.movePreference === 'flank' && !retreating) {
+    // Flankers may move sideways or away to reach the rear arc, but never close in from the front.
+    destinations = destinations.filter(({ cell }) => rearDistance(target, cell) < rearDistance(target, enemy));
+  } else {
+    destinations = destinations.filter(({ cell }) => {
       const nextDistance = dist(target, cell);
       return retreating ? nextDistance > distance : nextDistance < distance;
     });
+  }
 
   if (role.movePreference === 'post' && !retreating) {
     const postDistance = dist(postOf(enemy), enemy);
     destinations = postDistance <= 1 ? [] : destinations.filter(({ cell }) => dist(cell, postOf(enemy)) < postDistance);
   }
 
-  if (role.movePreference === 'conceal' || retreating) {
+  if (role.movePreference === 'conceal' || role.movePreference === 'flank' || retreating) {
     const concealed = destinations.filter(({ cell }) => !visibleCells.has(cellKey(cell)));
     if (concealed.length > 0) destinations = concealed;
   }

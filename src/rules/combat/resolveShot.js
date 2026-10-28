@@ -4,6 +4,7 @@ import { hasLineOfSight } from '../sight/line.js';
 import { makeRandom } from '../rng.js';
 import { facingToward } from '../geometry.js';
 import { computeCritChance, computeHitChance } from './hitChance.js';
+import { missOvershoot } from './trajectory.js';
 import { AP_ACTION_COST, CRIT_MULTIPLIER, OVERWATCH_RANGE, SHOT_RANGE } from '../constants.js';
 import { blockedEvent, deathEvent, shotEvent } from '../../presentation/events.js';
 
@@ -40,6 +41,7 @@ export function fireAt(state, targetId, shooterId = state.selectedId, enemyShot 
   const crit = hit && random() < computeCritChance(enemyShot);
   const baseDamage = enemyShot ? 1 + Math.floor(random() * 2) : 2 + Math.floor(random() * 3) + (shooter.power ?? 0);
   const damage = hit ? (crit ? baseDamage * CRIT_MULTIPLIER : baseDamage) : 0;
+  const overshoot = hit ? 0 : missOvershoot(state.map, shooter, target);
   const remainingDamage = Math.max(0, damage - target.shield);
   const nextUnits = state.units.map((unit) => {
     if (unit.id === shooter.id)
@@ -57,7 +59,7 @@ export function fireAt(state, targetId, shooterId = state.selectedId, enemyShot 
     nextId: state.nextId + 1,
     units: nextUnits,
     targetId: enemyShot ? null : targetId,
-    lastShot: { from: shooter, to: target, hit, crit, damage, enemyShot, id: state.nextId },
+    lastShot: { from: shooter, to: target, hit, crit, damage, overshoot, enemyShot, id: state.nextId },
   };
   const events = [
     shotEvent({

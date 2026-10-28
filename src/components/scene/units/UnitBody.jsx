@@ -5,6 +5,7 @@ import { Html } from '@react-three/drei';
 import { toWorld, toWorldY } from '../coords.js';
 import { Muzzle, CritOverlay } from './UnitEffects.jsx';
 import { UnitSprite } from './UnitSprite.jsx';
+import { FootCircle } from './FootCircle.jsx';
 
 // Crosshair drawn around the targeted enemy: four arms with a gap at the centre, always
 // facing the camera (it lives in the billboard group). It pulses in scale and opacity.
@@ -49,13 +50,17 @@ function TargetCross() {
 // Static unit geometry: shadow, selection ring, body, rifle and billboard sprite group.
 export function UnitBody({ unit, selected, targeted, shootable, hitChance, dead, refs, spriteTextures, critTexture }) {
   const armorColor = unit.team === 'alien' ? '#492b35' : '#324c43';
+  const pulsing = !dead && selected && unit.team === 'player';
   return (
     <group ref={refs.group} name={`unit-${unit.id}`}>
-      <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, 0.012, 0]}>
-        <circleGeometry args={[0.35, 20]} />
-        <meshBasicMaterial color="#020807" transparent opacity={0.45} depthWrite={false} />
-      </mesh>
-      {!dead && (selected || targeted || shootable) && !targeted && (
+      {!pulsing && (
+        <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, 0.012, 0]}>
+          <circleGeometry args={[0.35, 20]} />
+          <meshBasicMaterial color="#020807" transparent opacity={0.45} depthWrite={false} />
+        </mesh>
+      )}
+      {pulsing && <FootCircle color="#ff2a1f" />}
+      {!dead && (selected || targeted || shootable) && !targeted && !pulsing && (
         <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, 0.022, 0]}>
           <ringGeometry args={shootable ? [0.48, 0.54, 32] : [0.42, 0.49, 32]} />
           <meshBasicMaterial

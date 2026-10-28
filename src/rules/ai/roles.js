@@ -5,7 +5,8 @@ import { ENEMY_MOVE_STEPS, SCOUT_RETREAT_RANGE } from '../constants.js';
 //   retreat:        null, or { range }: retreats when hp <= ceil(maxHp / 2) and the target is within range
 //   targetChoice:   'nearest' shoots the closest revealed player; 'exposed' weighs cover against distance
 //   movePreference: 'approach' closes distance; 'post' returns to the assigned post;
-//                   'conceal' prefers destinations outside the squad's vision
+//                   'conceal' prefers destinations outside the squad's vision;
+//                   'flank' circles to the rear arc of the nearest player, staying concealed
 //   Log wording for each role lives in presentation/logText.js (ENEMY_TEXT).
 export const ROLES = Object.freeze({
   raider: {
@@ -52,6 +53,13 @@ export const ROLES = Object.freeze({
     retreat: null,
     targetChoice: 'nearest',
     movePreference: 'approach',
+  },
+  // Sneaks around to a player's rear arc and lurks there; it fires from the rear once revealed.
+  sneaker: {
+    maxSteps: ENEMY_MOVE_STEPS.sneaker,
+    retreat: null,
+    targetChoice: 'nearest',
+    movePreference: 'flank',
   },
 });
 

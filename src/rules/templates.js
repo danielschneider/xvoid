@@ -53,4 +53,5 @@ export const ENEMY_TEMPLATES = [
   { role: 'crawler', name: 'Void Crawler', className: 'CRAWLER', model: 'crawler', hp: 3, shield: 0, color: '#9dff6f' },
   { role: 'soldier', name: 'Void Soldier', className: 'SOLDIER', model: 'soldier', hp: 6, shield: 1, color: '#ffd166' },
   { role: 'monster', name: 'Void Monster', className: 'MONSTER', model: 'monster', hp: 9, shield: 2, color: '#ff4fa3' },
+  { role: 'sneaker', name: 'Void Sneaker', className: 'SNEAKER', hp: 4, shield: 0, color: '#7fd6ff' },
 ];

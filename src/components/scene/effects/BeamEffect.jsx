@@ -131,7 +131,7 @@ export function BeamEffect({ shot, camera, cover }) {
   const direction = useMemo(() => new THREE.Vector3().subVectors(end, start), [start, end]);
   const distance = direction.length();
   const unitDirection = useMemo(() => direction.clone().normalize(), [direction]);
-  const totalLength = tracerLength(distance, shot.hit);
+  const totalLength = tracerLength(distance, shot.overshoot ?? 0);
 
   useEffect(
     () => () => {

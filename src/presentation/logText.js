@@ -19,6 +19,7 @@ export const ENEMY_TEXT = Object.freeze({
   crawler: { hold: 'kauert lauernd', advance: 'kriecht vor' },
   soldier: { hold: 'hält die Deckung', advance: 'rückt vor' },
   monster: { hold: 'brüllt und wartet', advance: 'stürmt vor' },
+  sneaker: { hold: 'lauert im Schatten', advance: 'schleicht sich heran' },
 });
 
 const BLOCKED_TEXT = Object.freeze({

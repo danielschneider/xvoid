@@ -5,11 +5,20 @@ import { ROLES, getRole } from './roles.js';
 import { ENEMY_MOVE_STEPS } from '../constants.js';
 
 test('every role table entry defines the parameters enemyStep reads', () => {
-  assert.deepEqual(Object.keys(ROLES).sort(), ['crawler', 'guard', 'monster', 'raider', 'scout', 'soldier', 'stalker']);
+  assert.deepEqual(Object.keys(ROLES).sort(), [
+    'crawler',
+    'guard',
+    'monster',
+    'raider',
+    'scout',
+    'sneaker',
+    'soldier',
+    'stalker',
+  ]);
   for (const [name, role] of Object.entries(ROLES)) {
     assert.equal(role.maxSteps, ENEMY_MOVE_STEPS[name], `${name} maxSteps`);
     assert.ok(['nearest', 'exposed'].includes(role.targetChoice), `${name} targetChoice`);
-    assert.ok(['approach', 'post', 'conceal'].includes(role.movePreference), `${name} movePreference`);
+    assert.ok(['approach', 'post', 'conceal', 'flank'].includes(role.movePreference), `${name} movePreference`);
     assert.equal('holdMessage' in role, false, `${name} has no log wording in the role table`);
   }
 });

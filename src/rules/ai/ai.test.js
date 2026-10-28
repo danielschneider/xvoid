@@ -3,9 +3,18 @@ import assert from 'node:assert/strict';
 import { createInitialState, gameReducer } from '../../engine/game.js';
 import { cellKey, getReachable, getVisibleCells } from '../../engine/map.js';
 
+// Test helper: pins the first alien to `role` so role-dependent assertions do not depend on the spawn shuffle.
+function withFirstEnemyRole(state, role) {
+  const firstAlien = state.units.find((unit) => unit.team === 'alien').id;
+  return {
+    ...state,
+    units: state.units.map((unit) => (unit.id === firstAlien ? { ...unit, aiRole: role } : unit)),
+  };
+}
+
 test('enemies advance toward the nearest player during their turn', () => {
-  const state = createInitialState(42);
-  const enemy = state.units.find((unit) => unit.aiRole === 'raider');
+  const state = withFirstEnemyRole(createInitialState(42), 'raider');
+  const enemy = state.units.find((unit) => unit.team === 'alien' && unit.aiRole === 'raider');
   const target = state.units[0];
   const distanceBefore = Math.hypot(enemy.x - target.x, enemy.z - target.z);
   const enemyTurn = {
@@ -115,8 +124,8 @@ test('scouts retreat along a route when critically hurt and nearby', () => {
 });
 
 test('raiders prioritize exposed players over equally close covered players', () => {
-  const state = createInitialState(42);
-  const raider = state.units.find((unit) => unit.aiRole === 'raider');
+  const state = withFirstEnemyRole(createInitialState(42), 'raider');
+  const raider = state.units.find((unit) => unit.team === 'alien' && unit.aiRole === 'raider');
   const vanguard = state.units.find((unit) => unit.id === 'vanguard');
   const spectre = state.units.find((unit) => unit.id === 'spectre');
   const center = Math.floor(state.map.size / 2);

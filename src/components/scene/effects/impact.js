@@ -2,7 +2,6 @@
 // Values are seconds, world units, or counts; no rules RNG is used (visuals only).
 
 export const SHAKE_DURATION = 0.16;
-export const TRACER_MISS_EXTRA = 1.4;
 export const TRACER_TRAIL = 1.6;
 export const PARTICLE_LIFE = 0.4;
 
@@ -39,9 +38,10 @@ export function travelDuration() {
   return 0.3;
 }
 
-// Total path length of the tracer. Misses run past the target by a fixed extra length.
-export function tracerLength(distance, hit) {
-  return hit ? distance : distance + TRACER_MISS_EXTRA;
+// Total path length of the tracer. `overshoot` is the distance a missed shot flies past the target
+// (0 for hits), as computed by the rules layer from the map.
+export function tracerLength(distance, overshoot = 0) {
+  return distance + overshoot;
 }
 
 // Camera shake offsets. Decays linearly to zero over `duration`; y is slightly
