@@ -1,3 +1,4 @@
+import type { Enemy, EnemyRole } from '../types.ts';
 import { ENEMY_MOVE_STEPS, SCOUT_RETREAT_RANGE } from '../constants.ts';
 
 // One entry per enemy role. enemyStep.js reads these parameters; it has no role-name branches.
@@ -10,7 +11,7 @@ import { ENEMY_MOVE_STEPS, SCOUT_RETREAT_RANGE } from '../constants.ts';
 //   seeksCover:     true: when exposed to player fire, moves to the least exposed reachable cell first
 //                   (takeCover.js). false: charges regardless of cover.
 //   Log wording for each role lives in presentation/logText.js (ENEMY_TEXT).
-export const ROLES = Object.freeze({
+export const ROLES: Readonly<Record<EnemyRole, Role>> = Object.freeze({
   raider: {
     maxSteps: ENEMY_MOVE_STEPS.raider,
     retreat: null,
@@ -73,8 +74,17 @@ export const ROLES = Object.freeze({
   },
 });
 
+// Behaviour parameters of one enemy role (one entry of ROLES).
+export interface Role {
+  maxSteps: number;
+  retreat: { range: number } | null;
+  targetChoice: 'nearest' | 'exposed';
+  movePreference: 'approach' | 'post' | 'conceal' | 'flank';
+  seeksCover: boolean;
+}
+
 // Returns the role entry for an enemy. Throws for a missing or unknown role; no fallback.
-export function getRole(enemy) {
+export function getRole(enemy: Enemy): Role {
   if (!Object.hasOwn(ROLES, enemy.aiRole)) {
     throw new Error(`Enemy ${enemy.id} has missing or unknown role: ${String(enemy.aiRole)}`);
   }

@@ -1,9 +1,10 @@
+import type { GameState } from '../types.ts';
 import { createBattlefield } from '../grid/generate.ts';
 import { makeRandom } from '../rng.ts';
 import { createStartingUnits, initialSelection } from './placement.ts';
-import { INTRO_LOG } from '../../presentation/logText.js';
+import { INTRO_LOG } from '../../presentation/logText.ts';
 
-export function createInitialState(seed = 20261024, generation = 0) {
+export function createInitialState(seed = 20261024, generation = 0): GameState {
   const map = createBattlefield(seed);
   const random = makeRandom(seed ^ 0x9e3779b9);
   const units = createStartingUnits(map, random);

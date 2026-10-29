@@ -1,4 +1,4 @@
-import type { Battlefield, BuildingRecord, Cell, Position, Room } from '../types.ts';
+import type { Battlefield, BuildingRecord, Cell, Cover, Position, Room } from '../types.ts';
 import { makeRandom } from '../rng.ts';
 import { cellKey } from './cells.ts';
 import { allPassableReachable, restoreRegion, snapshotRegion } from './connectivity.ts';
@@ -14,7 +14,13 @@ export const GRID_SIZES = [32, 40, 48];
 export const MAX_BUILDING_LEVEL = 3;
 
 // Places a box only if the battlefield stays connected and no protected cell is touched.
-function placeBox(cells, transitions, cell, cover, protectedKeys) {
+function placeBox(
+  cells: Record<string, Cell>,
+  transitions: Record<string, Position[]>,
+  cell: Cell,
+  cover: Cover,
+  protectedKeys: Set<string>
+): void {
   if (protectedKeys.has(cellKey(cell))) return;
   const previous = { cover: cell.cover, terrain: cell.terrain };
   cell.cover = cover;
@@ -23,7 +29,7 @@ function placeBox(cells, transitions, cell, cover, protectedKeys) {
 }
 
 // Ground-floor shell: walls on the perimeter, doors opened on the chosen sides.
-function raiseShell(cells, room, doors) {
+function raiseShell(cells: Record<string, Cell>, room: Room, doors: BuildingRecord['doors']): Set<string> {
   const opened = doorKeys(room, doors.sides, doors.width);
   for (let z = room.z; z < room.z + room.h; z += 1) {
     for (let x = room.x; x < room.x + room.w; x += 1) {
@@ -49,7 +55,12 @@ function raiseShell(cells, room, doors) {
 
 // Adds rooms with one partition per floor when the interior is big enough. Partitions
 // leave a one-cell gap and never touch stairs or lanes; a partition that fails is skipped.
-function addPartitions(cells, room, level, protectedKeys) {
+function addPartitions(
+  cells: Record<string, Cell>,
+  room: Room,
+  level: number,
+  protectedKeys: Set<string>
+): void {
   const { x, z, w, h } = room;
   if (w < 8 && h < 8) return;
   const axis = w >= h ? 'x' : 'z';
@@ -92,7 +103,12 @@ function raiseBuilding(
 }
 
 // Checks the finished building: global connectivity, every floor reachable, lanes open.
-function buildingValid(cells, transitions, room, record) {
+function buildingValid(
+  cells: Record<string, Cell>,
+  transitions: Record<string, Position[]>,
+  room: Room,
+  record: BuildingRecord
+): boolean {
   if (!allPassableReachable(cells, transitions)) return false;
   for (let level = 0; level <= record.topLevel; level += 1) {
     if (!floorReachable(cells, transitions, room, level, stairCorners(room)[0])) return false;
@@ -132,7 +148,7 @@ export function createBattlefield(seed: number): Battlefield {
     { x: 5, z: size - 12 },
     { x: size - 13, z: size - 12 },
   ];
-  const buildings = [];
+  const buildings: Room[] = [];
   for (const [index, origin] of anchorOrigins.entries()) {
     const room = {
       id: buildings.length,

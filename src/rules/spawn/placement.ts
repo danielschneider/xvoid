@@ -1,5 +1,5 @@
-import type { Battlefield, Unit } from '../types.ts';
-import { cellKey, isPassable } from '../grid/cells.ts';
+import type { Battlefield, Cell, Enemy, Position, Unit } from '../types.ts';
+import { cellKey, isPassable, occupiedKeys } from '../grid/cells.ts';
 import { getReachable } from '../movement/pathfinding.ts';
 import { hasLineOfSight } from '../sight/line.ts';
 import { assignEnemyGroups } from '../ai/alerts.ts';
@@ -8,7 +8,7 @@ import { AP_PER_TURN, ENEMY_SHOT_RANGE, VISION_RANGE } from '../constants.ts';
 import { ENEMY_TEMPLATES, PLAYER_TEMPLATES } from '../templates.ts';
 import { movementLimits } from '../movement/moveUnit.ts';
 
-export function shuffle(items, random) {
+export function shuffle<T>(items: readonly T[], random: () => number): T[] {
   const result = [...items];
   for (let index = result.length - 1; index > 0; index -= 1) {
     const swapIndex = Math.floor(random() * (index + 1));
@@ -22,7 +22,11 @@ const SQUAD_RADIUS = 2;
 // Hard minimum distance between any enemy spawn and any player spawn, regardless of line of sight.
 const MIN_ENEMY_SPAWN_DISTANCE = ENEMY_SHOT_RANGE;
 
-function* squadClusters(map, candidates, random) {
+function* squadClusters(
+  map: Battlefield,
+  candidates: Cell[],
+  random: () => number
+): Generator<{ squad: Cell[]; reachable: Set<string> }> {
   for (const center of shuffle(candidates, random)) {
     const near = shuffle(
       candidates.filter((cell) => cell !== center && spawnDistance(cell, center) <= SQUAD_RADIUS),
@@ -47,11 +51,11 @@ function* squadClusters(map, candidates, random) {
 // top candidates keeps layouts varied per seed. Only partners sit close together.
 const FARTHEST_POOL = 6;
 
-function placeEnemyGroups(candidates, count, random) {
-  const placed = [];
-  const distanceToPlaced = (cell) =>
+function placeEnemyGroups(candidates: Cell[], count: number, random: () => number): Position[] | null {
+  const placed: Position[] = [];
+  const distanceToPlaced = (cell: Position) =>
     placed.length === 0 ? Infinity : Math.min(...placed.map((other) => spawnDistance(other, cell)));
-  const pickLeader = () => {
+  const pickLeader = (): Position | null => {
     const ranked = shuffle(candidates, random)
       .filter((cell) => !placed.some((unit) => spawnDistance(unit, cell) === 0))
       .map((cell) => ({ cell, distance: distanceToPlaced(cell) }))
@@ -89,7 +93,7 @@ export function createStartingUnits(map: Battlefield, random: () => number): Uni
   const borderCells = openGround.filter(
     (cell) => cell.x === 0 || cell.z === 0 || cell.x === map.size - 1 || cell.z === map.size - 1
   );
-  const quadrants = [
+  const quadrants: ((cell: Cell) => boolean)[] = [
     (cell) => cell.x < middle && cell.z < middle,
     (cell) => cell.x >= middle && cell.z < middle,
     (cell) => cell.x < middle && cell.z >= middle,
@@ -134,14 +138,14 @@ export function createStartingUnits(map: Battlefield, random: () => number): Uni
     throw new Error(`Unable to place a fair ${map.size}x${map.size} starting force`);
   }
   const randomizedRoles = shuffle(ENEMY_TEMPLATES, random);
-  const players = PLAYER_TEMPLATES.map((unit, index) => ({
+  const players: Unit[] = PLAYER_TEMPLATES.map((unit, index) => ({
     ...unit,
     x: playerSpawns[index].x,
     z: playerSpawns[index].z,
     level: 0,
   }));
   const groupIds = assignEnemyGroups(enemySpawns);
-  const enemies = enemySpawns.map((spawn, index) => {
+  const enemies = enemySpawns.map((spawn, index): Enemy => {
     const template = randomizedRoles[index % randomizedRoles.length];
     return {
       ...template,
@@ -163,9 +167,9 @@ export function createStartingUnits(map: Battlefield, random: () => number): Uni
 
 // Squad placement can box a unit in with its own squadmates. Select the first
 // player unit that can actually move so that taps on the map produce a route.
-export function initialSelection(map, units) {
-  const canMove = (unit) => {
-    const blocked = new Set(units.filter((other) => other.id !== unit.id && other.hp > 0).map(cellKey));
+export function initialSelection(map: Battlefield, units: Unit[]): string {
+  const canMove = (unit: Unit) => {
+    const blocked = occupiedKeys(units, unit.id);
     const { maxSteps, stepsPerAp } = movementLimits(unit);
     return getReachable(map, unit, blocked, maxSteps, stepsPerAp).size > 0;
   };

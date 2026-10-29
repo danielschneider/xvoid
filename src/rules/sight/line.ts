@@ -1,9 +1,14 @@
+import type { Battlefield, Position } from '../types.ts';
 import { cellKey } from '../grid/cells.ts';
 
 // Terrain that stops sight. Rails are see-through; boxes give cover instead.
 const SIGHT_BLOCKERS = new Set(['wall', 'partition']);
 
-export function hasLineOfSight(map, from, to) {
+export function hasLineOfSight(
+  map: Battlefield,
+  from: Position & { level: number },
+  to: Position & { level: number }
+): boolean {
   const steps = Math.max(Math.abs(to.x - from.x), Math.abs(to.z - from.z));
   if (steps === 0) return true;
   for (let step = 1; step < steps; step += 1) {

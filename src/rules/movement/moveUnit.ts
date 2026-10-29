@@ -1,21 +1,22 @@
-import { cellKey } from '../grid/cells.ts';
-import { getReachable } from './pathfinding.ts';
+import type { GameState, Unit, Enemy, StepResult, Position } from '../types.ts';
+import { cellKey, occupiedKeys } from '../grid/cells.ts';
+import { getReachable, type ReachablePath } from './pathfinding.ts';
 import { AP_ACTION_COST, DEFAULT_MOVE_RANGE } from '../constants.ts';
 import { facingToward } from '../geometry.ts';
-import { moveEvent } from '../../presentation/events.js';
+import { moveEvent } from '../../presentation/events.ts';
 
 // Each AP the unit has moves it independently by moveRange steps, so the reach is
 // moveRange * ap. Every moveRange steps (or part of them) cost one AP.
-export function movementLimits(unit) {
+export function movementLimits(unit: Pick<Unit, 'moveRange' | 'ap'>): { maxSteps: number; stepsPerAp: number } {
   const moveRange = unit.moveRange ?? DEFAULT_MOVE_RANGE;
   return { maxSteps: moveRange * Math.max(0, unit.ap), stepsPerAp: moveRange };
 }
 
 // Returns { state, events }. Never mutates `state`.
-export function moveUnit(state, destination) {
+export function moveUnit(state: GameState, destination: Position): StepResult {
   const unit = state.units.find((entry) => entry.id === state.selectedId);
   if (!unit || unit.team !== 'player' || unit.ap < AP_ACTION_COST) return { state, events: [] };
-  const occupied = new Set(state.units.filter((entry) => entry.id !== unit.id && entry.hp > 0).map(cellKey));
+  const occupied = occupiedKeys(state.units, unit.id);
   const { maxSteps, stepsPerAp } = movementLimits(unit);
   const pathData = getReachable(state.map, unit, occupied, maxSteps, stepsPerAp).get(cellKey(destination));
   if (!pathData || pathData.apCost > unit.ap) return { state, events: [] };
@@ -41,7 +42,12 @@ export function moveUnit(state, destination) {
 
 // intent: 'patrol' | 'advance' | 'retreat' (wording lives in presentation/logText.js).
 // Returns { state, events }. Never mutates `state`.
-export function moveEnemy(state, enemy, destination, intent) {
+export function moveEnemy(
+  state: GameState,
+  enemy: Enemy,
+  destination: ReachablePath,
+  intent: 'patrol' | 'advance' | 'retreat' | 'cover'
+): StepResult {
   const last = destination.path[destination.path.length - 1];
   const previous = destination.path.length > 1 ? destination.path[destination.path.length - 2] : enemy;
   const facing = facingToward(previous, last);

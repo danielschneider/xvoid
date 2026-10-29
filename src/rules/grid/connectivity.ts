@@ -1,13 +1,14 @@
+import type { Battlefield, Cell, Position, Room } from '../types.ts';
 import { cellKey, isPassable, neighborsOf } from './cells.ts';
 
 // True when every passable cell (all levels) can be reached from a corner anchor.
 // The anchor corner is never covered, so it is always passable.
-export function allPassableReachable(cells, transitions) {
+export function allPassableReachable(cells: Battlefield['cells'], transitions: Battlefield['transitions']): boolean {
   const total = Object.values(cells).filter(isPassable).length;
   const anchor = cells[cellKey({ x: 0, z: 0 })];
   if (!isPassable(anchor)) return false;
   const seen = new Set([cellKey(anchor)]);
-  const queue = [anchor];
+  const queue: Cell[] = [anchor];
   for (let cursor = 0; cursor < queue.length; cursor += 1) {
     for (const next of neighborsOf(queue[cursor], transitions)) {
       const key = cellKey(next);
@@ -22,8 +23,15 @@ export function allPassableReachable(cells, transitions) {
 
 // Saves every cell and transition inside a building's footprint (all levels) so a
 // failed placement can be undone exactly.
-export function snapshotRegion(cells, transitions, room, topLevel) {
-  const saved = [];
+export type SavedCell = [string, Cell | undefined, Position[] | undefined];
+
+export function snapshotRegion(
+  cells: Battlefield['cells'],
+  transitions: Battlefield['transitions'],
+  room: Room,
+  topLevel: number
+): SavedCell[] {
+  const saved: SavedCell[] = [];
   for (let level = 0; level <= topLevel; level += 1) {
     for (let z = room.z - 1; z <= room.z + room.h; z += 1) {
       for (let x = room.x - 1; x <= room.x + room.w; x += 1) {
@@ -35,7 +43,11 @@ export function snapshotRegion(cells, transitions, room, topLevel) {
   return saved;
 }
 
-export function restoreRegion(cells, transitions, saved) {
+export function restoreRegion(
+  cells: Battlefield['cells'],
+  transitions: Battlefield['transitions'],
+  saved: SavedCell[]
+): void {
   for (const [key, cell, transition] of saved) {
     if (cell) cells[key] = cell;
     else delete cells[key];

@@ -1,22 +1,30 @@
 import { DEFAULT_MOVE_RANGE } from '../constants.ts';
+import type { Battlefield, Cell, Position } from '../types.ts';
 import { cellKey, isPassable, neighborsOf } from '../grid/cells.ts';
 
+// A reachable cell: steps walked, the cells on the way (start excluded, destination last), and AP spent.
+export interface ReachablePath {
+  steps: number;
+  path: Cell[];
+  apCost: number;
+}
+
 export function getReachable(
-  map,
-  start,
-  blocked = new Set(),
-  maxSteps = DEFAULT_MOVE_RANGE,
-  stepsPerAp = DEFAULT_MOVE_RANGE
-) {
+  map: Battlefield,
+  start: Position,
+  blocked: Set<string> = new Set(),
+  maxSteps: number = DEFAULT_MOVE_RANGE,
+  stepsPerAp: number = DEFAULT_MOVE_RANGE
+): Map<string, ReachablePath> {
   const startKey = cellKey(start);
-  const queue = [start];
-  const distance = new Map([[startKey, 0]]);
-  const previous = new Map();
+  const queue: Position[] = [start];
+  const distance = new Map<string, number>([[startKey, 0]]);
+  const previous = new Map<string, string>();
 
   for (let cursor = 0; cursor < queue.length; cursor += 1) {
     const current = queue[cursor];
     const currentKey = cellKey(current);
-    const currentDistance = distance.get(currentKey);
+    const currentDistance = distance.get(currentKey) ?? 0;
 
     for (const next of neighborsOf(current, map.transitions)) {
       const nextKey = cellKey(next);
@@ -28,12 +36,12 @@ export function getReachable(
     }
   }
 
-  const paths = new Map();
+  const paths = new Map<string, ReachablePath>();
   for (const [key, steps] of distance) {
     if (key === startKey) continue;
-    const path = [];
-    let cursor = key;
-    while (cursor !== startKey) {
+    const path: Cell[] = [];
+    let cursor: string | undefined = key;
+    while (cursor !== undefined && cursor !== startKey) {
       path.unshift(map.cells[cursor]);
       cursor = previous.get(cursor);
     }

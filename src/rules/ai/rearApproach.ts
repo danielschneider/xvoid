@@ -1,3 +1,4 @@
+import type { Position } from '../types.ts';
 import { spawnDistance } from '../geometry.ts';
 
 // Rear arc for sneaking: a cell counts as "behind" a player when it lies in the
@@ -6,13 +7,13 @@ import { spawnDistance } from '../geometry.ts';
 const REAR_COS_THRESHOLD = -0.5;
 
 // Unit vector the player is looking along. Falls back to +z when facing is unset.
-function forwardVector(unit) {
+function forwardVector(unit: Position & { facing?: number }): Position {
   const angle = unit.facing ?? 0;
   return { x: Math.sin(angle), z: Math.cos(angle) };
 }
 
 // True when `cell` is inside the rear arc of `target`.
-export function isBehind(target, cell) {
+export function isBehind(target: Position & { facing?: number }, cell: Position): boolean {
   const dx = cell.x - target.x;
   const dz = cell.z - target.z;
   const length = Math.hypot(dx, dz);
@@ -23,7 +24,7 @@ export function isBehind(target, cell) {
 
 // Distance from `cell` to the closest rear-arc point of `target`, used to rank
 // destinations when none is yet behind. Lower is better.
-export function rearDistance(target, cell) {
+export function rearDistance(target: Position & { facing?: number }, cell: Position): number {
   if (isBehind(target, cell)) return 0;
   const forward = forwardVector(target);
   // Distance to the rear point the cell is currently closest to (opposite facing, one cell back).

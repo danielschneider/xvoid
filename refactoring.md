@@ -223,7 +223,7 @@ These changes make each iteration cheaper and less error-prone. They matter more
 
 ### 4.1 Tooling
 
-- **Type checking via JSDoc + `tsc --checkJs`** (`checkJs: true` in a `jsconfig.json`). No migration to TypeScript required; types are enforced on `rules/` first. Typed contracts (`State`, `Unit`, `Cell`, `Action`, `Event`) give agents a single definition to read.
+- **Type checking via JSDoc + `tsc --checkJs`** (`checkJs: true` in a `jsconfig.json`). Typed contracts (`State`, `Unit`, `Cell`, `Action`, `Event`) give agents a single definition to read.
 - **ESLint** with `eslint-plugin-import` rule `no-restricted-imports`: UI may import only from `rules/index.js` and `selectors/`. `rules/` may not import `react`, `three`, `@react-three/*`, or use `window`, `document`, `Date`, `Math.random`.
 - **Prettier** with a committed config. Removes formatting churn in diffs (the current long one-line JSX blocks in HUD and GameScene are the main example).
 - **Single check command**: `npm run check` = lint + typecheck + test + build. CI (`deployci.yml`) and deploy (`deploy.yml`) run the same script. Today both workflows duplicate the test and build steps; collapse them to one reusable workflow.
@@ -270,7 +270,6 @@ The refactor should be done in an order that makes the roadmap cheaper, not bloc
 - No change to game balance, visual style or German copy during the structural phases (except where D11 explicitly asks for a decision).
 - No state-management library. A reducer plus selectors is sufficient; adding Redux or Zustand adds indirection without solving the actual problems above.
 - No backend, persistence or multiplayer. Those would change the RNG and state model and should be designed only when needed.
-- No full TypeScript migration. JSDoc with `checkJs` gives most of the benefit at a fraction of the churn.
 
 ---
 

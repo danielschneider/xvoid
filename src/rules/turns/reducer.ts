@@ -1,3 +1,4 @@
+import type { GameState, Position, StepResult } from '../types.ts';
 import { moveUnit } from '../movement/moveUnit.ts';
 import { fireAt, resolveOverwatch } from '../combat/resolveShot.ts';
 import { refreshAlerts } from '../ai/alerts.ts';
@@ -5,13 +6,33 @@ import { enemyStep } from '../ai/enemyStep.ts';
 import { createInitialState } from '../spawn/initialState.ts';
 import { facingToward } from '../geometry.ts';
 import { endTurn, finishEnemyTurn, selectNextReadyPlayer, useAbility } from './actions.ts';
-import { appendEvents } from '../../presentation/events.js';
-import { appendLogs } from '../../presentation/logText.js';
+import { appendEvents } from '../../presentation/events.ts';
+import { appendLogs } from '../../presentation/logText.ts';
 import { EVENT_LOG_LIMIT } from '../constants.ts';
+
+// Every action the reducer accepts. Discriminated on `type`.
+export type GameAction =
+  | { type: 'attack'; id: string }
+  | { type: 'move'; destination: Position }
+  | { type: 'end-turn' }
+  | { type: 'finish-enemy-turn' }
+  | { type: 'complete-movement'; id: number }
+  | { type: 'enemy-step' }
+  | { type: 'ability'; name: string }
+  | { type: 'select'; id: string }
+  | { type: 'target'; id: string }
+  | { type: 'toggle-move-mode' }
+  | { type: 'move-mode' }
+  | { type: 'advance-movement'; id: number }
+  | { type: 'regenerate'; seed: number }
+  | { type: 'restore-state'; state: GameState }
+  | { type: 'toggle-levels' }
+  | { type: 'clear-shot' }
+  | { type: 'finish-shot'; id: number };
 
 // Pure state transition. Returns { state, events }; events are plain objects (see presentation/events.js).
 // Actions that resolve shots or enemy steps return their events; everything else returns none.
-function reduce(state, action) {
+function reduce(state: GameState, action: GameAction): StepResult {
   switch (action.type) {
     case 'attack': {
       if (state.phase !== 'player' || state.movement) return { state, events: [] };
@@ -36,8 +57,8 @@ function reduce(state, action) {
     case 'finish-enemy-turn':
       return finishEnemyTurn(state);
     case 'complete-movement': {
-      if (state.movement?.id !== action.id) return { state, events: [] };
-      const mover = state.units.find((unit) => unit.id === state.movement.unitId);
+      if (!state.movement || state.movement.id !== action.id) return { state, events: [] };
+      const mover = state.units.find((unit) => unit.id === state.movement?.unitId);
       const cleared = { ...state, movement: null };
       if (mover?.team === 'alien' && state.phase === 'enemy') {
         const alerts = refreshAlerts(cleared);
@@ -58,7 +79,7 @@ function reduce(state, action) {
 
 // Overwatch ends the unit's turn. Selection moves on if another player unit has AP;
 // when no player unit has AP left, the player round ends (end-turn events are returned too).
-function ability(state) {
+function ability(state: GameState): StepResult {
   const used = useAbility(state);
   if (used.events.length === 0) return used;
   const handed = selectNextReadyPlayer(used.state);
@@ -69,7 +90,7 @@ function ability(state) {
 }
 
 // The only public mutation entry point for game state. Helpers never mutate.
-export function gameReducer(state, action) {
+export function gameReducer(state: GameState, action: GameAction): GameState {
   const { state: next, events } = reduce(state, action);
   if (events.length === 0) return next;
   return {
@@ -79,7 +100,7 @@ export function gameReducer(state, action) {
   };
 }
 
-function applyAction(state, action) {
+function applyAction(state: GameState, action: GameAction): GameState {
   switch (action.type) {
     case 'select':
       if (state.phase !== 'player' || state.movement) return state;

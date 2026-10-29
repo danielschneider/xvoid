@@ -1,3 +1,4 @@
+import type { Battlefield, Position } from '../types.ts';
 import { cellKey } from '../grid/cells.ts';
 import { MISS_OVERSHOOT } from '../constants.ts';
 
@@ -6,7 +7,11 @@ const SAMPLES_PER_FIELD = 10;
 
 // Distance (in fields) a missed shot keeps flying past `target`, away from `shooter`.
 // Stops before the first wall cell on the line, and never exceeds MISS_OVERSHOOT.
-export function missOvershoot(map, shooter, target) {
+export function missOvershoot(
+  map: Battlefield,
+  shooter: Position & { level: number },
+  target: Position & { level: number }
+): number {
   const dx = target.x - shooter.x;
   const dz = target.z - shooter.z;
   const length = Math.hypot(dx, dz);

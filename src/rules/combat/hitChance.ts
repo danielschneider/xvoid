@@ -1,28 +1,29 @@
-import { getCoverAgainst } from './cover.ts';
+import type { GameState, Position, Unit } from '../types.ts';
+import { getCoverAgainst, type CoverAgainst } from './cover.ts';
 import { hasLineOfSight } from '../sight/line.ts';
 import { clamp, spawnDistance } from '../geometry.ts';
 import { COVER_VALUE, CRIT_CHANCE, ENEMY_COVER_FACTOR, FLANK_COVER_VALUE, SHOT_RANGE } from '../constants.ts';
 
 // Per-cell distance modifier: +0.05 per cell inside 5, -0.05 per cell beyond it.
 // Max range (SHOT_RANGE) costs -0.25 instead of -0.5.
-export function computeDistanceModifier(distance) {
+export function computeDistanceModifier(distance: number): number {
   return (5 - distance) * 0.05;
 }
 
 // Cover from the side the shot arrives at. A flanking shot gets no cover.
-export function computeCoverFor(state, shooter, target) {
+export function computeCoverFor(state: GameState, shooter: Position, target: Position & { level: number }): CoverAgainst {
   return getCoverAgainst(state.map, target, shooter);
 }
 
 // Defence value of a target against one shot: a flank is negative (raises hit chance),
 // otherwise the cover tier's value applies.
-function defenceValue({ cover: tier, flanked }) {
+function defenceValue({ cover: tier, flanked }: CoverAgainst): number {
   return flanked ? FLANK_COVER_VALUE : COVER_VALUE[tier];
 }
 
 // Living enemies that currently flank `target`: they have a clear shot within range
 // and arrive from a side without cover while the target is covered elsewhere.
-export function getFlankedBy(state, target) {
+export function getFlankedBy(state: GameState, target: Unit): Unit[] {
   if (target.hp <= 0) return [];
   return state.units.filter(
     (unit) =>
@@ -35,7 +36,7 @@ export function getFlankedBy(state, target) {
 }
 
 // Terms of the player-shot hit chance, shown one-to-one in the combat preview.
-export function computePlayerHitParts(state, shooter, target) {
+export function computePlayerHitParts(state: GameState, shooter: Unit, target: Unit) {
   const { cover: tier, flanked } = computeCoverFor(state, shooter, target);
   const distance = spawnDistance(shooter, target);
   return {
@@ -49,7 +50,7 @@ export function computePlayerHitParts(state, shooter, target) {
   };
 }
 
-export function computeHitChance(state, shooter, target, enemyShot = false) {
+export function computeHitChance(state: GameState, shooter: Unit, target: Unit, enemyShot = false): number {
   if (enemyShot) {
     const cover = computeCoverFor(state, shooter, target);
     const distance = spawnDistance(shooter, target);

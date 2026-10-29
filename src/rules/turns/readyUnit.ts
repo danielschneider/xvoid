@@ -1,8 +1,10 @@
+import type { GameState, Unit } from '../types.ts';
+
 // The one definition of "next ready unit". Pure: depends only on the passed state.
 // Walks living player units in roster order, starting after the selected unit and
 // wrapping around. The selected unit itself is never returned. Returns the first unit
 // with AP left, or null when the phase is not 'player' or no other unit is ready.
-export function getNextReadyUnit(state) {
+export function getNextReadyUnit(state: GameState): Unit | null {
   if (state.phase !== 'player') return null;
   const players = state.units.filter((unit) => unit.team === 'player' && unit.hp > 0);
   const count = players.length;

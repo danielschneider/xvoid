@@ -1,10 +1,11 @@
+import type { GameState, StepResult } from '../types.ts';
 import { getNextReadyUnit } from './readyUnit.ts';
 import { refreshAlerts } from '../ai/alerts.ts';
 import { AP_ACTION_COST, AP_PER_TURN } from '../constants.ts';
-import { overwatchEvent, roundStartEvent, turnStartEvent } from '../../presentation/events.js';
+import { overwatchEvent, roundStartEvent, turnStartEvent } from '../../presentation/events.ts';
 
 // Hands selection to the next ready unit only once the selected unit is spent.
-export function selectNextReadyPlayer(state) {
+export function selectNextReadyPlayer(state: GameState): GameState {
   if (state.phase !== 'player') return state;
   const current = state.units.find((unit) => unit.id === state.selectedId);
   if (!current || current.team !== 'player' || current.ap > 0) return state;
@@ -13,10 +14,10 @@ export function selectNextReadyPlayer(state) {
 }
 
 // Returns { state, events }; overwatch spends all of the unit's remaining AP and emits an overwatch event.
-export function useAbility(state) {
+export function useAbility(state: GameState): StepResult {
   const unit = state.units.find((entry) => entry.id === state.selectedId);
   if (!unit || unit.ap < AP_ACTION_COST || unit.team !== 'player') return { state, events: [] };
-  const next = {
+  const next: GameState = {
     ...state,
     units: state.units.map((entry) => (entry.id === unit.id ? { ...entry, ap: 0, status: 'overwatch' } : entry)),
   };
@@ -24,12 +25,12 @@ export function useAbility(state) {
 }
 
 // Returns { state, events }: the alerts raised by the end-of-turn check, then turn-start.
-export function endTurn(stateIn) {
+export function endTurn(stateIn: GameState): StepResult {
   if (stateIn.phase !== 'player' || stateIn.movement) return { state: stateIn, events: [] };
   const alerts = refreshAlerts(stateIn);
   const state = alerts.state;
   const enemyTurnOrder = state.units.filter((unit) => unit.team === 'alien' && unit.hp > 0).map((unit) => unit.id);
-  const next = {
+  const next: GameState = {
     ...state,
     phase: 'enemy',
     enemyTurnOrder,
@@ -41,14 +42,14 @@ export function endTurn(stateIn) {
 }
 
 // Returns { state, events }: round-start for the new round when the enemy phase is over.
-export function finishEnemyTurn(state) {
+export function finishEnemyTurn(state: GameState): StepResult {
   if (state.phase !== 'enemy' || state.enemyTurnIndex < state.enemyTurnOrder.length) return { state, events: [] };
   const players = state.units.filter((unit) => unit.team === 'player' && unit.hp > 0);
   const units = state.units.map((unit) => ({ ...unit, ap: unit.hp > 0 ? AP_PER_TURN : 0, status: null }));
   // Every new round starts with the first living player unit in roster order.
   const selectedId = players[0]?.id || null;
   const turn = state.turn + 1;
-  const next = {
+  const next: GameState = {
     ...state,
     units,
     turn,

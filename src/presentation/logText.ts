@@ -1,17 +1,34 @@
-import { EVENT_TYPES } from './events.js';
+import type { EnemyIntent, EnemyRole } from '../rules/types.ts';
+import { EVENT_TYPES } from './events.ts';
+import type { GameEvent, MoveEvent, ShotEvent } from './events.ts';
 
 // Comms log copy. Rules emit events with the data; this file owns every log string.
 // Identical to the strings the reducer used to build inline.
 
 export const LOG_LIMIT = 5;
 
+export type LogKind = 'system' | 'combat' | 'hit' | 'move';
+
+export interface LogLine {
+  text: string;
+  kind: LogKind;
+}
+
+export interface LogEntry extends LogLine {
+  id: number;
+}
+
 // Entry shown before the first event (state.logs starts with it).
-export const INTRO_LOG = Object.freeze({ id: 1, text: 'Einsatz bereit. Halte die Position.', kind: 'system' });
+export const INTRO_LOG: LogEntry = Object.freeze({
+  id: 1,
+  text: 'Einsatz bereit. Halte die Position.',
+  kind: 'system',
+});
 
-const entry = (text, kind) => ({ text, kind });
+const entry = (text: string, kind: LogKind): LogLine => ({ text, kind });
 
-// Enemy wording per role and intent (the intents are 'hold', 'advance', 'retreat' and 'cover').
-export const ENEMY_TEXT = Object.freeze({
+// Enemy wording per role and intent. Partial because not every role has every intent.
+export const ENEMY_TEXT: Readonly<Record<EnemyRole, Partial<Record<EnemyIntent, string>>>> = Object.freeze({
   raider: { hold: 'hält die Position', advance: 'rückt vor', cover: 'geht in Deckung' },
   stalker: { hold: 'bleibt verborgen', advance: 'rückt vor', cover: 'verschwindet hinter Deckung' },
   scout: { hold: 'hält die Position', advance: 'rückt vor', retreat: 'zieht sich zurück', cover: 'geht in Deckung' },
@@ -22,18 +39,18 @@ export const ENEMY_TEXT = Object.freeze({
   sneaker: { hold: 'lauert im Schatten', advance: 'schleicht sich heran', cover: 'verschwindet im Schatten' },
 });
 
-const BLOCKED_TEXT = Object.freeze({
+export const BLOCKED_TEXT: Readonly<Record<'sight' | 'range', string>> = Object.freeze({
   sight: 'Schusslinie blockiert.',
   range: 'Ziel außer Reichweite.',
 });
 
-function enemyVerb(role, intent) {
+function enemyVerb(role: EnemyRole, intent: EnemyIntent): string {
   const verb = ENEMY_TEXT[role]?.[intent];
-  if (!verb) throw new Error(`No log wording for role ${String(role)} intent ${String(intent)}`);
+  if (!verb) throw new Error(`No log wording for role ${role} intent ${intent}`);
   return verb;
 }
 
-function shotLine(event) {
+function shotLine(event: ShotEvent): LogLine {
   const prefix = event.reaction ? 'Overwatch: ' : '';
   if (!event.hit) return entry(`${prefix}${event.shooterName} verfehlt ${event.targetName}.`, 'combat');
   if (event.crit) {
@@ -45,32 +62,40 @@ function shotLine(event) {
   return entry(`${prefix}${event.shooterName} trifft ${event.targetName} für ${event.damage} Schaden.`, 'hit');
 }
 
-function moveLine(event) {
+// Player walks and patrols have fixed wording; enemy intents resolve through ENEMY_TEXT.
+function moveLine(event: MoveEvent): LogLine {
   if (event.intent === 'walk') return entry(`${event.name} rückt ${event.steps} Felder vor.`, 'move');
   if (event.intent === 'patrol') return entry(`${event.name} patrouilliert.`, 'move');
+  if (!event.role) throw new Error(`Enemy move ${event.unitId} has no role`);
   return entry(`${event.name} ${enemyVerb(event.role, event.intent)}.`, 'move');
 }
 
-// One line per event type. Types missing from this table (death, alert, enemy-turn-end) add no log entry.
-const LINES = {
-  [EVENT_TYPES.shot]: shotLine,
-  [EVENT_TYPES.blocked]: (event) => entry(BLOCKED_TEXT[event.reason], 'combat'),
-  [EVENT_TYPES.move]: moveLine,
-  [EVENT_TYPES.hold]: (event) => entry(`${event.name} ${enemyVerb(event.role, 'hold')}.`, 'combat'),
-  [EVENT_TYPES.overwatch]: (event) => entry(`${event.name}: Overwatch.`, 'system'),
-  [EVENT_TYPES.turnStart]: () => entry('Feindzug beginnt.', 'combat'),
-  [EVENT_TYPES.roundStart]: (event) => entry(`Runde ${event.turn}: Zug deiner Einheit.`, 'system'),
-};
-
+// One line per event type. Types without a case (death, alert, enemy-turn-end) add no log entry.
 // Returns { text, kind } for an event that shows in the log, or null.
-export function logLine(event) {
-  const line = LINES[event.type];
-  return line ? line(event) : null;
+export function logLine(event: GameEvent): LogLine | null {
+  switch (event.type) {
+    case EVENT_TYPES.shot:
+      return shotLine(event);
+    case EVENT_TYPES.blocked:
+      return entry(BLOCKED_TEXT[event.reason], 'combat');
+    case EVENT_TYPES.move:
+      return moveLine(event);
+    case EVENT_TYPES.hold:
+      return entry(`${event.name} ${enemyVerb(event.role, 'hold')}.`, 'combat');
+    case EVENT_TYPES.overwatch:
+      return entry(`${event.name}: Overwatch.`, 'system');
+    case EVENT_TYPES.turnStart:
+      return entry('Feindzug beginnt.', 'combat');
+    case EVENT_TYPES.roundStart:
+      return entry(`Runde ${event.turn}: Zug deiner Einheit.`, 'system');
+    default:
+      return null;
+  }
 }
 
 // Prepends one log entry per renderable event, newest first, and keeps the newest `limit`.
 // Returns the same array when no event is renderable.
-export function appendLogs(logs, events, limit = LOG_LIMIT) {
+export function appendLogs(logs: LogEntry[], events: GameEvent[], limit: number = LOG_LIMIT): LogEntry[] {
   let next = logs;
   for (const event of events) {
     const line = logLine(event);

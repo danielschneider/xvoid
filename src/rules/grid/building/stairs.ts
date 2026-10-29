@@ -5,7 +5,7 @@ import type { Cell, Position, Room } from '../../types.ts';
 // Each access point is a single stair cell per floor, linked vertically through
 // `transitions` (both directions), so a blocked corner cannot cut off a floor.
 
-export function stairCorners(room) {
+export function stairCorners(room: Room): Position[] {
   const left = room.x + 1;
   const right = room.x + room.w - 2;
   const top = room.z + 1;

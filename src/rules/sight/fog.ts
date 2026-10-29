@@ -1,4 +1,4 @@
-import type { Battlefield, Unit } from '../types.ts';
+import type { Battlefield, Cell, Position, Unit } from '../types.ts';
 import { FOG_REVEAL_RANGE } from '../constants.ts';
 import { cellKey, isPassable } from '../grid/cells.ts';
 
@@ -14,7 +14,13 @@ const SIGHT_OFFSETS = [
   [SIGHT_INSET, SIGHT_INSET],
 ];
 
-function hasSightRay(map, from, targetX, targetZ, level) {
+function hasSightRay(
+  map: Battlefield,
+  from: Position,
+  targetX: number,
+  targetZ: number,
+  level: number
+): boolean {
   const dx = targetX - from.x;
   const dz = targetZ - from.z;
   const steps = Math.ceil(Math.max(Math.abs(dx), Math.abs(dz)) * 4);
@@ -29,7 +35,7 @@ function hasSightRay(map, from, targetX, targetZ, level) {
   return true;
 }
 
-function canSeeCell(map, observer, cell) {
+function canSeeCell(map: Battlefield, observer: Unit, cell: Cell): boolean {
   const level = Math.min(observer.level, cell.level);
   return SIGHT_OFFSETS.some(([ox, oz]) => hasSightRay(map, observer, cell.x + ox, cell.z + oz, level));
 }

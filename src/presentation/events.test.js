@@ -9,7 +9,7 @@ import {
   deathEvent,
   alertEvent,
   enemyTurnEndEvent,
-} from './events.js';
+} from './events.ts';
 
 test('event constructors produce plain objects with a type tag', () => {
   assert.deepEqual(

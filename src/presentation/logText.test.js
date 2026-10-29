@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { appendLogs, logLine, INTRO_LOG, LOG_LIMIT } from './logText.js';
+import { appendLogs, logLine, INTRO_LOG, LOG_LIMIT } from './logText.ts';
 import {
   shotEvent,
   blockedEvent,
@@ -12,7 +12,7 @@ import {
   roundStartEvent,
   overwatchEvent,
   holdEvent,
-} from './events.js';
+} from './events.ts';
 
 const shot = (overrides) =>
   shotEvent({

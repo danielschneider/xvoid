@@ -1,9 +1,10 @@
+import type { Battlefield, Room } from '../../types.ts';
 import { cellKey } from '../cells.ts';
 import { isPerimeter } from './footprint.ts';
 
 // Upper floors span the full footprint. Edge cells become 'rail': non-walkable and
 // see-through, so the player sees across the floor. Interior cells are 'floor'.
-export function raiseFloor(cells, room, level) {
+export function raiseFloor(cells: Battlefield['cells'], room: Room, level: number): void {
   for (let z = room.z; z < room.z + room.h; z += 1) {
     for (let x = room.x; x < room.x + room.w; x += 1) {
       const key = cellKey({ x, z, level });

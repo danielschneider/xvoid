@@ -1,22 +1,24 @@
+import type { GameState, Position, StepResult } from '../types.ts';
 import { cellKey } from '../grid/cells.ts';
 import { getVisibleCells } from '../sight/fog.ts';
 import { spawnDistance } from '../geometry.ts';
 import { GROUP_RANGE } from '../constants.ts';
-import { alertEvent } from '../../presentation/events.js';
+import { alertEvent } from '../../presentation/events.ts';
+import { isEnemy } from '../types.ts';
 
 // Enemies within GROUP_RANGE of each other (chained) form one group. A group is
 // alerted once any member is visible to the squad; only alerted groups hunt or shoot.
-export function assignEnemyGroups(cells) {
+export function assignEnemyGroups(cells: Position[]): number[] {
   const groupIds = cells.map(() => -1);
   let nextGroup = 0;
   cells.forEach((_, start) => {
     if (groupIds[start] >= 0) return;
     const stack = [start];
     groupIds[start] = nextGroup;
-    while (stack.length > 0) {
-      const current = stack.pop();
+    for (let current = stack.pop(); current !== undefined; current = stack.pop()) {
+      const from = cells[current];
       cells.forEach((other, index) => {
-        if (groupIds[index] < 0 && spawnDistance(cells[current], other) <= GROUP_RANGE) {
+        if (groupIds[index] < 0 && spawnDistance(from, other) <= GROUP_RANGE) {
           groupIds[index] = nextGroup;
           stack.push(index);
         }
@@ -29,14 +31,14 @@ export function assignEnemyGroups(cells) {
 
 // Marks every enemy group that has a member inside the squad's vision as alerted.
 // Returns { state, events }: one alert event per group that was not alerted before.
-export function refreshAlerts(state) {
+export function refreshAlerts(state: GameState): StepResult {
   const players = state.units.filter((unit) => unit.team === 'player' && unit.hp > 0);
   const visibleCells = getVisibleCells(state.map, players);
   const previous = state.alertedGroups ?? [];
   const alerted = new Set(previous);
-  const events = [];
+  const events: StepResult['events'] = [];
   for (const unit of state.units) {
-    if (unit.team === 'alien' && unit.hp > 0 && visibleCells.has(cellKey(unit)) && !alerted.has(unit.groupId)) {
+    if (isEnemy(unit) && unit.hp > 0 && visibleCells.has(cellKey(unit)) && !alerted.has(unit.groupId)) {
       alerted.add(unit.groupId);
       events.push(alertEvent({ groupId: unit.groupId }));
     }

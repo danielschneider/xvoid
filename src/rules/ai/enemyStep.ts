@@ -1,5 +1,6 @@
-import { cellKey } from '../grid/cells.ts';
-import { getReachable } from '../movement/pathfinding.ts';
+import type { Cell, Enemy, GameState, Position, StepResult, Unit } from '../types.ts';
+import { cellKey, occupiedKeys } from '../grid/cells.ts';
+import { getReachable, type ReachablePath } from '../movement/pathfinding.ts';
 import { moveEnemy } from '../movement/moveUnit.ts';
 import { getVisibleCells } from '../sight/fog.ts';
 import { hasLineOfSight } from '../sight/line.ts';
@@ -8,25 +9,35 @@ import { fireAt } from '../combat/resolveShot.ts';
 import { refreshAlerts } from './alerts.ts';
 import { wanderEnemy } from './wander.ts';
 import { chooseCoverDestination } from './takeCover.ts';
-import { getRole } from './roles.ts';
+import { getRole, type Role } from './roles.ts';
 import { rearDistance } from './rearApproach.ts';
 import { AP_ACTION_COST, ENEMY_SHOT_RANGE } from '../constants.ts';
-import { enemyTurnEndEvent, holdEvent } from '../../presentation/events.js';
+import { enemyTurnEndEvent, holdEvent } from '../../presentation/events.ts';
+import { isEnemy } from '../types.ts';
 
-const dist = (a, b) => Math.hypot(a.x - b.x, a.z - b.z);
-const postOf = (enemy) => ({ x: enemy.postX, z: enemy.postZ });
-const none = (state) => ({ state, events: [] });
+// A reachable destination: the cell plus the path data from getReachable.
+type Destination = ReachablePath & { cell: Cell };
+
+const dist = (a: Position, b: Position) => Math.hypot(a.x - b.x, a.z - b.z);
+const postOf = (enemy: Enemy): Position => ({ x: enemy.postX, z: enemy.postZ, level: 0 });
+const none = (state: GameState): StepResult => ({ state, events: [] });
 
 // Picks the shot target from revealed players (already sorted nearest first).
-function chooseShotTarget(state, enemy, revealed, role) {
+function chooseShotTarget(state: GameState, enemy: Enemy, revealed: Unit[], role: Role): Unit {
   if (role.targetChoice !== 'exposed') return revealed[0];
-  const score = (unit) => dist(unit, enemy) + computeCoverFor(state, enemy, unit).cover * 2;
+  const score = (unit: Unit) => dist(unit, enemy) + computeCoverFor(state, enemy, unit).cover * 2;
   return [...revealed].sort((a, b) => score(a) - score(b))[0];
 }
 
 // Orders candidate destinations; the first entry is the one chosen.
-function sortDestinations(destinations, target, enemy, role, retreating) {
-  const toTarget = (cell) => dist(target, cell);
+function sortDestinations(
+  destinations: Destination[],
+  target: Position,
+  enemy: Enemy,
+  role: Role,
+  retreating: boolean
+): Destination[] {
+  const toTarget = (cell: Position) => dist(target, cell);
   if (retreating) return [...destinations].sort((a, b) => toTarget(b.cell) - toTarget(a.cell) || b.steps - a.steps);
   if (role.movePreference === 'post') {
     return [...destinations].sort((a, b) => dist(a.cell, postOf(enemy)) - dist(b.cell, postOf(enemy)));
@@ -40,11 +51,18 @@ function sortDestinations(destinations, target, enemy, role, retreating) {
 }
 
 // Filters destinations by role movement preference. Returns the candidates in order.
-function chooseDestinations(state, enemy, target, role, retreating, visibleCells) {
+function chooseDestinations(
+  state: GameState,
+  enemy: Enemy,
+  target: Position,
+  role: Role,
+  retreating: boolean,
+  visibleCells: Set<string>
+): Destination[] {
   const distance = dist(target, enemy);
-  const blocked = new Set(state.units.filter((unit) => unit.id !== enemy.id && unit.hp > 0).map(cellKey));
+  const blocked = occupiedKeys(state.units, enemy.id);
   const paths = getReachable(state.map, enemy, blocked, role.maxSteps);
-  let destinations = [...paths.entries()].map(([key, path]) => ({ cell: state.map.cells[key], ...path }));
+  let destinations: Destination[] = [...paths.entries()].map(([key, path]) => ({ cell: state.map.cells[key], ...path }));
   if (role.movePreference === 'flank' && !retreating) {
     // Flankers may move sideways or away to reach the rear arc, but never close in from the front.
     destinations = destinations.filter(({ cell }) => rearDistance(target, cell) < rearDistance(target, enemy));
@@ -71,19 +89,19 @@ function chooseDestinations(state, enemy, target, role, retreating, visibleCells
 // Returns { state, events } for one enemy's turn: alert events from refreshAlerts first,
 // then the events of the step itself, then enemy-turn-end when a living enemy's turn was used up.
 // Never mutates `stateIn`.
-export function enemyStep(stateIn) {
+export function enemyStep(stateIn: GameState): StepResult {
   const alerts = refreshAlerts(stateIn);
   const enemyId = alerts.state.enemyTurnOrder[alerts.state.enemyTurnIndex];
-  const enemy = alerts.state.units.find((unit) => unit.id === enemyId && unit.hp > 0);
+  const enemy = alerts.state.units.find((unit): unit is Enemy => isEnemy(unit) && unit.id === enemyId && unit.hp > 0);
   const step = takeEnemyTurn(alerts.state);
   const ended =
     enemy && step.state.enemyTurnIndex > alerts.state.enemyTurnIndex ? [enemyTurnEndEvent({ enemyId: enemy.id })] : [];
   return { state: step.state, events: [...alerts.events, ...step.events, ...ended] };
 }
 
-function takeEnemyTurn(state) {
+function takeEnemyTurn(state: GameState): StepResult {
   if (state.phase !== 'enemy' || state.enemyTurnIndex >= state.enemyTurnOrder.length) return none(state);
-  const enemy = state.units.find((unit) => unit.id === state.enemyTurnOrder[state.enemyTurnIndex] && unit.hp > 0);
+  const enemy = state.units.find((unit): unit is Enemy => isEnemy(unit) && unit.id === state.enemyTurnOrder[state.enemyTurnIndex] && unit.hp > 0);
   if (!enemy) return none({ ...state, enemyTurnIndex: state.enemyTurnIndex + 1 });
   const role = getRole(enemy);
 
