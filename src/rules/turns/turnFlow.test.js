@@ -1,9 +1,9 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { gameReducer } from './reducer.js';
-import { enemyStep } from '../ai/enemyStep.js';
-import { endTurn, finishEnemyTurn, useAbility } from './actions.js';
-import { createInitialState } from '../spawn/initialState.js';
+import { gameReducer } from './reducer.ts';
+import { enemyStep } from '../ai/enemyStep.ts';
+import { endTurn, finishEnemyTurn, useAbility } from './actions.ts';
+import { createInitialState } from '../spawn/initialState.ts';
 
 // 12x3 open floor on level 0 with no transitions: enough for sight, pathing and fog.
 const openMap = {

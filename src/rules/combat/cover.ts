@@ -1,4 +1,4 @@
-import { cellKey } from '../grid/cells.js';
+import { cellKey } from '../grid/cells.ts';
 
 // Cover is measured per side of a cell: the neighbour on that side on the same
 // level decides it. Tier 2 = full (wall, pillar), tier 1 = half (console), 0 = open.

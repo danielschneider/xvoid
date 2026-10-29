@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import * as rules from './index.js';
+import * as rules from './index.ts';
 
 // Smoke test: every symbol the UI and selectors import from rules/ is exported by the public index.
 const PUBLIC_API = [
@@ -22,7 +22,7 @@ const PUBLIC_API = [
   'getVisibleCells',
 ];
 
-test('rules/index.js exposes the UI-facing API', () => {
+test('rules/index.ts exposes the UI-facing API', () => {
   for (const name of PUBLIC_API) {
     assert.notEqual(rules[name], undefined, `missing export ${name}`);
   }

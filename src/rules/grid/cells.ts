@@ -1,4 +1,4 @@
-export const cellKey = ({ x, z, level = 0 }) => `${x},${z},${level}`;
+export const cellKey = ({ x, z, level = 0 }: { x: number; z: number; level?: number }): string => `${x},${z},${level}`;
 // Height of a cell in steps. Currently the storey index only: no generator sets an
 // elevation, so this is the single place to change if terrain height is added later.
 export const cellHeight = (cell) => cell?.level || 0;

@@ -1,5 +1,6 @@
-import { FOG_REVEAL_RANGE } from '../constants.js';
-import { cellKey, isPassable } from '../grid/cells.js';
+import type { Battlefield, Unit } from '../types.ts';
+import { FOG_REVEAL_RANGE } from '../constants.ts';
+import { cellKey, isPassable } from '../grid/cells.ts';
 
 // Fog sight is more forgiving than combat LOS: a cell counts as seen when any ray from
 // the observer to the cell's centre or inset corners is clear. This keeps floor beside
@@ -41,9 +42,9 @@ const SIGHT_DIRECTIONS = [
   [0, -1],
 ];
 
-export function getVisibleCells(map, units) {
+export function getVisibleCells(map: Battlefield, units: Unit[]): Set<string> {
   const observers = units.filter((unit) => unit.team === 'player' && unit.hp > 0);
-  const visible = new Set();
+  const visible = new Set<string>();
   for (const cell of Object.values(map.cells)) {
     if (
       observers.some(
@@ -61,7 +62,8 @@ export function getVisibleCells(map, units) {
     const behindBox = SIGHT_DIRECTIONS.some(([dx, dz]) => {
       const box = map.cells[cellKey({ x: cell.x + dx, z: cell.z + dz, level: cell.level })];
       const beyond = map.cells[cellKey({ x: cell.x - dx, z: cell.z - dz, level: cell.level })];
-      return visible.has(cellKey(box ?? {})) && COVER_BOXES.has(box?.terrain) && SOLID_TERRAIN.has(beyond?.terrain);
+      if (!box) return false;
+      return visible.has(cellKey(box)) && COVER_BOXES.has(box.terrain) && SOLID_TERRAIN.has(beyond?.terrain);
     });
     if (behindBox) visible.add(key);
   }

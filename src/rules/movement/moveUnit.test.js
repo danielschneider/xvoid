@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { moveEnemy, moveUnit } from './moveUnit.js';
-import { gameReducer } from '../turns/reducer.js';
+import { moveEnemy, moveUnit } from './moveUnit.ts';
+import { gameReducer } from '../turns/reducer.ts';
 
 // Open 12x3 floor on level 0, no transitions: every cell is walkable.
 const openMap = {

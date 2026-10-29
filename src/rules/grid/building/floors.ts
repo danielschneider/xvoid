@@ -1,5 +1,5 @@
-import { cellKey } from '../cells.js';
-import { isPerimeter } from './footprint.js';
+import { cellKey } from '../cells.ts';
+import { isPerimeter } from './footprint.ts';
 
 // Upper floors span the full footprint. Edge cells become 'rail': non-walkable and
 // see-through, so the player sees across the floor. Interior cells are 'floor'.

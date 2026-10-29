@@ -1,6 +1,6 @@
 // Unit templates (data only). Player units: moveRange is max steps per turn at
 // full AP. power is a flat damage bonus on player shots (enemy shots ignore it).
-import { AP_PER_TURN } from './constants.js';
+import { AP_PER_TURN } from './constants.ts';
 
 export const PLAYER_TEMPLATES = [
   {

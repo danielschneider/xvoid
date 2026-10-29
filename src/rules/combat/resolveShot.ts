@@ -1,11 +1,11 @@
-import { cellKey } from '../grid/cells.js';
-import { getVisibleCells } from '../sight/fog.js';
-import { hasLineOfSight } from '../sight/line.js';
-import { makeRandom } from '../rng.js';
-import { facingToward } from '../geometry.js';
-import { computeCritChance, computeHitChance } from './hitChance.js';
-import { missOvershoot } from './trajectory.js';
-import { AP_ACTION_COST, CRIT_MULTIPLIER, OVERWATCH_RANGE, SHOT_RANGE } from '../constants.js';
+import { cellKey } from '../grid/cells.ts';
+import { getVisibleCells } from '../sight/fog.ts';
+import { hasLineOfSight } from '../sight/line.ts';
+import { makeRandom } from '../rng.ts';
+import { facingToward } from '../geometry.ts';
+import { computeCritChance, computeHitChance } from './hitChance.ts';
+import { missOvershoot } from './trajectory.ts';
+import { AP_ACTION_COST, CRIT_MULTIPLIER, OVERWATCH_RANGE, SHOT_RANGE } from '../constants.ts';
 import { blockedEvent, deathEvent, shotEvent } from '../../presentation/events.js';
 
 // Returns { state, events }. Blocked or out-of-range attempts resolve without a shot event.

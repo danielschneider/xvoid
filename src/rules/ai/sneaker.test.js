@@ -1,8 +1,8 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { createInitialState, gameReducer } from '../../engine/game.js';
-import { isBehind, rearDistance } from './rearApproach.js';
-import { ROLES } from './roles.js';
+import { isBehind, rearDistance } from './rearApproach.ts';
+import { ROLES } from './roles.ts';
 
 // A player facing +z (angle 0): rear is toward -z.
 const target = { x: 10, z: 10, facing: 0 };

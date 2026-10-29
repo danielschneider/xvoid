@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { missOvershoot } from './trajectory.js';
-import { MISS_OVERSHOOT } from '../constants.js';
+import { missOvershoot } from './trajectory.ts';
+import { MISS_OVERSHOOT } from '../constants.ts';
 
 const cell = (x, z, terrain = 'floor') => [
   `${x},${z},0`,

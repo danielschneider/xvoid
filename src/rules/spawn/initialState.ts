@@ -1,6 +1,6 @@
-import { createBattlefield } from '../grid/generate.js';
-import { makeRandom } from '../rng.js';
-import { createStartingUnits, initialSelection } from './placement.js';
+import { createBattlefield } from '../grid/generate.ts';
+import { makeRandom } from '../rng.ts';
+import { createStartingUnits, initialSelection } from './placement.ts';
 import { INTRO_LOG } from '../../presentation/logText.js';
 
 export function createInitialState(seed = 20261024, generation = 0) {

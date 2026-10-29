@@ -1,6 +1,6 @@
-import { cellKey } from '../src/rules/grid/cells.js';
-import { hasLineOfSight } from '../src/rules/sight/line.js';
-import { makeRandom } from '../src/rules/rng.js';
+import { cellKey } from '../src/rules/grid/cells.ts';
+import { hasLineOfSight } from '../src/rules/sight/line.ts';
+import { makeRandom } from '../src/rules/rng.ts';
 
 // Shared test builders. Pure helpers only; no assertions.
 

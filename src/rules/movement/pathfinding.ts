@@ -1,5 +1,5 @@
-import { DEFAULT_MOVE_RANGE } from '../constants.js';
-import { cellKey, isPassable, neighborsOf } from '../grid/cells.js';
+import { DEFAULT_MOVE_RANGE } from '../constants.ts';
+import { cellKey, isPassable, neighborsOf } from '../grid/cells.ts';
 
 export function getReachable(
   map,

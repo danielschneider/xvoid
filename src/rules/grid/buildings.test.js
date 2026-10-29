@@ -1,8 +1,8 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { createBattlefield } from './generate.js';
-import { cellKey, isPassable } from './cells.js';
-import { getReachable } from '../movement/pathfinding.js';
+import { createBattlefield } from './generate.ts';
+import { cellKey, isPassable } from './cells.ts';
+import { getReachable } from '../movement/pathfinding.ts';
 
 const SEEDS = [1, 2, 3, 7, 42, 555, 9001, 123456];
 

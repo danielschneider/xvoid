@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { createInitialState } from '../rules/index.js';
+import { createInitialState } from '../rules/index.ts';
 import { selectEnemyCounts, selectFlankedBy, selectTargetWindow } from './hud.js';
 
 test('selectTargetWindow is closed without a shooter or target', () => {

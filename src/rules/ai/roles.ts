@@ -1,4 +1,4 @@
-import { ENEMY_MOVE_STEPS, SCOUT_RETREAT_RANGE } from '../constants.js';
+import { ENEMY_MOVE_STEPS, SCOUT_RETREAT_RANGE } from '../constants.ts';
 
 // One entry per enemy role. enemyStep.js reads these parameters; it has no role-name branches.
 //   maxSteps:       movement budget per alerted turn

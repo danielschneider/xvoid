@@ -1,4 +1,4 @@
-import { cellKey, isPassable, neighborsOf } from './cells.js';
+import { cellKey, isPassable, neighborsOf } from './cells.ts';
 
 // True when every passable cell (all levels) can be reached from a corner anchor.
 // The anchor corner is never covered, so it is always passable.

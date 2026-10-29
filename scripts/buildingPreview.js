@@ -1,7 +1,7 @@
 // Prints ASCII floor plans of generated buildings, one block per floor, for judging layout
 // without rendering. Usage: node scripts/buildingPreview.js [seed ...]
-import { createBattlefield } from '../src/rules/grid/generate.js';
-import { cellKey } from '../src/rules/grid/cells.js';
+import { createBattlefield } from '../src/rules/grid/generate.ts';
+import { cellKey } from '../src/rules/grid/cells.ts';
 
 // Legend: # wall  + door  P pillar  C console  | partition  = rail  S stairs  . floor
 const SYMBOLS = {

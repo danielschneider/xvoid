@@ -1,8 +1,8 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { createInitialState, gameReducer } from '../../engine/game.js';
-import { ROLES, getRole } from './roles.js';
-import { ENEMY_MOVE_STEPS } from '../constants.js';
+import { ROLES, getRole } from './roles.ts';
+import { ENEMY_MOVE_STEPS } from '../constants.ts';
 
 test('every role table entry defines the parameters enemyStep reads', () => {
   assert.deepEqual(Object.keys(ROLES).sort(), [

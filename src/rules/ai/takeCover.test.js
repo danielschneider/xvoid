@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { createInitialState, gameReducer } from '../../engine/game.js';
 import { cellKey } from '../../engine/map.js';
-import { exposureAt } from './takeCover.js';
+import { exposureAt } from './takeCover.ts';
 
 // Builds an alerted enemy turn where only the chosen enemy and one player are alive.
 // The enemy at (c, c) is exposed to a player at (c-3, c). Cell (c+1, c) has cover on its

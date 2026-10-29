@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { createInitialState, gameReducer } from '../../engine/game.js';
 import { cellKey, getReachable, getVisibleCells } from '../../engine/map.js';
-import { ROLES } from '../ai/roles.js';
+import { ROLES } from '../ai/roles.ts';
 
 test('new seeds vary map size, squad size, and spawn positions deterministically', () => {
   const sizes = new Set();

@@ -1,7 +1,7 @@
-import { getCoverAgainst } from './cover.js';
-import { hasLineOfSight } from '../sight/line.js';
-import { clamp, spawnDistance } from '../geometry.js';
-import { COVER_VALUE, CRIT_CHANCE, ENEMY_COVER_FACTOR, FLANK_COVER_VALUE, SHOT_RANGE } from '../constants.js';
+import { getCoverAgainst } from './cover.ts';
+import { hasLineOfSight } from '../sight/line.ts';
+import { clamp, spawnDistance } from '../geometry.ts';
+import { COVER_VALUE, CRIT_CHANCE, ENEMY_COVER_FACTOR, FLANK_COVER_VALUE, SHOT_RANGE } from '../constants.ts';
 
 // Per-cell distance modifier: +0.05 per cell inside 5, -0.05 per cell beyond it.
 // Max range (SHOT_RANGE) costs -0.25 instead of -0.5.

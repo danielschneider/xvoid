@@ -1,11 +1,12 @@
-import { cellKey, isPassable } from '../grid/cells.js';
-import { getReachable } from '../movement/pathfinding.js';
-import { hasLineOfSight } from '../sight/line.js';
-import { assignEnemyGroups } from '../ai/alerts.js';
-import { spawnDistance } from '../geometry.js';
-import { AP_PER_TURN, ENEMY_SHOT_RANGE, VISION_RANGE } from '../constants.js';
-import { ENEMY_TEMPLATES, PLAYER_TEMPLATES } from '../templates.js';
-import { movementLimits } from '../movement/moveUnit.js';
+import type { Battlefield, Unit } from '../types.ts';
+import { cellKey, isPassable } from '../grid/cells.ts';
+import { getReachable } from '../movement/pathfinding.ts';
+import { hasLineOfSight } from '../sight/line.ts';
+import { assignEnemyGroups } from '../ai/alerts.ts';
+import { spawnDistance } from '../geometry.ts';
+import { AP_PER_TURN, ENEMY_SHOT_RANGE, VISION_RANGE } from '../constants.ts';
+import { ENEMY_TEMPLATES, PLAYER_TEMPLATES } from '../templates.ts';
+import { movementLimits } from '../movement/moveUnit.ts';
 
 export function shuffle(items, random) {
   const result = [...items];
@@ -73,7 +74,7 @@ function placeEnemyGroups(candidates, count, random) {
   return placed.slice(0, count);
 }
 
-export function createStartingUnits(map, random) {
+export function createStartingUnits(map: Battlefield, random: () => number): Unit[] {
   const middle = Math.floor(map.size / 2);
   const openGround = Object.values(map.cells).filter((cell) => isPassable(cell) && cell.level === 0 && !cell.structure);
   const enemyCount = map.size >= 48 ? 20 : map.size >= 40 ? 10 : 5;

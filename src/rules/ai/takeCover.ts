@@ -1,9 +1,9 @@
-import { cellKey } from '../grid/cells.js';
-import { getReachable } from '../movement/pathfinding.js';
-import { getCoverAgainst } from '../combat/cover.js';
-import { hasLineOfSight } from '../sight/line.js';
-import { ENEMY_SHOT_RANGE, WANDER_RADIUS } from '../constants.js';
-import { rearDistance } from './rearApproach.js';
+import { cellKey } from '../grid/cells.ts';
+import { getReachable } from '../movement/pathfinding.ts';
+import { getCoverAgainst } from '../combat/cover.ts';
+import { hasLineOfSight } from '../sight/line.ts';
+import { ENEMY_SHOT_RANGE, WANDER_RADIUS } from '../constants.ts';
+import { rearDistance } from './rearApproach.ts';
 
 const dist = (a, b) => Math.hypot(a.x - b.x, a.z - b.z);
 

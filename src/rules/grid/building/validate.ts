@@ -1,4 +1,4 @@
-import { cellKey, isPassable, neighborsOf } from '../cells.js';
+import { cellKey, isPassable, neighborsOf } from '../cells.ts';
 
 // Passable cells of `room` on `level` must all be reachable from `start`, moving through
 // doors, stairs and floors. Only cells inside the footprint are counted, so other

@@ -1,7 +1,7 @@
-import { cellKey } from '../grid/cells.js';
-import { getVisibleCells } from '../sight/fog.js';
-import { spawnDistance } from '../geometry.js';
-import { GROUP_RANGE } from '../constants.js';
+import { cellKey } from '../grid/cells.ts';
+import { getVisibleCells } from '../sight/fog.ts';
+import { spawnDistance } from '../geometry.ts';
+import { GROUP_RANGE } from '../constants.ts';
 import { alertEvent } from '../../presentation/events.js';
 
 // Enemies within GROUP_RANGE of each other (chained) form one group. A group is

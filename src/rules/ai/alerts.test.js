@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { refreshAlerts } from './alerts.js';
+import { refreshAlerts } from './alerts.ts';
 
 const openMap = {
   transitions: {},

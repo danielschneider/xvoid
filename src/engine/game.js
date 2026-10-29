@@ -7,9 +7,9 @@ export {
   COVER_VALUE,
   CRIT_CHANCE,
   CRIT_MULTIPLIER,
-} from '../rules/constants.js';
+} from '../rules/constants.ts';
 export { cellKey, getReachable, hasLineOfSight } from './map.js';
-export { movementLimits } from '../rules/movement/moveUnit.js';
+export { movementLimits } from '../rules/movement/moveUnit.ts';
 export {
   computeCoverFor,
   computeDistanceModifier,
@@ -17,6 +17,6 @@ export {
   computeHitChance,
   computePlayerHitParts,
   getFlankedBy,
-} from '../rules/combat/hitChance.js';
-export { createInitialState } from '../rules/spawn/initialState.js';
-export { gameReducer } from '../rules/turns/reducer.js';
+} from '../rules/combat/hitChance.ts';
+export { createInitialState } from '../rules/spawn/initialState.ts';
+export { gameReducer } from '../rules/turns/reducer.ts';

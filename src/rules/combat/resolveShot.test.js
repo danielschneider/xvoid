@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { fireAt, resolveOverwatch } from './resolveShot.js';
-import { gameReducer } from '../turns/reducer.js';
+import { fireAt, resolveOverwatch } from './resolveShot.ts';
+import { gameReducer } from '../turns/reducer.ts';
 
 // Open 12x3 floor on level 0: line of sight is clear and cover is zero everywhere.
 // Fog (used by overwatch) needs real cells, so the grid is explicit.

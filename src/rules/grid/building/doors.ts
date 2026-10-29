@@ -1,5 +1,5 @@
-import { cellKey } from '../cells.js';
-import { doorCells, oppositeSide } from './footprint.js';
+import { cellKey } from '../cells.ts';
+import { doorCells, oppositeSide } from './footprint.ts';
 
 // Chooses door sides for a building: main door faces the corridor row/column nearest the
 // building, plus an optional second door on the opposite side. Returns { sides, width }.
@@ -19,7 +19,7 @@ export function chooseDoors(room, middle, anchor, random) {
 
 // Lane cells just inside each door (one cell deep). Box placement must not block these.
 export function laneKeys(room, sides, width) {
-  const lane = new Set();
+  const lane = new Set<string>();
   for (const side of sides) {
     for (const cell of doorCells(room, side, width)) {
       const inside = {

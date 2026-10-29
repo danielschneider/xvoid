@@ -1,13 +1,13 @@
-import { moveUnit } from '../movement/moveUnit.js';
-import { fireAt, resolveOverwatch } from '../combat/resolveShot.js';
-import { refreshAlerts } from '../ai/alerts.js';
-import { enemyStep } from '../ai/enemyStep.js';
-import { createInitialState } from '../spawn/initialState.js';
-import { facingToward } from '../geometry.js';
-import { endTurn, finishEnemyTurn, selectNextReadyPlayer, useAbility } from './actions.js';
+import { moveUnit } from '../movement/moveUnit.ts';
+import { fireAt, resolveOverwatch } from '../combat/resolveShot.ts';
+import { refreshAlerts } from '../ai/alerts.ts';
+import { enemyStep } from '../ai/enemyStep.ts';
+import { createInitialState } from '../spawn/initialState.ts';
+import { facingToward } from '../geometry.ts';
+import { endTurn, finishEnemyTurn, selectNextReadyPlayer, useAbility } from './actions.ts';
 import { appendEvents } from '../../presentation/events.js';
 import { appendLogs } from '../../presentation/logText.js';
-import { EVENT_LOG_LIMIT } from '../constants.js';
+import { EVENT_LOG_LIMIT } from '../constants.ts';
 
 // Pure state transition. Returns { state, events }; events are plain objects (see presentation/events.js).
 // Actions that resolve shots or enemy steps return their events; everything else returns none.

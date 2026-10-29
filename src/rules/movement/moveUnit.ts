@@ -1,7 +1,7 @@
-import { cellKey } from '../grid/cells.js';
-import { getReachable } from './pathfinding.js';
-import { AP_ACTION_COST, DEFAULT_MOVE_RANGE } from '../constants.js';
-import { facingToward } from '../geometry.js';
+import { cellKey } from '../grid/cells.ts';
+import { getReachable } from './pathfinding.ts';
+import { AP_ACTION_COST, DEFAULT_MOVE_RANGE } from '../constants.ts';
+import { facingToward } from '../geometry.ts';
 import { moveEvent } from '../../presentation/events.js';
 
 // Each AP the unit has moves it independently by moveRange steps, so the reach is

@@ -1,0 +1,25 @@
+{
+  "$schema": "https://app.kilo.ai/config.json",
+  "disabled_providers": [],
+  "provider": {
+    "pa": {
+      "name": "Pa",
+      "npm": "@ai-sdk/openai-compatible",
+      "options": {
+        "baseURL": "https://ai4rnd.proalpha.dev"
+      },
+      "models": {
+        "claude-haiku-5-5": {
+          "name": "Haiku",
+          "reasoning": true,
+          "modalities": {
+            "input": [
+              "text",
+              "image"
+            ]
+          }
+        }
+      }
+    }
+  }
+}

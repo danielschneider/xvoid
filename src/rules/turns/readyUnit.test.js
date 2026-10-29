@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { createInitialState, gameReducer } from '../../engine/game.js';
-import { getNextReadyUnit } from './readyUnit.js';
+import { getNextReadyUnit } from './readyUnit.ts';
 
 // D6: the reducer's hand-over (finish-shot -> selectNextReadyPlayer) and App's next-unit
 // lookup must both come from getNextReadyUnit. Check they agree for several states.

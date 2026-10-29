@@ -1,6 +1,6 @@
-import { getNextReadyUnit } from './readyUnit.js';
-import { refreshAlerts } from '../ai/alerts.js';
-import { AP_ACTION_COST, AP_PER_TURN } from '../constants.js';
+import { getNextReadyUnit } from './readyUnit.ts';
+import { refreshAlerts } from '../ai/alerts.ts';
+import { AP_ACTION_COST, AP_PER_TURN } from '../constants.ts';
 import { overwatchEvent, roundStartEvent, turnStartEvent } from '../../presentation/events.js';
 
 // Hands selection to the next ready unit only once the selected unit is spent.

@@ -1,4 +1,4 @@
-import { cellKey } from '../grid/cells.js';
+import { cellKey } from '../grid/cells.ts';
 
 // Terrain that stops sight. Rails are see-through; boxes give cover instead.
 const SIGHT_BLOCKERS = new Set(['wall', 'partition']);

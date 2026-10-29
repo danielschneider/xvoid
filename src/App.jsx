@@ -11,7 +11,7 @@ import {
   SHOT_RANGE,
 } from './engine/game.js';
 import { getCoverProfile, getVisibleCells, hasLineOfSight } from './engine/map.js';
-import { getNextReadyUnit } from './rules/index.js';
+import { getNextReadyUnit } from './rules/index.ts';
 import { loadGame, MAX_ROUNDS_BACK, saveGame } from './persistence/save.js';
 import { createDirector } from './presentation/director.js';
 import { parseFastFactor, scaledScheduler } from './presentation/fastScheduler.js';

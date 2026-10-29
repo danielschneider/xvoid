@@ -1,4 +1,4 @@
-import { getFlankedBy, hasLineOfSight, SHOT_RANGE } from '../rules/index.js';
+import { getFlankedBy, hasLineOfSight, SHOT_RANGE } from '../rules/index.ts';
 
 // View data for the HUD. Reads rules through rules/index.js; no formula is duplicated here.
 export function selectEnemyCounts(state) {

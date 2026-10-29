@@ -1,4 +1,4 @@
-import { cellKey } from '../cells.js';
+import { cellKey } from '../cells.ts';
 
 // Wall ring and door openings for a building's ground floor.
 // Doors are `width` cells wide and centred on the chosen side. Door cells are returned

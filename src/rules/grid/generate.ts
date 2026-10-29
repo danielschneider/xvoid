@@ -1,12 +1,13 @@
-import { makeRandom } from '../rng.js';
-import { cellKey } from './cells.js';
-import { allPassableReachable, restoreRegion, snapshotRegion } from './connectivity.js';
-import { chooseDoors, laneKeys } from './building/doors.js';
-import { doorKeys, isPerimeter } from './building/footprint.js';
-import { raiseFloor } from './building/floors.js';
-import { placeStairs, stairCorners } from './building/stairs.js';
-import { partitionCells } from './building/partitions.js';
-import { floorReachable, lanesOpen } from './building/validate.js';
+import type { Battlefield, BuildingRecord, Cell, Position, Room } from '../types.ts';
+import { makeRandom } from '../rng.ts';
+import { cellKey } from './cells.ts';
+import { allPassableReachable, restoreRegion, snapshotRegion } from './connectivity.ts';
+import { chooseDoors, laneKeys } from './building/doors.ts';
+import { doorKeys, isPerimeter } from './building/footprint.ts';
+import { raiseFloor } from './building/floors.ts';
+import { placeStairs, stairCorners } from './building/stairs.ts';
+import { partitionCells } from './building/partitions.ts';
+import { floorReachable, lanesOpen } from './building/validate.ts';
 
 export const GRID_SIZES = [32, 40, 48];
 // Highest level index a building reaches. Level 0 is ground, so 3 means up to four floors.
@@ -68,7 +69,16 @@ function addPartitions(cells, room, level, protectedKeys) {
 }
 
 // Raises a building with `topLevel + 1` floors. Returns the reserved keys and doors.
-function raiseBuilding(cells, transitions, room, topLevel, middle, anchor, random, protectedKeys) {
+function raiseBuilding(
+  cells: Record<string, Cell>,
+  transitions: Record<string, Position[]>,
+  room: Room,
+  topLevel: number,
+  middle: number,
+  anchor: boolean,
+  random: () => number,
+  protectedKeys: Set<string>
+): BuildingRecord {
   const doors = chooseDoors(room, middle, anchor, random);
   raiseShell(cells, room, doors);
   const lanes = laneKeys(room, doors.sides, doors.width);
@@ -90,13 +100,13 @@ function buildingValid(cells, transitions, room, record) {
   return lanesOpen(cells, record.lanes);
 }
 
-export function createBattlefield(seed) {
+export function createBattlefield(seed: number): Battlefield {
   const random = makeRandom(seed);
   const size = GRID_SIZES[Math.floor(random() * GRID_SIZES.length)];
   const middle = Math.floor(size / 2);
-  const cells = {};
-  const transitions = {};
-  const protectedKeys = new Set();
+  const cells: Record<string, Cell> = {};
+  const transitions: Record<string, Position[]> = {};
+  const protectedKeys = new Set<string>();
 
   for (let z = 0; z < size; z += 1) {
     for (let x = 0; x < size; x += 1) {

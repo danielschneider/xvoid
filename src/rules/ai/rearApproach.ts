@@ -1,4 +1,4 @@
-import { spawnDistance } from '../geometry.js';
+import { spawnDistance } from '../geometry.ts';
 
 // Rear arc for sneaking: a cell counts as "behind" a player when it lies in the
 // half-plane opposite the player's facing. Cells beside the player (within the

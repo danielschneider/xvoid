@@ -1,8 +1,8 @@
-import { cellKey } from '../grid/cells.js';
-import { getReachable } from '../movement/pathfinding.js';
-import { moveEnemy } from '../movement/moveUnit.js';
-import { makeRandom } from '../rng.js';
-import { AP_ACTION_COST, WANDER_CHANCE, WANDER_RADIUS, WANDER_STEPS } from '../constants.js';
+import { cellKey } from '../grid/cells.ts';
+import { getReachable } from '../movement/pathfinding.ts';
+import { moveEnemy } from '../movement/moveUnit.ts';
+import { makeRandom } from '../rng.ts';
+import { AP_ACTION_COST, WANDER_CHANCE, WANDER_RADIUS, WANDER_STEPS } from '../constants.ts';
 
 // Unalerted enemy: drifts randomly around its post without knowing where the squad is.
 // Returns { state, events }. Never mutates `state`.

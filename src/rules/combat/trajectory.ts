@@ -1,5 +1,5 @@
-import { cellKey } from '../grid/cells.js';
-import { MISS_OVERSHOOT } from '../constants.js';
+import { cellKey } from '../grid/cells.ts';
+import { MISS_OVERSHOOT } from '../constants.ts';
 
 // Sampling resolution along the flight line, in fields. Finer than a cell so no wall is skipped.
 const SAMPLES_PER_FIELD = 10;
