@@ -62,7 +62,10 @@ function chooseDestinations(
   const distance = dist(target, enemy);
   const blocked = occupiedKeys(state.units, enemy.id);
   const paths = getReachable(state.map, enemy, blocked, role.maxSteps);
-  let destinations: Destination[] = [...paths.entries()].map(([key, path]) => ({ cell: state.map.cells[key], ...path }));
+  let destinations: Destination[] = [...paths.entries()].map(([key, path]) => ({
+    cell: state.map.cells[key],
+    ...path,
+  }));
   if (role.movePreference === 'flank' && !retreating) {
     // Flankers may move sideways or away to reach the rear arc, but never close in from the front.
     destinations = destinations.filter(({ cell }) => rearDistance(target, cell) < rearDistance(target, enemy));
@@ -101,7 +104,9 @@ export function enemyStep(stateIn: GameState): StepResult {
 
 function takeEnemyTurn(state: GameState): StepResult {
   if (state.phase !== 'enemy' || state.enemyTurnIndex >= state.enemyTurnOrder.length) return none(state);
-  const enemy = state.units.find((unit): unit is Enemy => isEnemy(unit) && unit.id === state.enemyTurnOrder[state.enemyTurnIndex] && unit.hp > 0);
+  const enemy = state.units.find(
+    (unit): unit is Enemy => isEnemy(unit) && unit.id === state.enemyTurnOrder[state.enemyTurnIndex] && unit.hp > 0
+  );
   if (!enemy) return none({ ...state, enemyTurnIndex: state.enemyTurnIndex + 1 });
   const role = getRole(enemy);
 

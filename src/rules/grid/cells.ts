@@ -24,5 +24,4 @@ export const neighborsOf = (current: Position, transitions: Record<string, Posit
 export const occupiedKeys = (
   units: { id: string; x: number; z: number; level?: number; hp: number }[],
   exceptId?: string
-): Set<string> =>
-  new Set(units.filter((unit) => unit.hp > 0 && unit.id !== exceptId).map((unit) => cellKey(unit)));
+): Set<string> => new Set(units.filter((unit) => unit.hp > 0 && unit.id !== exceptId).map((unit) => cellKey(unit)));

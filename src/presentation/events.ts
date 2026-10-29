@@ -143,7 +143,8 @@ export const moveEvent = ({
   enemy = false,
   role = null,
   intent = 'walk',
-}: Partial<Pick<MoveEvent, 'enemy' | 'role' | 'intent'>> & Omit<MoveEvent, 'type' | 'enemy' | 'role' | 'intent'>): MoveEvent => ({
+}: Partial<Pick<MoveEvent, 'enemy' | 'role' | 'intent'>> &
+  Omit<MoveEvent, 'type' | 'enemy' | 'role' | 'intent'>): MoveEvent => ({
   type: EVENT_TYPES.move,
   unitId,
   name,
@@ -157,15 +158,34 @@ export const deathEvent = ({ unitId }: Omit<DeathEvent, 'type'>): DeathEvent => 
 
 export const alertEvent = ({ groupId }: Omit<AlertEvent, 'type'>): AlertEvent => ({ type: EVENT_TYPES.alert, groupId });
 
-export const enemyTurnEndEvent = ({ enemyId }: Omit<EnemyTurnEndEvent, 'type'>): EnemyTurnEndEvent => ({ type: EVENT_TYPES.enemyTurnEnd, enemyId });
+export const enemyTurnEndEvent = ({ enemyId }: Omit<EnemyTurnEndEvent, 'type'>): EnemyTurnEndEvent => ({
+  type: EVENT_TYPES.enemyTurnEnd,
+  enemyId,
+});
 
-export const turnStartEvent = ({ turn }: Omit<TurnStartEvent, 'type'>): TurnStartEvent => ({ type: EVENT_TYPES.turnStart, turn });
+export const turnStartEvent = ({ turn }: Omit<TurnStartEvent, 'type'>): TurnStartEvent => ({
+  type: EVENT_TYPES.turnStart,
+  turn,
+});
 
-export const roundStartEvent = ({ turn, selectedId }: Omit<RoundStartEvent, 'type'>): RoundStartEvent => ({ type: EVENT_TYPES.roundStart, turn, selectedId });
+export const roundStartEvent = ({ turn, selectedId }: Omit<RoundStartEvent, 'type'>): RoundStartEvent => ({
+  type: EVENT_TYPES.roundStart,
+  turn,
+  selectedId,
+});
 
-export const overwatchEvent = ({ unitId, name }: Omit<OverwatchEvent, 'type'>): OverwatchEvent => ({ type: EVENT_TYPES.overwatch, unitId, name });
+export const overwatchEvent = ({ unitId, name }: Omit<OverwatchEvent, 'type'>): OverwatchEvent => ({
+  type: EVENT_TYPES.overwatch,
+  unitId,
+  name,
+});
 
-export const holdEvent = ({ unitId, name, role }: Omit<HoldEvent, 'type'>): HoldEvent => ({ type: EVENT_TYPES.hold, unitId, name, role });
+export const holdEvent = ({ unitId, name, role }: Omit<HoldEvent, 'type'>): HoldEvent => ({
+  type: EVENT_TYPES.hold,
+  unitId,
+  name,
+  role,
+});
 
 // Appends events to the store's log and keeps only the newest `limit` entries.
 // Returns the same array when there is nothing to append.

@@ -54,7 +54,11 @@ function facingSides(target: Position, shooter: Position): Side[] {
 // Cover that `target` gets against a shot from `shooter`, and whether the shooter
 // flanks it: the attacking side is open while the target has cover on another side.
 // Diagonal attackers get the weaker of their two sides.
-export function getCoverAgainst(map: Battlefield, target: Position & { level: number }, shooter: Position): CoverAgainst {
+export function getCoverAgainst(
+  map: Battlefield,
+  target: Position & { level: number },
+  shooter: Position
+): CoverAgainst {
   const sides = getSideCover(map, target);
   const facing = facingSides(target, shooter);
   if (facing.length === 0) return { cover: 0, flanked: false };

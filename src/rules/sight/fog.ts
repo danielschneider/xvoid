@@ -14,13 +14,7 @@ const SIGHT_OFFSETS = [
   [SIGHT_INSET, SIGHT_INSET],
 ];
 
-function hasSightRay(
-  map: Battlefield,
-  from: Position,
-  targetX: number,
-  targetZ: number,
-  level: number
-): boolean {
+function hasSightRay(map: Battlefield, from: Position, targetX: number, targetZ: number, level: number): boolean {
   const dx = targetX - from.x;
   const dz = targetZ - from.z;
   const steps = Math.ceil(Math.max(Math.abs(dx), Math.abs(dz)) * 4);

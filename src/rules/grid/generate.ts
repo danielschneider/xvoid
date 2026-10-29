@@ -55,12 +55,7 @@ function raiseShell(cells: Record<string, Cell>, room: Room, doors: BuildingReco
 
 // Adds rooms with one partition per floor when the interior is big enough. Partitions
 // leave a one-cell gap and never touch stairs or lanes; a partition that fails is skipped.
-function addPartitions(
-  cells: Record<string, Cell>,
-  room: Room,
-  level: number,
-  protectedKeys: Set<string>
-): void {
+function addPartitions(cells: Record<string, Cell>, room: Room, level: number, protectedKeys: Set<string>): void {
   const { x, z, w, h } = room;
   if (w < 8 && h < 8) return;
   const axis = w >= h ? 'x' : 'z';

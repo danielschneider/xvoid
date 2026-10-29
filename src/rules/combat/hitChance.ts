@@ -11,7 +11,11 @@ export function computeDistanceModifier(distance: number): number {
 }
 
 // Cover from the side the shot arrives at. A flanking shot gets no cover.
-export function computeCoverFor(state: GameState, shooter: Position, target: Position & { level: number }): CoverAgainst {
+export function computeCoverFor(
+  state: GameState,
+  shooter: Position,
+  target: Position & { level: number }
+): CoverAgainst {
   return getCoverAgainst(state.map, target, shooter);
 }
 
