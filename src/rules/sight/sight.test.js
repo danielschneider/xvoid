@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { createInitialState, gameReducer } from '../../engine/game.js';
-import { cellKey, getVisibleCells, hasLineOfSight } from '../../engine/map.js';
+import { createInitialState, gameReducer } from '../../engine/game.ts';
+import { cellKey, getVisibleCells, hasLineOfSight } from '../../engine/map.ts';
 import { adjacentWalkableCell } from '../../../test/fixtures.js';
 
 test('walls block line of sight without consuming an attack point', () => {

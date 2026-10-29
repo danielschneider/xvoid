@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { cellKey } from '../../../engine/map.js';
+import { cellKey } from '../../../engine/map.ts';
 import { buildFogLayers, FOG_HIDDEN, FOG_VISIBLE, fogTexelIndex, getMapSpan, sampleFogSmooth } from './fogData.js';
 
 const cell = (x, z, level = 0) => ({ x, z, level });

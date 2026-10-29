@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { createInitialState } from '../../engine/game.js';
-import { cellKey, getReachable, isPassable } from '../../engine/map.js';
+import { createInitialState } from '../../engine/game.ts';
+import { cellKey, getReachable, isPassable } from '../../engine/map.ts';
 
 test('creates a seeded 32x32 battlefield with traversable upper levels', () => {
   const state = createInitialState(42);

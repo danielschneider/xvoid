@@ -1,4 +1,4 @@
-// Every presentation delay in one table (milliseconds). Consumed by presentation/director.js.
+// Every presentation delay in one table (milliseconds). Consumed by presentation/director.ts.
 export const TIMING = Object.freeze({
   // Player shot: the shooter stays selected while the shot or death is shown.
   shotHoldMs: 1000,

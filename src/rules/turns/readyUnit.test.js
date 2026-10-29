@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { createInitialState, gameReducer } from '../../engine/game.js';
+import { createInitialState, gameReducer } from '../../engine/game.ts';
 import { getNextReadyUnit } from './readyUnit.ts';
 
 // D6: the reducer's hand-over (finish-shot -> selectNextReadyPlayer) and App's next-unit

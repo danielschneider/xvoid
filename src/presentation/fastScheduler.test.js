@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { parseFastFactor, scaledScheduler } from './fastScheduler.js';
+import { parseFastFactor, scaledScheduler } from './fastScheduler.ts';
 
 test('parseFastFactor reads numeric, "x" and bare fast values', () => {
   assert.equal(parseFastFactor(null), 1);

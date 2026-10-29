@@ -1,10 +1,10 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { createInitialState, gameReducer } from '../../engine/game.js';
+import { createInitialState, gameReducer } from '../../engine/game.ts';
 import { cachedBattlefield } from '../../../test/battlefieldCache.js';
 import { createStartingUnits } from './placement.ts';
 import { makeRandom } from '../rng.ts';
-import { cellKey, getReachable, getVisibleCells } from '../../engine/map.js';
+import { cellKey, getReachable, getVisibleCells } from '../../engine/map.ts';
 import { ROLES } from '../ai/roles.ts';
 
 test('new seeds vary map size, squad size, and spawn positions deterministically', () => {

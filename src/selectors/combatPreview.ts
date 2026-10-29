@@ -1,7 +1,12 @@
 import { computeHitChance, computePlayerHitParts, hasLineOfSight, SHOT_RANGE } from '../rules/index.ts';
+import type { GameState, Unit } from '../rules/types.ts';
 
 // View data for the combat preview. All numbers come from engine helpers; no formula here.
-export function selectCombatPreview(state, shooter, target) {
+export function selectCombatPreview(
+  state: GameState,
+  shooter: Unit | null | undefined,
+  target: Unit | null | undefined
+) {
   if (!shooter || !target) return null;
   const parts = computePlayerHitParts(state, shooter, target);
   const hitChance = computeHitChance(state, shooter, target);

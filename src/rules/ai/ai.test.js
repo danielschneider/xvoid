@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { createInitialState, gameReducer } from '../../engine/game.js';
-import { cellKey, getReachable, getVisibleCells } from '../../engine/map.js';
+import { createInitialState, gameReducer } from '../../engine/game.ts';
+import { cellKey, getReachable, getVisibleCells } from '../../engine/map.ts';
 
 // Test helper: pins the first alien to `role` so role-dependent assertions do not depend on the spawn shuffle.
 function withFirstEnemyRole(state, role) {

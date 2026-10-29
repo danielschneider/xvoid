@@ -1,8 +1,8 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { createDirector, planSteps } from './director.js';
+import { createDirector, planSteps } from './director.ts';
 import { gameReducer } from '../rules/turns/reducer.ts';
-import { TIMING } from './timing.js';
+import { TIMING } from './timing.ts';
 
 // Fake clock: timers fire in (time, arming order); no real setTimeout is involved.
 function fakeScheduler() {

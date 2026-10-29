@@ -8,7 +8,7 @@ export {
   CRIT_CHANCE,
   CRIT_MULTIPLIER,
 } from '../rules/constants.ts';
-export { cellKey, getReachable, hasLineOfSight } from './map.js';
+export { cellKey, getReachable, hasLineOfSight } from './map.ts';
 export { movementLimits } from '../rules/movement/moveUnit.ts';
 export {
   computeCoverFor,

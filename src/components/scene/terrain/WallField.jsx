@@ -1,7 +1,7 @@
 import { useMemo } from 'react';
 import { useLoader } from '@react-three/fiber';
 import * as THREE from 'three';
-import { cellKey } from '../../../engine/map.js';
+import { cellKey } from '../../../engine/map.ts';
 import { toWorld } from '../coords.js';
 import { createTileTexture } from '../textures/tiles.js';
 import { ROGUELIKE_SHEET } from './sheet.js';

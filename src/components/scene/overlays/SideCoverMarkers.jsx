@@ -1,4 +1,4 @@
-import { getSideCover } from '../../../engine/map.js';
+import { getSideCover } from '../../../engine/map.ts';
 import { toWorld, toWorldY } from '../coords.js';
 // Flat strips on the edge of a unit's cell, one per side that has cover.
 // Full cover (wall/pillar) is blue, half cover (console) is green.

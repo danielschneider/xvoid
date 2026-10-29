@@ -1,7 +1,7 @@
 import { useMemo } from 'react';
 import { Line } from '@react-three/drei';
 import * as THREE from 'three';
-import { cellKey } from '../../../engine/map.js';
+import { cellKey } from '../../../engine/map.ts';
 import { toWorld, toWorldY } from '../coords.js';
 // Flat shield glyph lying on the ground, centred on the cell (shape Y maps to world -Z).
 const SHIELD_GEOMETRY = (() => {

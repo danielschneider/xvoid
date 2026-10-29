@@ -1,7 +1,7 @@
 {
   "compilerOptions": {
     "target": "ES2022",
-    "lib": ["ES2023"],
+    "lib": ["ES2023", "DOM"],
     "module": "ESNext",
     "moduleResolution": "Bundler",
     "allowImportingTsExtensions": true,
@@ -14,6 +14,12 @@
     "verbatimModuleSyntax": true,
     "erasableSyntaxOnly": true
   },
-  "include": ["src/rules/**/*.ts"],
-  "exclude": ["node_modules", "dist", "src/rules/**/*.test.ts"]
+  "include": [
+    "src/rules/**/*.ts",
+    "src/selectors/**/*.ts",
+    "src/persistence/**/*.ts",
+    "src/presentation/**/*.ts",
+    "src/engine/**/*.ts"
+  ],
+  "exclude": ["node_modules", "dist", "src/**/*.test.ts", "src/rules/**/*.test.ts"]
 }

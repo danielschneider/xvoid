@@ -1,7 +1,7 @@
 import { useMemo, useRef } from 'react';
 import { useFrame } from '@react-three/fiber';
 import * as THREE from 'three';
-import { cellHeight, cellKey } from '../../../engine/map.js';
+import { cellHeight, cellKey } from '../../../engine/map.ts';
 import { toWorld, toWorldY } from '../coords.js';
 import { createCritTexture } from '../textures/labels.js';
 import { advanceEffects, useEffectClock } from './UnitEffects.jsx';

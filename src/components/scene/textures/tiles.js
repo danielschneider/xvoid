@@ -1,5 +1,5 @@
 import * as THREE from 'three';
-import { cellKey } from '../../../engine/map.js';
+import { cellKey } from '../../../engine/map.ts';
 
 export const TILE_SIZE = 16;
 export const TILE_PITCH = 17;

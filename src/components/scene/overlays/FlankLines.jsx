@@ -1,8 +1,8 @@
 import { useMemo } from 'react';
 import { Line } from '@react-three/drei';
 import * as THREE from 'three';
-import { getFlankedBy } from '../../../engine/game.js';
-import { cellKey } from '../../../engine/map.js';
+import { getFlankedBy } from '../../../engine/game.ts';
+import { cellKey } from '../../../engine/map.ts';
 import { toWorld, toWorldY } from '../coords.js';
 // Red lines from every unit that flanks a target to that target. Targets are player units
 // (flanked by enemies) and visible enemies (flanked by player units).

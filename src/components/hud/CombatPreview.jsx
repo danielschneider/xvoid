@@ -1,5 +1,5 @@
 import { AlertTriangle, Crosshair, Target } from 'lucide-react';
-import { selectCombatPreview } from '../../selectors/combatPreview.js';
+import { selectCombatPreview } from '../../selectors/combatPreview.ts';
 import { COPY } from '../copy.js';
 
 export function CombatPreview({ shooter, target, state, hasShootableEnemy }) {

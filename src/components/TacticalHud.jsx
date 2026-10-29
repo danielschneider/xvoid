@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { ChevronDown, Radio } from 'lucide-react';
-import { selectFlankedBy } from '../selectors/hud.js';
+import { selectFlankedBy } from '../selectors/hud.ts';
 import { COPY } from './copy.js';
 import { TopBar } from './hud/TopBar.jsx';
 import { MissionPanel } from './hud/MissionPanel.jsx';

@@ -1,8 +1,8 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { createInitialState, gameReducer } from '../../engine/game.js';
-import { cellKey, getReachable, isPassable } from '../../engine/map.js';
-import { movementLimits } from '../../engine/game.js';
+import { createInitialState, gameReducer } from '../../engine/game.ts';
+import { cellKey, getReachable, isPassable } from '../../engine/map.ts';
+import { movementLimits } from '../../engine/game.ts';
 
 test('movement follows reachable cells and spends one AP nearby', () => {
   const state = createInitialState(42);

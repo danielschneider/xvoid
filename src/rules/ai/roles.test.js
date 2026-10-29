@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { createInitialState, gameReducer } from '../../engine/game.js';
+import { createInitialState, gameReducer } from '../../engine/game.ts';
 import { ROLES, getRole } from './roles.ts';
 import { ENEMY_MOVE_STEPS } from '../constants.ts';
 

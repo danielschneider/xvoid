@@ -1,6 +1,6 @@
 import { useMemo, useRef } from 'react';
 import { Canvas, useThree } from '@react-three/fiber';
-import { cellKey } from '../engine/map.js';
+import { cellKey } from '../engine/map.ts';
 import { getCoverAgainst } from '../rules/index.ts';
 import { CELL_OFFSET } from './scene/coords.js';
 import { TilemapGround } from './scene/terrain/TilemapGround.jsx';

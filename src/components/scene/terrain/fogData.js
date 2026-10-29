@@ -1,4 +1,4 @@
-import { cellKey } from '../../../engine/map.js';
+import { cellKey } from '../../../engine/map.ts';
 
 // Pure fog data. Fog is per cell: every cell with level > 0 that is not visible is fogged.
 // Flat ground (level 0) is never fogged. Each elevated level gets its own layer (a size x size

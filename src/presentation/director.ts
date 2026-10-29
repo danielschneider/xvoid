@@ -1,15 +1,46 @@
-import { TIMING } from './timing.js';
+import { TIMING } from './timing.ts';
+import type { Scheduler } from './fastScheduler.ts';
+import type { GameState } from '../rules/types.ts';
 
 // Plays the state's pending steps: arms a timer for each step and dispatches the next action
-// when it fires. Plain JS, no React: App.jsx calls sync() after each state change.
+// when it fires. Plain TS, no React: App.jsx calls sync() after each state change.
 //
 // Each slot mirrors one former useEffect: it is re-armed only when its dependency values change
 // (compared with Object.is), and a change cancels the previous timer first. Slots run in the
 // same order as the effects they replace, so timers armed in the same pass keep that order.
 
+export interface TimerAction {
+  type: string;
+  id?: number | string;
+}
+
+export interface TimerSpec {
+  kind: 'timeout' | 'interval';
+  delay: number;
+  action: TimerAction;
+}
+
+export interface StepSlot {
+  key: string;
+  deps: unknown[];
+  timer: TimerSpec | null;
+}
+
+// Fog-of-war flags computed by the caller.
+export interface StepView {
+  activeEnemyHidden: boolean;
+  movementHidden: boolean;
+}
+
+interface ArmedEntry {
+  deps: unknown[];
+  kind: TimerSpec['kind'] | null;
+  handle: unknown;
+}
+
 // view: { activeEnemyHidden, movementHidden } computed by the caller from fog of war.
 // Returns the slot list for this state; timer is null when nothing should be armed.
-export function planSteps(state, view) {
+export function planSteps(state: GameState, view: StepView): StepSlot[] {
   const { activeEnemyHidden, movementHidden } = view;
   const movement = state.movement;
   const enemyTurn = state.phase === 'enemy' && !movement;
@@ -61,21 +92,27 @@ export function planSteps(state, view) {
   ];
 }
 
-function sameDeps(a, b) {
+function sameDeps(a: unknown[], b: unknown[]): boolean {
   return a.length === b.length && a.every((value, index) => Object.is(value, b[index]));
 }
 
 // dispatch: receives action objects. scheduler: setTimeout/clearTimeout/setInterval/clearInterval
 // (injected so tests can use a fake clock; defaults to the global timers).
-export function createDirector({ dispatch, scheduler = globalThis }) {
-  const armed = new Map();
+export function createDirector({
+  dispatch,
+  scheduler = globalThis as unknown as Scheduler,
+}: {
+  dispatch: (action: TimerAction) => void;
+  scheduler?: Scheduler;
+}) {
+  const armed = new Map<string, ArmedEntry>();
 
-  const cancel = (entry) => {
+  const cancel = (entry: ArmedEntry) => {
     if (entry.kind === 'interval') scheduler.clearInterval(entry.handle);
     else if (entry.kind === 'timeout') scheduler.clearTimeout(entry.handle);
   };
 
-  const arm = (timer) => {
+  const arm = (timer: TimerSpec): unknown => {
     const fire = () => dispatch(timer.action);
     return timer.kind === 'interval'
       ? scheduler.setInterval(fire, timer.delay)
@@ -83,7 +120,7 @@ export function createDirector({ dispatch, scheduler = globalThis }) {
   };
 
   return {
-    sync(state, view) {
+    sync(state: GameState, view: StepView) {
       for (const step of planSteps(state, view)) {
         const previous = armed.get(step.key);
         if (previous && sameDeps(previous.deps, step.deps)) continue;

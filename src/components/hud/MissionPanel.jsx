@@ -1,5 +1,5 @@
 import { ChevronDown, Radio } from 'lucide-react';
-import { selectEnemyCounts } from '../../selectors/hud.js';
+import { selectEnemyCounts } from '../../selectors/hud.ts';
 import { COPY } from '../copy.js';
 
 export function MissionPanel({ state, open, onToggle }) {

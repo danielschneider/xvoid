@@ -1,5 +1,5 @@
 import { useMemo } from 'react';
-import { cellKey } from '../../../engine/map.js';
+import { cellKey } from '../../../engine/map.ts';
 import { toWorld, toWorldY } from '../coords.js';
 
 // Upper-floor structure: interior partitions (solid, block sight), railings on the edge

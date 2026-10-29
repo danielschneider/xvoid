@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { createInitialState, gameReducer } from '../../engine/game.js';
-import { cellKey, getReachable } from '../../engine/map.js';
+import { createInitialState, gameReducer } from '../../engine/game.ts';
+import { cellKey, getReachable } from '../../engine/map.ts';
 
 test('selects the next living player with AP when the current player runs out', () => {
   const state = createInitialState(42);

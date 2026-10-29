@@ -1,4 +1,4 @@
-import { cellHeight } from '../../engine/map.js';
+import { cellHeight } from '../../engine/map.ts';
 
 // World-space coordinates for grid cells. This module owns the -15.5 offset that
 // centres the map on the origin; no other file may subtract it directly.

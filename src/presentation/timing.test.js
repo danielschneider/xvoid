@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { TIMING } from './timing.js';
+import { TIMING } from './timing.ts';
 
 // Pins the values that were inline in App.jsx before refa5f.
 test('timing table keeps the original delays', () => {

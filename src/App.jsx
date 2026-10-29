@@ -9,12 +9,12 @@ import {
   getReachable,
   movementLimits,
   SHOT_RANGE,
-} from './engine/game.js';
-import { getCoverProfile, getVisibleCells, hasLineOfSight } from './engine/map.js';
+} from './engine/game.ts';
+import { getCoverProfile, getVisibleCells, hasLineOfSight } from './engine/map.ts';
 import { getNextReadyUnit } from './rules/index.ts';
-import { loadGame, MAX_ROUNDS_BACK, saveGame } from './persistence/save.js';
-import { createDirector } from './presentation/director.js';
-import { parseFastFactor, scaledScheduler } from './presentation/fastScheduler.js';
+import { loadGame, MAX_ROUNDS_BACK, saveGame } from './persistence/save.ts';
+import { createDirector } from './presentation/director.ts';
+import { parseFastFactor, scaledScheduler } from './presentation/fastScheduler.ts';
 
 export default function App() {
   // Loaded once on mount: the live state plus round-start checkpoints (oldest first, last = current round start).
@@ -169,7 +169,7 @@ export default function App() {
     if (pendingMove && !pendingPath) setPendingMove(null);
   }, [pendingMove, pendingPath]);
 
-  // Timers for shots, enemy steps and movement live in the director (presentation/director.js).
+  // Timers for shots, enemy steps and movement live in the director (presentation/director.ts).
   // sync() runs after every render and re-arms only the steps whose inputs changed.
   const directorRef = useRef(null);
   if (!directorRef.current) {

@@ -1,7 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { createInitialState } from '../engine/game.js';
-import { MAX_CHECKPOINTS, deserializeGame, serializeGame } from './save.js';
+import { createInitialState } from '../engine/game.ts';
+import { MAX_CHECKPOINTS, deserializeGame, serializeGame } from './save.ts';
 
 test('serialize then deserialize restores the live state and checkpoints', () => {
   const first = createInitialState(12345);

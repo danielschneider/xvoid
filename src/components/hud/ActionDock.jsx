@@ -1,6 +1,6 @@
 import { Check, Crosshair, Eye, SkipForward } from 'lucide-react';
 import { ActionButton } from './primitives.jsx';
-import { selectTargetWindow } from '../../selectors/hud.js';
+import { selectTargetWindow } from '../../selectors/hud.ts';
 import { COPY } from '../copy.js';
 
 export function ActionDock({

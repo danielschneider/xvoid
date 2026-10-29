@@ -1,8 +1,8 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { computeHitChance, createInitialState } from '../engine/game.js';
-import { getCoverAgainst } from '../engine/map.js';
-import { selectCombatPreview } from './combatPreview.js';
+import { computeHitChance, createInitialState } from '../engine/game.ts';
+import { getCoverAgainst } from '../engine/map.ts';
+import { selectCombatPreview } from './combatPreview.ts';
 
 // Parity: the HUD-facing selector must equal the engine for every shooter/target config.
 test('combat preview equals computeHitChance and getCoverAgainst over a config grid', () => {

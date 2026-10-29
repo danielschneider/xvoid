@@ -8,8 +8,8 @@ import {
   CRIT_CHANCE,
   CRIT_MULTIPLIER,
   gameReducer,
-} from '../../engine/game.js';
-import { cellKey, hasLineOfSight } from '../../engine/map.js';
+} from '../../engine/game.ts';
+import { cellKey, hasLineOfSight } from '../../engine/map.ts';
 import { adjacentWalkableCell, isolateEncounter, openCellAt, withDraws } from '../../../test/fixtures.js';
 
 test('a revealed enemy can fire at a player in line of sight', () => {

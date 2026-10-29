@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { computeCoverFor, computeHitChance, createInitialState, getFlankedBy } from '../../engine/game.js';
-import { cellKey, getCoverProfile, getSideCover } from '../../engine/map.js';
+import { computeCoverFor, computeHitChance, createInitialState, getFlankedBy } from '../../engine/game.ts';
+import { cellKey, getCoverProfile, getSideCover } from '../../engine/map.ts';
 import { setSides } from '../../../test/fixtures.js';
 
 test('side cover reads the four neighbouring cells on the same level', () => {
