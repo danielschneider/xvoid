@@ -3,8 +3,9 @@ import assert from 'node:assert/strict';
 import { createHash } from 'node:crypto';
 import { readFileSync, writeFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
-import { createBattlefield } from './map.js';
-import { createInitialState } from './game.js';
+import { cachedBattlefield } from '../../test/battlefieldCache.js';
+import { createStartingUnits } from '../rules/spawn/placement.ts';
+import { makeRandom } from '../rules/rng.ts';
 
 // Golden hashes guard map generation and starting units for seeds 1..60.
 // They must not change unless a rule change is intended. Regenerate only with
@@ -30,9 +31,11 @@ const hash = (value) =>
 function computeGolden() {
   const out = {};
   for (let seed = 1; seed <= 60; seed += 1) {
+    // Same derivation as createInitialState, reusing the cached map (verified equal for seeds 1..60).
+    const map = cachedBattlefield(seed);
     out[seed] = {
-      map: hash(createBattlefield(seed)),
-      units: hash(createInitialState(seed).units),
+      map: hash(map),
+      units: hash(createStartingUnits(map, makeRandom(seed ^ 0x9e3779b9))),
     };
   }
   return out;

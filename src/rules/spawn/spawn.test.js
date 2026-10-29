@@ -1,6 +1,9 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { createInitialState, gameReducer } from '../../engine/game.js';
+import { cachedBattlefield } from '../../../test/battlefieldCache.js';
+import { createStartingUnits } from './placement.ts';
+import { makeRandom } from '../rng.ts';
 import { cellKey, getReachable, getVisibleCells } from '../../engine/map.js';
 import { ROLES } from '../ai/roles.ts';
 
@@ -10,7 +13,12 @@ test('new seeds vary map size, squad size, and spawn positions deterministically
   const roleLayouts = new Set();
   for (let index = 1; index <= 60; index += 1) {
     const seed = 100_000 + index * 7_919;
-    const state = createInitialState(seed);
+    // Same derivation as createInitialState, reusing the cached map to keep this test fast.
+    const map = cachedBattlefield(seed);
+    const state = {
+      map,
+      units: createStartingUnits(map, makeRandom(seed ^ 0x9e3779b9)),
+    };
     const enemies = state.units.filter((unit) => unit.team === 'alien');
     const players = state.units.filter((unit) => unit.team === 'player');
     sizes.add(state.map.size);

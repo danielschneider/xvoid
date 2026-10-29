@@ -2,6 +2,7 @@ import type { Battlefield, BuildingRecord, Cell, Cover, Position, Room } from '.
 import { makeRandom } from '../rng.ts';
 import { cellKey } from './cells.ts';
 import { allPassableReachable, restoreRegion, snapshotRegion } from './connectivity.ts';
+import { neighboursStayLinked } from './blockCheck.ts';
 import { chooseDoors, laneKeys } from './building/doors.ts';
 import { doorKeys, isPerimeter } from './building/footprint.ts';
 import { raiseFloor } from './building/floors.ts';
@@ -25,6 +26,8 @@ function placeBox(
   const previous = { cover: cell.cover, terrain: cell.terrain };
   cell.cover = cover;
   cell.terrain = cover === 2 ? 'pillar' : 'console';
+  // Local proof first; the exact full-map check runs only when the proof is inconclusive.
+  if (neighboursStayLinked(cells, transitions, cell)) return;
   if (!allPassableReachable(cells, transitions)) Object.assign(cell, previous);
 }
 

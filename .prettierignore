@@ -3,5 +3,8 @@ node_modules
 coverage
 package-lock.json
 test/fixtures/golden-hashes.json
-# refactoring.md: hand-written plan; prettier changes markdown code spans (`#` wall -> `#`wall) and reflows tables.
-refactoring.md
+# Local, git-ignored Kilo state (Agent Manager UI state and worktree copies). Not source.
+.kilo/agent-manager.json
+.kilo/worktrees
+# docs/history/refactoring-log.md: archived session log, kept byte-identical; prettier rewrites its code spans and tables.
+docs/history/refactoring-log.md
