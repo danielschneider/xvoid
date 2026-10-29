@@ -31,6 +31,8 @@ export interface Cell extends Position {
 export interface Battlefield {
   seed: number;
   size: number;
+  // Id of the MapTheme that shaped generation (see rules/grid/themes.ts).
+  theme: string;
   rooms: Room[];
   cells: Record<string, Cell>;
   transitions: Record<string, Position[]>;

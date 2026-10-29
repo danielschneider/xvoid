@@ -108,7 +108,7 @@ test('guards hold their assigned post when no player is visible', () => {
 });
 
 test('scouts retreat along a route when critically hurt and nearby', () => {
-  const state = createInitialState(42);
+  const state = withFirstEnemyRole(createInitialState(42), 'scout');
   const scout = state.units.find((unit) => unit.aiRole === 'scout');
   const center = Math.floor(state.map.size / 2);
   const units = state.units.map((unit) => {

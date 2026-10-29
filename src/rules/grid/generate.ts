@@ -1,34 +1,31 @@
-import type { Battlefield, BuildingRecord, Cell, Cover, Position, Room } from '../types.ts';
+import type { Battlefield, BuildingRecord, Cell, Position, Room } from '../types.ts';
 import { makeRandom } from '../rng.ts';
 import { cellKey } from './cells.ts';
 import { allPassableReachable, restoreRegion, snapshotRegion } from './connectivity.ts';
-import { neighboursStayLinked } from './blockCheck.ts';
 import { chooseDoors, laneKeys } from './building/doors.ts';
 import { doorKeys, isPerimeter } from './building/footprint.ts';
 import { raiseFloor } from './building/floors.ts';
 import { placeStairs, stairCorners } from './building/stairs.ts';
 import { partitionCells } from './building/partitions.ts';
 import { floorReachable, lanesOpen } from './building/validate.ts';
+import { placeBoxes } from './boxes.ts';
+import { firstFreeCandidate } from './candidates.ts';
+import { MAP_THEMES, type MapTheme } from './themes.ts';
 
 export const GRID_SIZES = [32, 40, 48];
-// Highest level index a building reaches. Level 0 is ground, so 3 means up to four floors.
+// Highest level index a building reaches in the standard theme. Level 0 is ground.
 export const MAX_BUILDING_LEVEL = 3;
+// Footprints sampled per extra-building attempt before the attempt gives up.
+const CANDIDATES_PER_ATTEMPT = 40;
 
-// Places a box only if the battlefield stays connected and no protected cell is touched.
-function placeBox(
-  cells: Record<string, Cell>,
-  transitions: Record<string, Position[]>,
-  cell: Cell,
-  cover: Cover,
-  protectedKeys: Set<string>
-): void {
-  if (protectedKeys.has(cellKey(cell))) return;
-  const previous = { cover: cell.cover, terrain: cell.terrain };
-  cell.cover = cover;
-  cell.terrain = cover === 2 ? 'pillar' : 'console';
-  // Local proof first; the exact full-map check runs only when the proof is inconclusive.
-  if (neighboursStayLinked(cells, transitions, cell)) return;
-  if (!allPassableReachable(cells, transitions)) Object.assign(cell, previous);
+// Picks the theme from a hash of the seed, so the theme does not shift layout draws and
+// neighbouring seeds spread across all themes (a single LCG step correlates them).
+export function themeForSeed(seed: number): MapTheme {
+  let h = (seed ^ 0x7f4a7c15) >>> 0;
+  h = Math.imul(h ^ (h >>> 16), 0x85ebca6b) >>> 0;
+  h = Math.imul(h ^ (h >>> 13), 0xc2b2ae35) >>> 0;
+  h ^= h >>> 16;
+  return MAP_THEMES[(h >>> 0) % MAP_THEMES.length];
 }
 
 // Ground-floor shell: walls on the perimeter, doors opened on the chosen sides.
@@ -117,6 +114,7 @@ function buildingValid(
 export function createBattlefield(seed: number): Battlefield {
   const random = makeRandom(seed);
   const size = GRID_SIZES[Math.floor(random() * GRID_SIZES.length)];
+  const theme = themeForSeed(seed);
   const middle = Math.floor(size / 2);
   const cells: Record<string, Cell> = {};
   const transitions: Record<string, Position[]> = {};
@@ -155,7 +153,7 @@ export function createBattlefield(seed: number): Battlefield {
       w: 8 + Math.floor(random() * 3),
       h: 8 + Math.floor(random() * 3),
     };
-    const topLevel = 1 + Math.floor(random() * MAX_BUILDING_LEVEL);
+    const topLevel = 1 + Math.floor(random() * theme.maxBuildingLevel);
     const saved = snapshotRegion(cells, transitions, room, topLevel);
     const record = raiseBuilding(cells, transitions, room, topLevel, middle, true, random, protectedKeys);
     if (!buildingValid(cells, transitions, room, record)) {
@@ -168,26 +166,12 @@ export function createBattlefield(seed: number): Battlefield {
 
   // Extra buildings fill the remaining space in each quadrant. A building is kept only
   // if it leaves a one-cell gap to others and it passes every validation check.
-  const extraAttempts = size >= 48 ? 30 : size >= 40 ? 22 : 16;
-  const bounds = {
-    left: { min: 2, max: middle - 3 },
-    right: { min: middle + 2, max: size - 3 },
-  };
+  const baseAttempts = size >= 48 ? 30 : size >= 40 ? 22 : 16;
+  const extraAttempts = Math.round(baseAttempts * theme.extraBuildingScale);
   for (let attempt = 0; attempt < extraAttempts; attempt += 1) {
-    const xBounds = bounds[random() < 0.5 ? 'left' : 'right'];
-    const zBounds = bounds[random() < 0.5 ? 'left' : 'right'];
-    const w = 6 + Math.floor(random() * 4);
-    const h = 6 + Math.floor(random() * 4);
-    const maxX = xBounds.max - w + 1;
-    const maxZ = zBounds.max - h + 1;
-    if (maxX < xBounds.min || maxZ < zBounds.min) continue;
-    const room = {
-      id: buildings.length,
-      x: xBounds.min + Math.floor(random() * (maxX - xBounds.min + 1)),
-      z: zBounds.min + Math.floor(random() * (maxZ - zBounds.min + 1)),
-      w,
-      h,
-    };
+    // Sample several footprints per attempt: a single random spot rarely clears the gap rule.
+    const room = firstFreeCandidate(buildings, size, middle, random, CANDIDATES_PER_ATTEMPT);
+    if (!room) continue;
     const overlaps = buildings.some(
       (other) =>
         room.x - 1 <= other.x + other.w - 1 &&
@@ -196,7 +180,7 @@ export function createBattlefield(seed: number): Battlefield {
         other.z <= room.z + room.h
     );
     if (overlaps) continue;
-    const topLevel = 1 + Math.floor(random() * MAX_BUILDING_LEVEL);
+    const topLevel = 1 + Math.floor(random() * theme.maxBuildingLevel);
     const saved = snapshotRegion(cells, transitions, room, topLevel);
     const keysBefore = new Set(protectedKeys);
     const record = raiseBuilding(cells, transitions, room, topLevel, middle, false, random, protectedKeys);
@@ -209,32 +193,7 @@ export function createBattlefield(seed: number): Battlefield {
     buildings.push({ ...room, anchor: false, topLevel, doors: record.doors });
   }
 
-  // Boxes are placed only after all structure exists, so the connectivity guard sees the
-  // real map. Protected keys (stairs, lanes) are never overwritten.
-  for (const room of buildings) {
-    for (let z = room.z + 1; z < room.z + room.h - 1; z += 1) {
-      for (let x = room.x + 1; x < room.x + room.w - 1; x += 1) {
-        const cell = cells[cellKey({ x, z })];
-        if (random() < 0.12 && cell.terrain === 'floor') {
-          placeBox(cells, transitions, cell, random() > 0.45 ? 2 : 1, protectedKeys);
-        }
-      }
-    }
-  }
-  for (const cell of Object.values(cells)) {
-    if (cell.level > 0 && cell.terrain === 'floor' && cell.building?.role === 'interior' && random() < 0.1) {
-      placeBox(cells, transitions, cell, random() > 0.5 ? 2 : 1, protectedKeys);
-    }
-  }
+  placeBoxes(cells, transitions, buildings, size, theme, random, protectedKeys);
 
-  for (let index = 0; index < Math.floor((size * size) / 16); index += 1) {
-    const x = 2 + Math.floor(random() * (size - 4));
-    const z = 2 + Math.floor(random() * (size - 4));
-    const cell = cells[cellKey({ x, z })];
-    if (cell?.walkable && !cell.structure && cell.cover === 0 && (x + z) % 3 !== 0) {
-      placeBox(cells, transitions, cell, random() > 0.68 ? 2 : 1, protectedKeys);
-    }
-  }
-
-  return { seed, size, cells, transitions, rooms: buildings };
+  return { seed, size, theme: theme.id, cells, transitions, rooms: buildings };
 }
