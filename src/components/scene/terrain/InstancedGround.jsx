@@ -14,13 +14,7 @@ export function InstancedGround({ visibleCells, meshRef }) {
       dummy.updateMatrix();
       meshRef.current.setMatrixAt(index, dummy.matrix);
       const color =
-        cell.level === 0
-          ? cell.structure
-            ? '#303c39'
-            : '#202b2b'
-          : cell.level === 1
-            ? '#52605a'
-            : '#6d7568';
+        cell.level === 0 ? (cell.structure ? '#303c39' : '#202b2b') : cell.level === 1 ? '#52605a' : '#6d7568';
       meshRef.current.setColorAt(index, new THREE.Color(color));
     });
     meshRef.current.instanceMatrix.needsUpdate = true;

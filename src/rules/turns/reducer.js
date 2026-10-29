@@ -127,7 +127,12 @@ function applyAction(state, action) {
       const shooter = cleared.units.find((unit) => unit.id === cleared.selectedId);
       const target = cleared.units.find((unit) => unit.id === cleared.targetId);
       const canFireAgain =
-        shooter?.team === 'player' && shooter.hp > 0 && shooter.ap > 0 && target && target.team !== 'player' && target.hp > 0;
+        shooter?.team === 'player' &&
+        shooter.hp > 0 &&
+        shooter.ap > 0 &&
+        target &&
+        target.team !== 'player' &&
+        target.hp > 0;
       if (canFireAgain) return { ...cleared, shootMode: true, moveMode: false };
       // Otherwise the target marking is dropped so no crosshair lingers through the rest of the player round.
       return selectNextReadyPlayer({ ...cleared, targetId: null, shootMode: false });

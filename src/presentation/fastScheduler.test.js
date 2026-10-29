@@ -21,8 +21,14 @@ test('scaledScheduler divides delays and forwards clears', () => {
     clearInterval: (h) => calls.push(['clearInterval', h]),
   };
   const fast = scaledScheduler(base, 4);
-  assert.equal(fast.setTimeout(() => {}, 1400), 'T');
-  assert.equal(fast.setInterval(() => {}, 220), 'I');
+  assert.equal(
+    fast.setTimeout(() => {}, 1400),
+    'T'
+  );
+  assert.equal(
+    fast.setInterval(() => {}, 220),
+    'I'
+  );
   fast.clearTimeout('T');
   fast.clearInterval('I');
   assert.deepEqual(calls, [

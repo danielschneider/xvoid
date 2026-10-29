@@ -3,7 +3,10 @@ import assert from 'node:assert/strict';
 import { missOvershoot } from './trajectory.js';
 import { MISS_OVERSHOOT } from '../constants.js';
 
-const cell = (x, z, terrain = 'floor') => [`${x},${z},0`, { x, z, level: 0, terrain, walkable: terrain === 'floor', cover: 0 }];
+const cell = (x, z, terrain = 'floor') => [
+  `${x},${z},0`,
+  { x, z, level: 0, terrain, walkable: terrain === 'floor', cover: 0 },
+];
 const map = (walls = []) => ({
   cells: Object.fromEntries(
     Array.from({ length: 30 }, (_, i) => {
