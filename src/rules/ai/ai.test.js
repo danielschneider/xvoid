@@ -154,9 +154,13 @@ test('stalkers choose a concealed forward route when one is available', () => {
   const state = createInitialState(42);
   const stalker = state.units.find((unit) => unit.aiRole === 'stalker');
   const center = Math.floor(state.map.size / 2);
-  const barrier = state.map.cells[cellKey({ x: center + 3, z: center })];
-  barrier.terrain = 'wall';
-  barrier.walkable = false;
+  // A short wall column (not a single cell, which players can lean around) hides the cells behind it.
+  for (let z = center - 3; z <= center + 3; z += 1) {
+    const barrier = state.map.cells[cellKey({ x: center + 3, z })];
+    if (!barrier) continue;
+    barrier.terrain = 'wall';
+    barrier.walkable = false;
+  }
   const units = state.units.map((unit) => {
     if (unit.team === 'player') return { ...unit, x: center, z: center };
     if (unit.id === stalker.id) return { ...unit, x: center + 6, z: center, ap: 2 };
@@ -167,10 +171,10 @@ test('stalkers choose a concealed forward route when one is available', () => {
   const reachable = getReachable(state.map, movedStalker, blocked, 6);
   const players = units.filter((unit) => unit.team === 'player' && unit.hp > 0);
   const visible = getVisibleCells(state.map, players);
-  const visibleForwardPathExists = [...reachable.entries()].some(
-    ([key]) => visible.has(key) && Math.hypot(state.map.cells[key].x - center, state.map.cells[key].z - center) < 6
+  const concealedForwardPathExists = [...reachable.entries()].some(
+    ([key]) => !visible.has(key) && Math.hypot(state.map.cells[key].x - center, state.map.cells[key].z - center) < 6
   );
-  assert.ok(visibleForwardPathExists);
+  assert.ok(concealedForwardPathExists);
 
   const enemyTurn = {
     ...state,
