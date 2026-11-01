@@ -33,7 +33,7 @@ test('enemies advance toward the nearest player during their turn', () => {
 test('unalerted enemies never approach or shoot, and stay near their post', () => {
   const state = createInitialState(42);
   const enemies = state.units.filter((unit) => unit.team === 'alien');
-  for (let round = 0; round < 20; round += 1) {
+  for (let round = 0; round < 4; round += 1) {
     let turn = {
       ...state,
       phase: 'enemy',

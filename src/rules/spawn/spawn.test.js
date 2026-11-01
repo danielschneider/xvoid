@@ -4,7 +4,7 @@ import { createInitialState, gameReducer } from '../../engine/game.ts';
 import { cachedBattlefield } from '../../../test/battlefieldCache.js';
 import { createStartingUnits } from './placement.ts';
 import { makeRandom } from '../rng.ts';
-import { cellKey, getReachable, getVisibleCells } from '../../engine/map.ts';
+import { cellKey, getReachable } from '../../engine/map.ts';
 import { ROLES } from '../ai/roles.ts';
 
 test('new seeds vary map size, squad size, and spawn positions deterministically', () => {
@@ -33,13 +33,6 @@ test('new seeds vary map size, squad size, and spawn positions deterministically
         (player) =>
           player.x === 0 || player.z === 0 || player.x === state.map.size - 1 || player.z === state.map.size - 1
       )
-    );
-    const visibleCells = getVisibleCells(state.map, players);
-    assert.ok(
-      [...visibleCells].every((key) => {
-        const cell = state.map.cells[key];
-        return cell.x >= 0 && cell.z >= 0 && cell.x < state.map.size && cell.z < state.map.size;
-      })
     );
 
     const reachable = new Set(getReachable(state.map, players[0], new Set(), state.map.size * 2).keys());

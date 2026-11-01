@@ -7,7 +7,7 @@ const SIGHT_BLOCKERS = new Set(['wall', 'partition']);
 // Units can lean out from cover: head and weapon reach a little past their own cell edge,
 // so a unit beside a wall end can look and shoot around it. A lean point may not sit inside
 // a sight blocker, so a lean never pokes through solid terrain.
-const LEAN_REACH = 0.45;
+const LEAN_REACH = 0.49;
 const LEAN_POINTS: [number, number][] = [
   [0, 0],
   [-LEAN_REACH, 0],
