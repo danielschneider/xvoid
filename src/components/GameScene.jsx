@@ -76,8 +76,8 @@ function Battlefield({
       <TilemapGround map={state.map} visibleCellKeys={visibleCellKeys} />
       <group position={[mapOffset, 0, mapOffset]}>
         <InstancedGround cells={allCells} visibleCells={visibleCells} meshRef={floorRef} />
-        <WallField cells={revealedCells} selected={selected} />
-        <CoverField cells={revealedCells} selected={selected} />
+        <WallField cells={revealedCells} selected={selected} mapSeed={state.map.seed} />
+        <CoverField cells={revealedCells} selected={selected} mapSeed={state.map.seed} />
         <StructureField cells={revealedCells} />
         <FogOfWar cells={visibleCells} visibleCellKeys={visibleCellKeys} />
         {selected?.ap > 0 && <ReachableOverlay paths={shownPaths} map={state.map} coverProfiles={coverProfiles} />}

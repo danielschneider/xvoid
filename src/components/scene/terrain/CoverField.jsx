@@ -1,14 +1,15 @@
 import { useMemo } from 'react';
-import { useLoader } from '@react-three/fiber';
-import * as THREE from 'three';
 import { cellKey } from '../../../engine/map.ts';
 import { toWorld, toWorldY } from '../coords.js';
-import { createTileTexture } from '../textures/tiles.js';
-import { ROGUELIKE_SHEET } from './sheet.js';
-export function CoverField({ cells, selected }) {
-  const atlas = useLoader(THREE.TextureLoader, ROGUELIKE_SHEET);
-  const stoneTexture = useMemo(() => createTileTexture(atlas.image, 5, 14), [atlas]);
-  const earthTexture = useMemo(() => createTileTexture(atlas.image, 5, 8), [atlas]);
+import { createStoneTexture } from '../textures/procedural/stoneTexture.js';
+import { createEarthTexture } from '../textures/procedural/earthTexture.js';
+// Distinct salts keep stone and earth patterns independent for the same map seed.
+const STONE_SALT = 0x51;
+const EARTH_SALT = 0x52;
+
+export function CoverField({ cells, selected, mapSeed }) {
+  const stoneTexture = useMemo(() => createStoneTexture(mapSeed ^ STONE_SALT), [mapSeed]);
+  const earthTexture = useMemo(() => createEarthTexture(mapSeed ^ EARTH_SALT), [mapSeed]);
   const data = useMemo(() => cells.filter((cell) => cell.terrain === 'console' || cell.terrain === 'pillar'), [cells]);
   return data.map((cell) => {
     const height = cell.terrain === 'pillar' ? 1.14 : 0.46;

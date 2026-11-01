@@ -38,4 +38,4 @@ Die Sprites werden lokal als Pixel-Art-Texturen erzeugt. Die Spiel-Engine für K
 
 ## Grafikassets
 
-Die Roguelike-Umgebungstiles stammen aus Kenneys [Roguelike/RPG pack](https://kenney.nl/assets/roguelike-rpg-pack) und stehen unter CC0. Die Lizenz liegt bei `public/assets/kenney-roguelike/License.txt`. Das Paket enthält Umgebungskacheln, aber keine passenden Spielfiguren; die Einheiten-Sprites werden weiterhin lokal erzeugt.
+Die Umgebungstexturen (Boden, Wände, Deckung) werden prozedural im Code erzeugt, und die Einheiten-Sprites werden lokal generiert. Es gibt keine externen Grafikassets.
