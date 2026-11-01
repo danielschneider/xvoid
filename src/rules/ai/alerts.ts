@@ -1,6 +1,6 @@
 import type { GameState, Position, StepResult } from '../types.ts';
+import { isCellVisible } from '../sight/fog.ts';
 import { cellKey } from '../grid/cells.ts';
-import { getVisibleCells } from '../sight/fog.ts';
 import { spawnDistance } from '../geometry.ts';
 import { GROUP_RANGE } from '../constants.ts';
 import { alertEvent } from '../../presentation/events.ts';
@@ -32,13 +32,14 @@ export function assignEnemyGroups(cells: Position[]): number[] {
 // Marks every enemy group that has a member inside the squad's vision as alerted.
 // Returns { state, events }: one alert event per group that was not alerted before.
 export function refreshAlerts(state: GameState): StepResult {
-  const players = state.units.filter((unit) => unit.team === 'player' && unit.hp > 0);
-  const visibleCells = getVisibleCells(state.map, players);
   const previous = state.alertedGroups ?? [];
   const alerted = new Set(previous);
   const events: StepResult['events'] = [];
   for (const unit of state.units) {
-    if (isEnemy(unit) && unit.hp > 0 && visibleCells.has(cellKey(unit)) && !alerted.has(unit.groupId)) {
+    // Only living enemies can alert a group, so check just their cells instead of the whole map.
+    if (!isEnemy(unit) || unit.hp <= 0 || alerted.has(unit.groupId)) continue;
+    const cell = state.map.cells[cellKey(unit)];
+    if (cell && isCellVisible(state.map, state.units, cell)) {
       alerted.add(unit.groupId);
       events.push(alertEvent({ groupId: unit.groupId }));
     }
