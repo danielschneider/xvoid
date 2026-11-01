@@ -44,12 +44,11 @@ test('enemy models draw different bodies and the default is the humanoid', () =>
     createSpriteTexture('alien', '#ff7770', 'RAIDER', 'front');
     createSpriteTexture('alien', '#ff7770', 'RAIDER', 'front', 'humanoid');
     createSpriteTexture('alien', '#ff7770', 'CRAWLER', 'front', 'crawler');
-    createSpriteTexture('alien', '#ff7770', 'SOLDIER', 'front', 'soldier');
-    createSpriteTexture('alien', '#ff7770', 'MONSTER', 'front', 'monster');
-    const [humanoid, humanoidExplicit, crawler, soldier, monster] = stub.created.map((canvas) => canvas.calls);
+    createSpriteTexture('alien', '#ff7770', 'MONSTER', 'front', 'jellyfish');
+    const [humanoid, humanoidExplicit, crawler, monster] = stub.created.map((canvas) => canvas.calls);
     assert.deepEqual(humanoid, humanoidExplicit);
-    const shapes = [crawler, soldier, monster].map((calls) => JSON.stringify(calls));
-    assert.equal(new Set([...shapes, JSON.stringify(humanoid)]).size, 4);
+    const shapes = [crawler, monster].map((calls) => JSON.stringify(calls));
+    assert.equal(new Set([...shapes, JSON.stringify(humanoid)]).size, 3);
   } finally {
     stub.uninstall();
   }
@@ -67,6 +66,31 @@ test('class accessories are added only for their class', () => {
     assert.ok(medic.includes('#f5efc7'));
     assert.ok(!plain.includes('#f5efc7'));
     assert.ok(!plain.includes('#98baff'));
+  } finally {
+    stub.uninstall();
+  }
+});
+
+test('each enemy model draws a distinct sprite from the humanoid', () => {
+  const stub = installCanvasStub();
+  try {
+    const models = ['humanoid', 'crawler', 'jellyfish', 'stalker', 'raider', 'scout', 'guard', 'sneaker'];
+    for (const model of models) createSpriteTexture('alien', '#d28cff', model.toUpperCase(), 'front', model);
+    const sequences = stub.created.map((canvas) => JSON.stringify(canvas.calls));
+    assert.equal(new Set(sequences).size, models.length);
+  } finally {
+    stub.uninstall();
+  }
+});
+
+test('the stalker sprite uses its enemy colour for every body fill', () => {
+  const stub = installCanvasStub();
+  try {
+    createSpriteTexture('alien', '#d28cff', 'STALKER', 'front', 'stalker');
+    const [stalker] = stub.created.map((canvas) => fills(canvas.calls));
+    assert.ok(stalker.includes('#d28cff'));
+    assert.ok(!stalker.includes('#39242d'));
+    assert.ok(!stalker.includes('#ff7770'));
   } finally {
     stub.uninstall();
   }

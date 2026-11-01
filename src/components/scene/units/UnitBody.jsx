@@ -1,56 +1,18 @@
-import { useRef } from 'react';
-import { useFrame } from '@react-three/fiber';
+import { useMemo } from 'react';
 import * as THREE from 'three';
 import { Html } from '@react-three/drei';
-import { toWorld, toWorldY } from '../coords.js';
-import { Muzzle, CritOverlay } from './UnitEffects.jsx';
+import { CritOverlay, Muzzle } from './UnitEffects.jsx';
 import { UnitSprite } from './UnitSprite.jsx';
 import { FootCircle } from './FootCircle.jsx';
+import { BodyParts } from './BodyParts.jsx';
+import { TargetCross } from './TargetCross.jsx';
+import { buildBody } from './bodyModels.js';
+export { moveBody, applyBodyPose } from './bodyPose.js';
 
-// Crosshair drawn around the targeted enemy: four arms with a gap at the centre, always
-// facing the camera (it lives in the billboard group). It pulses in scale and opacity.
-const CROSS_ARM_LENGTH = 0.42;
-const CROSS_ARM_WIDTH = 0.1;
-const CROSS_GAP = 0.2;
-const CROSS_COLOR = '#ff4d42';
-const CROSS_OUTLINE = '#120504';
-const CROSS_PULSE_SPEED = 4;
-const CROSS_PULSE_AMOUNT = 0.18;
-
-function CrossArms({ color, grow }) {
-  const half = CROSS_GAP + CROSS_ARM_LENGTH / 2;
-  const arms = [
-    { pos: [0, half, 0], size: [CROSS_ARM_WIDTH + grow, CROSS_ARM_LENGTH + grow] },
-    { pos: [0, -half, 0], size: [CROSS_ARM_WIDTH + grow, CROSS_ARM_LENGTH + grow] },
-    { pos: [half, 0, 0], size: [CROSS_ARM_LENGTH + grow, CROSS_ARM_WIDTH + grow] },
-    { pos: [-half, 0, 0], size: [CROSS_ARM_LENGTH + grow, CROSS_ARM_WIDTH + grow] },
-  ];
-  return arms.map((arm, i) => (
-    <mesh key={i} position={arm.pos}>
-      <planeGeometry args={arm.size} />
-      <meshBasicMaterial color={color} depthTest={false} depthWrite={false} toneMapped={false} transparent />
-    </mesh>
-  ));
-}
-
-function TargetCross() {
-  const group = useRef();
-  useFrame(({ clock }) => {
-    const pulse = 0.5 + 0.5 * Math.sin(clock.elapsedTime * CROSS_PULSE_SPEED);
-    group.current?.scale.setScalar(1 + pulse * CROSS_PULSE_AMOUNT);
-  });
-  return (
-    <group ref={group} position={[0, 0.25, 0.25]} renderOrder={11}>
-      <CrossArms color={CROSS_OUTLINE} grow={0.06} />
-      <CrossArms color={CROSS_COLOR} grow={0} />
-    </group>
-  );
-}
-
-// Static unit geometry: shadow, selection ring, body, rifle and billboard sprite group.
+// Static unit geometry: shadow, selection ring, model body, rifle (if the model has one) and billboard sprite group.
 export function UnitBody({ unit, selected, targeted, shootable, hitChance, dead, refs, spriteTextures, critTexture }) {
-  const armorColor = unit.team === 'alien' ? '#492b35' : '#324c43';
   const pulsing = !dead && selected && unit.team === 'player';
+  const body = useMemo(() => buildBody(unit.model, unit), [unit.model, unit.team, unit.color]);
   return (
     <group ref={refs.group} name={`unit-${unit.id}`}>
       {!pulsing && (
@@ -72,88 +34,25 @@ export function UnitBody({ unit, selected, targeted, shootable, hitChance, dead,
         </mesh>
       )}
 
-      <group ref={refs.bodyGroup}>
-        <mesh position={[0, 0.79, 0]}>
-          <boxGeometry args={[0.48, 0.58, 0.32]} />
-          <meshStandardMaterial color={armorColor} roughness={0.78} metalness={0.24} />
-        </mesh>
-        <mesh position={[0, 1.05, 0]}>
-          <boxGeometry args={[0.7, 0.2, 0.38]} />
-          <meshStandardMaterial color={unit.color} roughness={0.68} metalness={0.28} />
-        </mesh>
-        <mesh position={[0, 1.31, 0]}>
-          <boxGeometry args={[0.34, 0.34, 0.34]} />
-          <meshStandardMaterial color="#b7b5a2" roughness={0.82} metalness={0.12} />
-        </mesh>
-        {[-1, 1].map((side) => (
-          <mesh key={side} position={[side * 0.17, 0.31, 0]}>
-            <boxGeometry args={[0.2, 0.42, 0.25]} />
-            <meshStandardMaterial color="#242f2a" roughness={0.9} />
-          </mesh>
-        ))}
-        <group ref={refs.rifle} position={[0.28, 0.91, 0.16]} rotation={[0.12, 0, -0.12]}>
-          <mesh>
-            <boxGeometry args={[0.14, 0.14, 0.5]} />
-            <meshStandardMaterial color="#202722" roughness={0.55} metalness={0.52} />
-          </mesh>
-          <mesh position={[0, 0, 0.33]}>
-            <boxGeometry args={[0.07, 0.07, 0.22]} />
-            <meshStandardMaterial color="#a39a7d" roughness={0.42} metalness={0.62} />
-          </mesh>
-          <Muzzle refs={refs} />
-        </group>
+      <group ref={refs.bodyGroup} position={[0, body.groundY, 0]} scale={body.scale}>
+        <BodyParts parts={body.parts} />
+        {body.rifle && (
+          <group ref={refs.rifle} position={body.rifle.position} rotation={body.rifle.rotation}>
+            <BodyParts parts={body.rifle.parts} />
+            <Muzzle refs={refs} />
+          </group>
+        )}
       </group>
-      <group ref={refs.billboard} position={[0, 0.82, 0]}>
+      <group ref={refs.billboard} position={[0, body.spriteY, 0]} scale={body.scale}>
         <UnitSprite refs={refs} team={unit.team} spriteTextures={spriteTextures} />
         <CritOverlay refs={refs} texture={critTexture} />
         {!dead && targeted && <TargetCross />}
       </group>
       {shootable && hitChance != null && (
-        <Html position={[0, 1.95, 0]} center zIndexRange={[20, 0]} style={{ pointerEvents: 'none' }}>
+        <Html position={[0, body.labelY, 0]} center zIndexRange={[20, 0]} style={{ pointerEvents: 'none' }}>
           <span className="enemy-hit-chance">{hitChance}%</span>
         </Html>
       )}
     </group>
   );
-}
-
-// Walks the group along the route (or lerps to the destination when no route). Mutates motion progress only.
-export function moveBody(refs, motion, { route, movement, destination }, delta) {
-  if (!refs.group.current) return;
-  if (!motion.initialized.current) {
-    const first = route?.[0];
-    if (first) refs.group.current.position.set(toWorld(first).x, toWorldY(first) + 0.035, toWorld(first).z);
-    else refs.group.current.position.copy(destination);
-    motion.initialized.current = true;
-  }
-  if (route?.length > 1) {
-    if (motion.movementProgress.current.id !== movement.id)
-      motion.movementProgress.current = { id: movement.id, elapsed: 0 };
-    motion.movementProgress.current.elapsed += delta;
-    const progress = Math.min(motion.movementProgress.current.elapsed / 0.22, route.length - 1);
-    const segment = Math.min(Math.floor(progress), route.length - 2);
-    const segmentProgress = progress >= route.length - 1 ? 1 : progress - segment;
-    const from = route[segment];
-    const to = route[segment + 1];
-    motion.routeStart.set(toWorld(from).x, toWorldY(from) + 0.035, toWorld(from).z);
-    motion.routeEnd.set(toWorld(to).x, toWorldY(to) + 0.035, toWorld(to).z);
-    refs.group.current.position.lerpVectors(motion.routeStart, motion.routeEnd, segmentProgress);
-  } else {
-    refs.group.current.position.lerp(destination, 0.12);
-  }
-}
-
-// Applies facing, fall tilt and recoil to the body, and the billboard orientation and height.
-export function applyBodyPose(refs, { recoil, pose, facing, camera, fallenOrientation }) {
-  if (refs.bodyGroup.current) {
-    refs.bodyGroup.current.rotation.y = facing;
-    refs.bodyGroup.current.rotation.x = (-Math.PI / 2) * pose;
-    // Body rocks back slightly when firing; pushed along local -z (away from the aim direction).
-    refs.bodyGroup.current.position.z = -recoil * 0.08 * (1 - pose);
-  }
-  if (refs.billboard.current) {
-    refs.billboard.current.quaternion.copy(camera.quaternion);
-    if (pose > 0) refs.billboard.current.quaternion.slerp(fallenOrientation, pose);
-    refs.billboard.current.position.y = THREE.MathUtils.lerp(0.82, 0.05, pose);
-  }
 }

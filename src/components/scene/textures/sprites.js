@@ -1,8 +1,9 @@
 import * as THREE from 'three';
+import { ENEMY_DRAWERS } from './spriteEnemies.js';
 
 // Enemy sprite models. Each one is drawn with the same pixel helper on a 48x64 canvas.
 // `humanoid` is the default and is used by player units.
-export const SPRITE_MODELS = ['humanoid', 'crawler', 'soldier', 'monster'];
+export const SPRITE_MODELS = ['humanoid', 'crawler', 'jellyfish', 'stalker', 'raider', 'scout', 'guard', 'sneaker'];
 
 // Small low crawler: flat armored shell, four splayed legs, two glowing eyes.
 function drawCrawler({ pixel, glow, armor, view }) {
@@ -17,62 +18,23 @@ function drawCrawler({ pixel, glow, armor, view }) {
     pixel(20, 39, 1, 1, glow);
     pixel(26, 39, 1, 1, glow);
   }
-  pixel(6, 39, 8, 3, armor);
-  pixel(9, 43, 6, 3, armor);
-  pixel(34, 39, 8, 3, armor);
-  pixel(33, 43, 6, 3, armor);
-  pixel(3, 42, 4, 3, glow);
-  pixel(41, 42, 4, 3, glow);
+  // Four short legs splayed outward from the shell.
+  pixel(6, 39, 6, 3, armor);
+  pixel(4, 42, 4, 4, '#20302f');
+  pixel(36, 39, 6, 3, armor);
+  pixel(40, 42, 4, 4, '#20302f');
+  pixel(10, 43, 5, 3, armor);
+  pixel(14, 46, 4, 4, '#20302f');
+  pixel(33, 43, 5, 3, armor);
+  pixel(30, 46, 4, 4, '#20302f');
+  pixel(3, 42, 3, 2, glow);
+  pixel(42, 42, 3, 2, glow);
   pixel(20, 46, 8, 4, '#20302f');
   pixel(19, 50, 3, 3, glow);
   pixel(26, 50, 3, 3, glow);
 }
 
-// Armored infantry: helmet with a visor, chest plate, rifle at the side.
-function drawSoldier({ pixel, glow, armor, team, view }) {
-  pixel(16, 4, 16, 8, armor);
-  pixel(14, 8, 20, 4, armor);
-  if (view === 'back') {
-    pixel(18, 6, 12, 3, '#36524c');
-  } else {
-    pixel(18, 9, 12, 3, glow);
-    pixel(19, 14, 10, 2, team === 'alien' ? '#ffb19a' : '#eaffcf');
-  }
-  pixel(14, 14, 20, 18, armor);
-  pixel(18, 18, 12, 8, '#547b70');
-  pixel(10, 16, 4, 14, armor);
-  pixel(34, 16, 4, 14, armor);
-  pixel(36, 22, 3, 14, '#35433d');
-  pixel(15, 34, 7, 20, '#20302f');
-  pixel(26, 34, 7, 20, '#20302f');
-  pixel(14, 54, 9, 4, glow);
-  pixel(25, 54, 9, 4, glow);
-}
-
-// Hulking monster: horned head, wide hunched torso, long clawed arms.
-function drawMonster({ pixel, glow, armor, view }) {
-  pixel(12, 2, 4, 6, '#e8d8b0');
-  pixel(32, 2, 4, 6, '#e8d8b0');
-  pixel(16, 6, 16, 12, armor);
-  if (view === 'back') {
-    pixel(20, 16, 8, 4, glow);
-  } else {
-    pixel(19, 10, 3, 3, glow);
-    pixel(26, 10, 3, 3, glow);
-    pixel(20, 15, 8, 2, '#f2f0d0');
-  }
-  pixel(6, 20, 36, 24, armor);
-  pixel(0, 24, 6, 22, armor);
-  pixel(42, 24, 6, 22, armor);
-  pixel(0, 44, 6, 3, '#f2f0d0');
-  pixel(42, 44, 6, 3, '#f2f0d0');
-  pixel(10, 44, 10, 14, '#20302f');
-  pixel(28, 44, 10, 14, '#20302f');
-  pixel(8, 56, 14, 4, glow);
-  pixel(26, 56, 14, 4, glow);
-}
-
-const MODEL_DRAWERS = { crawler: drawCrawler, soldier: drawSoldier, monster: drawMonster };
+const MODEL_DRAWERS = { crawler: drawCrawler, ...ENEMY_DRAWERS };
 
 // Pixel sprite for one unit, drawn on a 48x64 canvas. `view` is front, back, left or right.
 // `model` picks the body shape; unknown or missing models use the default humanoid.
@@ -95,7 +57,7 @@ export function createSpriteTexture(team, color, className, view, model = 'human
   }
   const drawModel = MODEL_DRAWERS[model];
   if (drawModel) {
-    drawModel({ pixel, glow, armor, team, view });
+    drawModel({ pixel, glow, armor, team, view, color });
   } else {
     pixel(sideView ? 19 : 18, 3, sideView ? 10 : 12, 3, glow);
     pixel(sideView ? 17 : 15, 6, sideView ? 14 : 18, 13, '#a8c3b8');

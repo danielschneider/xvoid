@@ -45,13 +45,37 @@ export const PLAYER_TEMPLATES = [
 ] as const;
 
 export const ENEMY_TEMPLATES = [
-  { role: 'raider', name: 'Void Raider', className: 'RAIDER', hp: 5, shield: 0, color: '#ff6f66' },
-  { role: 'stalker', name: 'Void Stalker', className: 'STALKER', hp: 6, shield: 1, color: '#d28cff' },
-  { role: 'scout', name: 'Void Scout', className: 'SCOUT', hp: 4, shield: 0, color: '#ff9b70' },
-  { role: 'guard', name: 'Void Guard', className: 'GUARD', hp: 7, shield: 2, color: '#d47682' },
-  // Model-based enemy classes: `model` selects the sprite body shape in sprites.js.
+  { role: 'raider', model: 'raider', name: 'Void Raider', className: 'RAIDER', hp: 5, shield: 0, color: '#ff6f66' },
+  {
+    role: 'stalker',
+    model: 'stalker',
+    name: 'Void Stalker',
+    className: 'STALKER',
+    hp: 6,
+    shield: 1,
+    color: '#d28cff',
+  },
+  { role: 'scout', model: 'scout', name: 'Void Scout', className: 'SCOUT', hp: 4, shield: 0, color: '#ff9b70' },
+  { role: 'guard', model: 'guard', name: 'Void Guard', className: 'GUARD', hp: 7, shield: 2, color: '#d47682' },
+  // `model` selects the 3D body (units/bodyModels.js) and sprite shape (textures/sprites.js). Humanoid is the default.
   { role: 'crawler', name: 'Void Crawler', className: 'CRAWLER', model: 'crawler', hp: 3, shield: 0, color: '#9dff6f' },
-  { role: 'soldier', name: 'Void Soldier', className: 'SOLDIER', model: 'soldier', hp: 6, shield: 1, color: '#ffd166' },
-  { role: 'monster', name: 'Void Monster', className: 'MONSTER', model: 'monster', hp: 9, shield: 2, color: '#ff4fa3' },
-  { role: 'sneaker', name: 'Void Sneaker', className: 'SNEAKER', hp: 4, shield: 0, color: '#7fd6ff' },
+  { role: 'soldier', name: 'Void Soldier', className: 'SOLDIER', model: 'crawler', hp: 6, shield: 1, color: '#ffd166' },
+  {
+    role: 'monster',
+    name: 'Void Monster',
+    className: 'MONSTER',
+    model: 'jellyfish',
+    hp: 9,
+    shield: 2,
+    color: '#ff4fa3',
+  },
+  {
+    role: 'sneaker',
+    model: 'sneaker',
+    name: 'Void Sneaker',
+    className: 'SNEAKER',
+    hp: 4,
+    shield: 0,
+    color: '#7fd6ff',
+  },
 ] as const;

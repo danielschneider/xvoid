@@ -5,7 +5,9 @@ import { cellHeight, cellKey } from '../../../engine/map.ts';
 import { toWorld, toWorldY } from '../coords.js';
 import { createCritTexture } from '../textures/labels.js';
 import { advanceEffects, useEffectClock } from './UnitEffects.jsx';
-import { UnitBody, applyBodyPose, moveBody } from './UnitBody.jsx';
+import { UnitBody } from './UnitBody.jsx';
+import { applyBodyPose, moveBody } from './bodyPose.js';
+import { modelDimensions } from './bodyModels.js';
 import { updateSpriteView, useSpriteTextures } from './UnitSprite.jsx';
 
 // Composition entry for one unit: wires refs, the shared frame loop and the three sub-parts.
@@ -57,7 +59,14 @@ export function PixelUnit({
   useFrame((_, delta) => {
     const { recoil, pose } = advanceEffects(clock, { unitId: unit.id, dead, lastShot, refs }, delta);
     moveBody(refs, motion, { route, movement, destination }, delta);
-    applyBodyPose(refs, { recoil, pose, facing: view.visualFacing.current, camera, fallenOrientation });
+    applyBodyPose(refs, {
+      recoil,
+      pose,
+      facing: view.visualFacing.current,
+      camera,
+      fallenOrientation,
+      spriteY: modelDimensions(unit.model).spriteY,
+    });
     if (refs.sprite.current) updateSpriteView(refs, view, spriteTextures, camera, unit.facing ?? 0, delta);
   });
   return (
