@@ -1,10 +1,10 @@
-import type { Battlefield, Cell, Position, Unit } from '../types.ts';
+import type { Battlefield, Cell, Unit } from '../types.ts';
 import { FOG_REVEAL_RANGE } from '../constants.ts';
 import { cellKey, isPassable } from '../grid/cells.ts';
+import { hasLineOfSight } from './line.ts';
 
 // Fog sight is more forgiving than combat LOS: a cell counts as seen when any ray from
-// the observer to the cell's centre or inset corners is clear. This keeps floor beside
-// a box or wall visible instead of being hidden by a single rounded centre line.
+// the observer (leaning, see line.ts) reaches the cell's centre or inset corners.
 const SIGHT_INSET = 0.45;
 const SIGHT_OFFSETS = [
   [0, 0],
@@ -14,24 +14,15 @@ const SIGHT_OFFSETS = [
   [SIGHT_INSET, SIGHT_INSET],
 ];
 
-function hasSightRay(map: Battlefield, from: Position, targetX: number, targetZ: number, level: number): boolean {
-  const dx = targetX - from.x;
-  const dz = targetZ - from.z;
-  const steps = Math.ceil(Math.max(Math.abs(dx), Math.abs(dz)) * 4);
-  for (let step = 1; step < steps; step += 1) {
-    const ratio = step / steps;
-    const x = Math.round(from.x + dx * ratio);
-    const z = Math.round(from.z + dz * ratio);
-    const cell = map.cells[cellKey({ x, z, level })];
-    // Boxes give cover, not blindness: only walls stop sight (see line.js).
-    if (cell?.terrain === 'wall' || cell?.terrain === 'partition') return false;
-  }
-  return true;
-}
-
 function canSeeCell(map: Battlefield, observer: Unit, cell: Cell): boolean {
   const level = Math.min(observer.level, cell.level);
-  return SIGHT_OFFSETS.some(([ox, oz]) => hasSightRay(map, observer, cell.x + ox, cell.z + oz, level));
+  return SIGHT_OFFSETS.some(([ox, oz]) =>
+    hasLineOfSight(
+      map,
+      { x: observer.x, z: observer.z, level: observer.level },
+      { x: cell.x + ox, z: cell.z + oz, level }
+    )
+  );
 }
 
 const SOLID_TERRAIN = new Set(['wall', 'partition', 'pillar', 'console']);

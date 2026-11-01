@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { createInitialState, gameReducer } from '../../engine/game.ts';
-import { cellKey, getReachable, getVisibleCells } from '../../engine/map.ts';
+import { cellKey, getReachable, getVisibleCells, hasLineOfSight } from '../../engine/map.ts';
 
 // Test helper: pins the first alien to `role` so role-dependent assertions do not depend on the spawn shuffle.
 function withFirstEnemyRole(state, role) {
@@ -183,5 +183,6 @@ test('stalkers choose a concealed forward route when one is available', () => {
   const afterAction = gameReducer(enemyTurn, { type: 'enemy-step' });
   const destination = afterAction.movement.path.at(-1);
   assert.ok(Math.hypot(destination.x - center, destination.z - center) < 6);
-  assert.ok(!visible.has(cellKey(destination)));
+  // Concealed means no player can shoot it, leaning around corners included.
+  assert.ok(!players.some((player) => hasLineOfSight(state.map, player, destination)));
 });
