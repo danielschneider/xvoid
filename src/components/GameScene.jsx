@@ -29,6 +29,7 @@ function Battlefield({
   paths,
   pendingMove,
   visibleCellKeys,
+  exploredCellKeys,
   shootableEnemyIds,
   enemyHitChances,
   onCellTap,
@@ -37,6 +38,12 @@ function Battlefield({
 }) {
   const { camera } = useThree();
   const floorRef = useRef();
+  // An enemy walking through slight fog stays mounted so its movement (and the camera) can follow it,
+  // while its body stays hidden. Only the path cells already explored count.
+  const movingInSight = (unit) =>
+    unit.team === 'alien' &&
+    state.movement?.unitId === unit.id &&
+    state.movement.path.some((cell) => exploredCellKeys.has(cellKey(cell)));
   const allCells = useMemo(() => Object.values(state.map.cells), [state.map]);
   const visibleCells = useMemo(
     () => allCells.filter((cell) => cell.level === 0 || state.showUpper),
@@ -76,14 +83,14 @@ function Battlefield({
       <ambientLight intensity={1.1} />
       <directionalLight position={[8, 18, 7]} intensity={2.2} color="#d7eadb" />
       <directionalLight position={[-12, 8, -10]} intensity={0.55} color="#73bcb3" />
-      <TilemapGround map={state.map} visibleCellKeys={visibleCellKeys} />
+      <TilemapGround map={state.map} visibleCellKeys={visibleCellKeys} exploredCellKeys={exploredCellKeys} />
       <group position={[mapOffset, 0, mapOffset]}>
         <InstancedGround cells={allCells} visibleCells={visibleCells} meshRef={floorRef} />
         <WallField cells={revealedCells} selected={selected} mapSeed={state.map.seed} />
         <CoverField cells={revealedCells} selected={selected} mapSeed={state.map.seed} />
         <StructureField cells={revealedCells} />
         <BloodStains stains={bloodStains} />
-        <FogOfWar cells={visibleCells} visibleCellKeys={visibleCellKeys} />
+        <FogOfWar cells={visibleCells} visibleCellKeys={visibleCellKeys} exploredCellKeys={exploredCellKeys} />
         {selected?.ap > 0 && <ReachableOverlay paths={shownPaths} map={state.map} coverProfiles={coverProfiles} />}
         {pendingPath && selected && <MoveTrace path={pendingPath} start={selected} />}
         {pendingMove && <SideCoverMarkers state={state} unit={pendingMove} />}
@@ -94,7 +101,7 @@ function Battlefield({
           ))}
         <FlankLines state={state} visibleCellKeys={visibleCellKeys} />
         {state.units
-          .filter((unit) => unit.team === 'player' || visibleCellKeys.has(cellKey(unit)))
+          .filter((unit) => unit.team === 'player' || visibleCellKeys.has(cellKey(unit)) || movingInSight(unit))
           .map((unit) => (
             <PixelUnit
               key={`${state.generation}:${unit.id}`}
@@ -106,6 +113,8 @@ function Battlefield({
               camera={camera}
               movement={state.movement}
               visibleCellKeys={visibleCellKeys}
+              seenCellKeys={exploredCellKeys}
+              bodyHidden={unit.team === 'alien' && !visibleCellKeys.has(cellKey(unit))}
               lastShot={state.lastShot}
             />
           ))}
@@ -137,6 +146,7 @@ export default function GameScene({
   paths,
   pendingMove,
   visibleCellKeys,
+  exploredCellKeys,
   shootableEnemyIds,
   enemyHitChances,
   onCellTap,
@@ -161,6 +171,7 @@ export default function GameScene({
         paths={paths}
         pendingMove={pendingMove}
         visibleCellKeys={visibleCellKeys}
+        exploredCellKeys={exploredCellKeys}
         shootableEnemyIds={shootableEnemyIds}
         enemyHitChances={enemyHitChances}
         onCellTap={onCellTap}

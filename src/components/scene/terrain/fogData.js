@@ -4,9 +4,12 @@ import { cellKey } from '../../../engine/map.ts';
 // Flat ground (level 0) is never fogged. Each elevated level gets its own layer (a size x size
 // texture of one texel per (x, z)), so a hidden upper floor is fogged even when a visible floor
 // sits above or below it in the same column. FogOfWar draws one plane per layer at that level's Y.
-// Texels that are not fogged are written as FOG_VISIBLE so the shader leaves them clear.
+// Texels are written as FOG_VISIBLE (currently seen), FOG_SLIGHT (seen before, not now) or
+// FOG_HIDDEN (never seen, deep fog). The shader reads the texel as visibility, so slight fog is
+// half-strength fog.
 
 export const FOG_HIDDEN = 0;
+export const FOG_SLIGHT = 128;
 export const FOG_VISIBLE = 255;
 
 // Map span (cells per side) from the cells list. Map columns run 0..size-1.
@@ -28,7 +31,8 @@ export function fogTexelIndex(size, x, z) {
 // Builds one byte layer per elevated level that has at least one fogged cell.
 // Returns [{ level, bytes }] sorted by level, where bytes is size * size texels.
 // `size` is the map span (cells per side); cells outside 0..size-1 are ignored.
-export function buildFogLayers(size, cells, visibleCellKeys) {
+// exploredCellKeys: cells seen at some point. Unseen, non-visible cells are deep fog.
+export function buildFogLayers(size, cells, visibleCellKeys, exploredCellKeys = new Set()) {
   const layers = new Map();
   for (const cell of cells) {
     if (!(cell.level > 0)) continue;
@@ -38,10 +42,12 @@ export function buildFogLayers(size, cells, visibleCellKeys) {
       bytes = new Uint8Array(size * size).fill(FOG_VISIBLE);
       layers.set(cell.level, bytes);
     }
-    if (!visibleCellKeys.has(cellKey(cell))) bytes[fogTexelIndex(size, cell.x, cell.z)] = FOG_HIDDEN;
+    const key = cellKey(cell);
+    if (visibleCellKeys.has(key)) continue;
+    bytes[fogTexelIndex(size, cell.x, cell.z)] = exploredCellKeys.has(key) ? FOG_SLIGHT : FOG_HIDDEN;
   }
   return [...layers]
-    .filter(([, bytes]) => bytes.includes(FOG_HIDDEN))
+    .filter(([, bytes]) => bytes.some((value) => value !== FOG_VISIBLE))
     .sort(([a], [b]) => a - b)
     .map(([level, bytes]) => ({ level, bytes }));
 }

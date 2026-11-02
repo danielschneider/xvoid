@@ -127,6 +127,8 @@ export interface GameState {
   turn: number;
   phase: 'player' | 'enemy';
   showUpper: boolean;
+  // Cell keys the player has seen at any point this map. Drives slight fog (seen before, not now).
+  explored: string[];
   logs: LogEntry[];
   lastShot: LastShot | null;
   eventLog: GameEvent[];

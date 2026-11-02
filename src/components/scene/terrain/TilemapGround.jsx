@@ -4,9 +4,9 @@ import { buildGroundData } from './groundData.js';
 import { GRASS_DEFAULTS, GRASS_FRAGMENT, GRASS_VERTEX } from './grassShader.js';
 
 // Procedural grass ground: one RGBA DataTexture (one texel per cell) drives a ShaderMaterial.
-function useGroundTexture(map, visibleCellKeys) {
+function useGroundTexture(map, visibleCellKeys, exploredCellKeys) {
   const texture = useMemo(() => {
-    const { data, width, height } = buildGroundData(map, visibleCellKeys);
+    const { data, width, height } = buildGroundData(map, visibleCellKeys, exploredCellKeys);
     const tex = new THREE.DataTexture(data, width, height, THREE.RGBAFormat, THREE.UnsignedByteType);
     tex.minFilter = THREE.NearestFilter;
     tex.magFilter = THREE.NearestFilter;
@@ -16,7 +16,7 @@ function useGroundTexture(map, visibleCellKeys) {
     tex.wrapT = THREE.ClampToEdgeWrapping;
     tex.needsUpdate = true;
     return tex;
-  }, [map, visibleCellKeys]);
+  }, [map, visibleCellKeys, exploredCellKeys]);
   useEffect(() => () => texture.dispose(), [texture]);
   return texture;
 }
@@ -46,8 +46,8 @@ function useGrassMaterial(texture, map) {
   return material;
 }
 
-export function TilemapGround({ map, visibleCellKeys }) {
-  const texture = useGroundTexture(map, visibleCellKeys);
+export function TilemapGround({ map, visibleCellKeys, exploredCellKeys }) {
+  const texture = useGroundTexture(map, visibleCellKeys, exploredCellKeys);
   const material = useGrassMaterial(texture, map);
 
   return (

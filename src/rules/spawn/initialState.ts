@@ -26,6 +26,7 @@ export function createInitialState(seed = 20261024, generation = 0): GameState {
     turn: 1,
     phase: 'player',
     showUpper: true,
+    explored: [],
     logs: [INTRO_LOG],
     lastShot: null,
     // Bounded list of plain events emitted by the reducer (see presentation/events.js).

@@ -47,14 +47,15 @@ const fragmentShader = /* glsl */ `
 
   void main() {
     // 4-tap blur over roughly one cell so fog edges feather instead of stepping.
+    // Texel value is visibility: 0 deep fog, 0.5 slight fog, 1 clear.
     float o = uTexel * 0.6;
-    float hidden = 0.25 * (
+    float seen = 0.25 * (
       texture2D(uMap, vUv + vec2(-o, -o)).r +
       texture2D(uMap, vUv + vec2(o, -o)).r +
       texture2D(uMap, vUv + vec2(-o, o)).r +
       texture2D(uMap, vUv + vec2(o, o)).r
     );
-    float fog = 1.0 - hidden;
+    float fog = 1.0 - seen;
     if (fog < 0.002) discard;
 
     // Low-frequency drift, applied only on the boundary band (peaks where fog is 0.5).
@@ -126,11 +127,11 @@ function FogLayer({ level, bytes, size }) {
   );
 }
 
-export function FogOfWar({ cells, visibleCellKeys }) {
+export function FogOfWar({ cells, visibleCellKeys, exploredCellKeys }) {
   const size = useMemo(() => getMapSpan(cells), [cells]);
   const layers = useMemo(
-    () => (size === 0 ? [] : buildFogLayers(size, cells, visibleCellKeys)),
-    [cells, visibleCellKeys, size]
+    () => (size === 0 ? [] : buildFogLayers(size, cells, visibleCellKeys, exploredCellKeys)),
+    [cells, visibleCellKeys, exploredCellKeys, size]
   );
 
   return layers.map(({ level, bytes }) => (

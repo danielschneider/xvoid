@@ -80,6 +80,11 @@ export default function App() {
     );
   }, [state.movement, state.units]);
   const visibleCellKeys = useMemo(() => getVisibleCells(state.map, observerUnits), [state.map, observerUnits]);
+  // Seen-once memory plus the cells seen right now during playback, so slight fog grows along the path.
+  const exploredCellKeys = useMemo(
+    () => new Set([...(state.explored ?? []), ...visibleCellKeys]),
+    [state.explored, visibleCellKeys]
+  );
   const shootableEnemyIds = useMemo(() => {
     if (!selected || selected.ap < 1) return new Set();
     return new Set(
@@ -115,7 +120,8 @@ export default function App() {
   const focusToken = state.phase === 'enemy' ? state.enemyTurnIndex : 0;
   // Hidden enemy actions have no visual output, so their timers can run without delay.
   const activeEnemyHidden = state.phase === 'enemy' && (!activeEnemy || !visibleCellKeys.has(cellKey(activeEnemy)));
-  const movementHidden = !!state.movement && state.movement.path.every((cell) => !visibleCellKeys.has(cellKey(cell)));
+  // Movement is seen when any path cell is explored (slight fog counts), so it plays at normal speed.
+  const movementHidden = !!state.movement && state.movement.path.every((cell) => !exploredCellKeys.has(cellKey(cell)));
   // Same definition the reducer uses when it hands over selection (rules/turns/readyUnit.js).
   const nextReadyUnit = useMemo(() => getNextReadyUnit(state), [state]);
   // Latest turn state for callbacks that must not be re-created on every render (D8).
@@ -261,6 +267,7 @@ export default function App() {
           paths={paths}
           pendingMove={pendingMove}
           visibleCellKeys={visibleCellKeys}
+          exploredCellKeys={exploredCellKeys}
           shootableEnemyIds={shootableEnemyIds}
           enemyHitChances={enemyHitChances}
           onCellTap={tapCell}

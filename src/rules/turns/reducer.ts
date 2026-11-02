@@ -9,6 +9,7 @@ import { endTurn, finishEnemyTurn, selectNextReadyPlayer, useAbility } from './a
 import { appendEvents } from '../../presentation/events.ts';
 import { appendLogs } from '../../presentation/logText.ts';
 import { EVENT_LOG_LIMIT } from '../constants.ts';
+import { markExplored } from '../sight/explored.ts';
 
 // Every action the reducer accepts. Discriminated on `type`.
 export type GameAction =
@@ -92,11 +93,12 @@ function ability(state: GameState): StepResult {
 // The only public mutation entry point for game state. Helpers never mutate.
 export function gameReducer(state: GameState, action: GameAction): GameState {
   const { state: next, events } = reduce(state, action);
-  if (events.length === 0) return next;
+  const seen = markExplored(next);
+  if (events.length === 0) return seen;
   return {
-    ...next,
-    logs: appendLogs(next.logs, events),
-    eventLog: appendEvents(next.eventLog, events, EVENT_LOG_LIMIT),
+    ...seen,
+    logs: appendLogs(seen.logs, events),
+    eventLog: appendEvents(seen.eventLog, events, EVENT_LOG_LIMIT),
   };
 }
 

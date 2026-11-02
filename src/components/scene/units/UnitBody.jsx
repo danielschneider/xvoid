@@ -10,11 +10,23 @@ import { buildBody } from './bodyModels.js';
 export { moveBody, applyBodyPose } from './bodyPose.js';
 
 // Static unit geometry: shadow, selection ring, model body, rifle (if the model has one) and billboard sprite group.
-export function UnitBody({ unit, selected, targeted, shootable, hitChance, dead, refs, spriteTextures, critTexture }) {
+export function UnitBody({
+  unit,
+  selected,
+  targeted,
+  shootable,
+  hitChance,
+  dead,
+  bodyHidden,
+  refs,
+  spriteTextures,
+  critTexture,
+}) {
   const pulsing = !dead && selected && unit.team === 'player';
   const body = useMemo(() => buildBody(unit.model, unit), [unit.model, unit.team, unit.color]);
   return (
-    <group ref={refs.group} name={`unit-${unit.id}`}>
+    // Hidden bodies keep the named group mounted, so camera tracking still follows the movement.
+    <group ref={refs.group} name={`unit-${unit.id}`} visible={!bodyHidden}>
       {!pulsing && (
         <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, 0.012, 0]}>
           <circleGeometry args={[0.35, 20]} />

@@ -74,9 +74,11 @@ export function deserializeGame(text: string): SavePayload | null {
   if (!Array.isArray(checkpoints)) return null;
   if (checkpoints.length < 1 || checkpoints.length > MAX_CHECKPOINTS) return null;
   if (!checkpoints.every(isGameState)) return null;
+  // Saves from before the explored memory existed have no `explored` list.
+  const withExplored = (state: GameState): GameState => ({ ...state, map, explored: state.explored ?? [] });
   return {
-    current: { ...current, map },
-    checkpoints: checkpoints.map((checkpoint: GameState) => ({ ...checkpoint, map })),
+    current: withExplored(current),
+    checkpoints: checkpoints.map((checkpoint: GameState) => withExplored(checkpoint)),
   };
 }
 

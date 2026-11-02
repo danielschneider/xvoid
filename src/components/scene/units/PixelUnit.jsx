@@ -20,6 +20,8 @@ export function PixelUnit({
   camera,
   movement,
   visibleCellKeys,
+  seenCellKeys = visibleCellKeys,
+  bodyHidden = false,
   lastShot,
 }) {
   const refs = {
@@ -51,8 +53,9 @@ export function PixelUnit({
   const ground = [toWorld(unit).x, toWorldY(unit) + 0.035, toWorld(unit).z];
   const destination = useMemo(() => new THREE.Vector3(...ground), [cellHeight(unit), unit.x, unit.z]);
   const fullRoute = movement?.unitId === unit.id ? movement.path : null;
+  // Enemy routes play from the first cell the squad has explored, so movement through slight fog is seen.
   const firstVisibleIndex =
-    unit.team === 'alien' && fullRoute ? fullRoute.findIndex((cell) => visibleCellKeys.has(cellKey(cell))) : 0;
+    unit.team === 'alien' && fullRoute ? fullRoute.findIndex((cell) => seenCellKeys.has(cellKey(cell))) : 0;
   const route = fullRoute && firstVisibleIndex >= 0 ? fullRoute.slice(firstVisibleIndex) : null;
   const dead = unit.hp <= 0;
   const fallenOrientation = useMemo(() => new THREE.Quaternion().setFromEuler(new THREE.Euler(-Math.PI / 2, 0, 0)), []);
@@ -77,6 +80,7 @@ export function PixelUnit({
       shootable={shootable}
       hitChance={hitChance}
       dead={dead}
+      bodyHidden={bodyHidden}
       refs={refs}
       spriteTextures={spriteTextures}
       critTexture={critTexture}

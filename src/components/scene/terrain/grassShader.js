@@ -56,8 +56,7 @@ export const GRASS_FRAGMENT = /* glsl */ `
     // DataTexture row 0 sits at v = 0 and holds z = size - 1, so lookup v = 1 - (z + 0.5) / size.
     vec4 info = texture2D(uCells, vec2((cell.x + 0.5) / uSize, 1.0 - (cell.y + 0.5) / uSize));
     bool structure = info.r > 0.5;
-    bool unseen = info.g > 0.5;
-
+    
     // Low-frequency colour drift across the ground.
     float n = valueNoise(p * 0.12) * 0.6 + valueNoise(p * 0.37) * 0.4;
     vec3 colour = uBase * (0.92 + 0.16 * n);
@@ -86,7 +85,9 @@ export const GRASS_FRAGMENT = /* glsl */ `
       }
     }
 
-    if (unseen) colour = mix(colour, uFog, uFogAlpha);
+    // Fog strength: 1 deep fog (never seen), ~0.5 slight fog (seen before), 0 visible.
+    float fogAmount = info.g;
+    if (fogAmount > 0.0) colour = mix(colour, uFog, uFogAlpha * fogAmount);
     gl_FragColor = vec4(colour, 1.0);
   }
 `;
