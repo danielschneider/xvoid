@@ -38,6 +38,10 @@ export const COPY = {
   stack: {
     toggle: 'EINSATZSYSTEM',
   },
+  roundCleared: {
+    title: 'ALLE FEINDE AUSGESCHALTET',
+    next: 'NÄCHSTE RUNDE LÄDT …',
+  },
   mission: {
     title: 'MISSION STATUS',
     objective: 'Eliminiere feindliche Kräfte.',

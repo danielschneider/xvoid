@@ -15,6 +15,7 @@ import { getNextReadyUnit } from './rules/index.ts';
 import { loadGame, MAX_ROUNDS_BACK, saveGame } from './persistence/save.ts';
 import { createDirector } from './presentation/director.ts';
 import { parseFastFactor, scaledScheduler } from './presentation/fastScheduler.ts';
+import { useNextRoundOnClear } from './components/useNextRoundOnClear.js';
 
 export default function App() {
   // Loaded once on mount: the live state plus round-start checkpoints (oldest first, last = current round start).
@@ -253,6 +254,8 @@ export default function App() {
     dispatch({ type: 'regenerate', seed: Math.floor(Math.random() * 900000) + 100000 });
   };
   const requestRegenerate = () => setShowNewGameWarning(true);
+  // Every alien eliminated: start the next round on a fresh battlefield after a short hint.
+  useNextRoundOnClear(state, regenerate);
 
   return (
     <main className="game-shell">

@@ -1,0 +1,39 @@
+.round-cleared-hint {
+  pointer-events: none;
+  position: absolute;
+  z-index: 6;
+  top: 40%;
+  left: 50%;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 11px 18px;
+  transform: translate(-50%, -50%);
+  color: #bfe9d6;
+  border: 1px solid rgba(111, 228, 196, 0.55);
+  background: rgba(14, 34, 30, 0.94);
+  box-shadow: 0 0 24px rgba(111, 228, 196, 0.2);
+  animation: round-cleared-in 0.35s ease-out;
+}
+.round-cleared-hint strong {
+  display: block;
+  font-size: 10px;
+  letter-spacing: 0.13em;
+}
+.round-cleared-hint span {
+  display: block;
+  margin-top: 4px;
+  color: #82a79a;
+  font-size: 8px;
+  letter-spacing: 0.08em;
+}
+@keyframes round-cleared-in {
+  from {
+    opacity: 0;
+    transform: translate(-50%, -40%);
+  }
+  to {
+    opacity: 1;
+    transform: translate(-50%, -50%);
+  }
+}

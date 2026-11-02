@@ -12,6 +12,8 @@ import { ActionDock } from './hud/ActionDock.jsx';
 import { TouchControls } from './hud/TouchControls.jsx';
 import { ConfirmDialog } from './hud/ConfirmDialog.jsx';
 import { MapLegend, MapCoordinates } from './hud/MapOverlays.jsx';
+import { RoundClearedHint } from './hud/RoundClearedHint.jsx';
+import { selectEnemyCounts } from '../selectors/hud.ts';
 
 // Composition only: each panel lives in ./hud/. Panel open state stays here because the
 // enemy-phase early return unmounts the panels and must not reset them.
@@ -41,6 +43,7 @@ export function TacticalHud({
 }) {
   const [stackOpen, setStackOpen] = useState(() => window.innerWidth > 900);
   const [missionOpen, setMissionOpen] = useState(() => window.innerWidth > 900);
+  const roundCleared = selectEnemyCounts(state).living === 0;
   if (state.phase === 'enemy') {
     return (
       <div className="hud-layer">
@@ -109,6 +112,7 @@ export function TacticalHud({
       />
       {showNewGameWarning && <ConfirmDialog onCancel={onCancelRegenerate} onConfirm={onConfirmRegenerate} />}
       {pendingMove && <MapLegend />}
+      {roundCleared && <RoundClearedHint />}
       <MapCoordinates state={state} seedCopied={seedCopied} onCopySeed={onCopySeed} />
     </div>
   );
