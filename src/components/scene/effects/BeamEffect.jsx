@@ -18,7 +18,7 @@ import {
 
 const TRACER_WIDTH = 0.22;
 const SHOT_DURATION = 1.15;
-const PARTICLE_CAPACITY = 160;
+const PARTICLE_CAPACITY = 400;
 const CRIT_EXTRA_SPARKS = 10;
 const DUST_SPEED = 0.5;
 const MUZZLE_COUNT = 10;
@@ -177,7 +177,7 @@ export function BeamEffect({ shot, camera, cover }) {
         })
       );
       particles.emitBurst(
-        burstSpawns(end, burstVelocities(BLOOD_SPARK_COUNT / 3, shot.id + 3000), {
+        burstSpawns(end, burstVelocities(Math.round(BLOOD_SPARK_COUNT / 3), shot.id + 3000), {
           life: BLOOD_SPARK_LIFE * 0.5,
           size: BLOOD_SPARK_SIZE * 0.6,
           color: BLOOD_CORE_COLOR,

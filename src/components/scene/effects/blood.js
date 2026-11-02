@@ -3,13 +3,15 @@
 
 export const BLOOD_COLOR = [0.35, 1, 0.3];
 export const BLOOD_CORE_COLOR = [0.7, 1, 0.55];
-export const BLOOD_SPARK_LIFE = 0.6;
-export const BLOOD_SPARK_SIZE = 8;
-export const BLOOD_SPARK_COUNT = 18;
-export const BLOOD_SPLAT_COUNT = 3;
-export const STAIN_MAX = 120;
-export const STAIN_RADIUS_MIN = 0.22;
-export const STAIN_RADIUS_MAX = 0.42;
+export const BLOOD_SPARK_LIFE = 0.9;
+export const BLOOD_SPARK_SIZE = 10;
+export const BLOOD_SPARK_COUNT = 90;
+export const BLOOD_SPLAT_COUNT = 14;
+// Ground spread from the cell centre, in world units (a cell is 1 unit wide).
+export const BLOOD_SPREAD = 0.9;
+export const STAIN_MAX = 500;
+export const STAIN_RADIUS_MIN = 0.3;
+export const STAIN_RADIUS_MAX = 0.6;
 
 // Deterministic value in [0, 1) for (seed, index). Same inputs, same output.
 export function seededUnit(seed, index) {
@@ -22,7 +24,7 @@ export function seededUnit(seed, index) {
 export function bloodSplats(seed) {
   return Array.from({ length: BLOOD_SPLAT_COUNT }, (_, index) => {
     const angle = seededUnit(seed, index * 3) * Math.PI * 2;
-    const dist = seededUnit(seed, index * 3 + 1) * 0.35;
+    const dist = Math.sqrt(seededUnit(seed, index * 3 + 1)) * BLOOD_SPREAD;
     const radius = STAIN_RADIUS_MIN + seededUnit(seed, index * 3 + 2) * (STAIN_RADIUS_MAX - STAIN_RADIUS_MIN);
     return {
       x: Math.cos(angle) * dist,

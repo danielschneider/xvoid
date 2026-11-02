@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import {
   BLOOD_COLOR,
   BLOOD_SPLAT_COUNT,
+  BLOOD_SPREAD,
   STAIN_MAX,
   STAIN_RADIUS_MAX,
   STAIN_RADIUS_MIN,
@@ -26,7 +27,7 @@ test('bloodSplats returns the same splats for the same seed, sized within bounds
   assert.equal(a.length, BLOOD_SPLAT_COUNT);
   for (const splat of a) {
     assert.ok(splat.radius >= STAIN_RADIUS_MIN && splat.radius <= STAIN_RADIUS_MAX);
-    assert.ok(Math.hypot(splat.x, splat.z) <= 0.35 + 1e-9);
+    assert.ok(Math.hypot(splat.x, splat.z) <= BLOOD_SPREAD + 1e-9);
   }
 });
 
@@ -37,8 +38,8 @@ test('stainsForShot places keyed stains around the cell at floor height', () => 
   assert.equal(new Set(stains.map((s) => s.key)).size, stains.length);
   for (const stain of stains) {
     assert.ok(stain.key.startsWith('9:'));
-    assert.ok(Math.abs(stain.x - 2) <= 0.35 + 1e-9);
-    assert.ok(Math.abs(stain.z + 3) <= 0.35 + 1e-9);
+    assert.ok(Math.abs(stain.x - 2) <= BLOOD_SPREAD + 1e-9);
+    assert.ok(Math.abs(stain.z + 3) <= BLOOD_SPREAD + 1e-9);
     assert.ok(stain.y > 1.5 && stain.y < 1.6);
   }
 });
@@ -47,7 +48,7 @@ test('addStains keeps only the newest STAIN_MAX entries', () => {
   let list = [];
   for (let i = 0; i < STAIN_MAX + 10; i += 1) list = addStains(list, [{ key: `${i}:0` }]);
   assert.equal(list.length, STAIN_MAX);
-  assert.equal(list[0].key, `10:0`);
+  assert.equal(list[0].key, '10:0');
   assert.equal(list[list.length - 1].key, `${STAIN_MAX + 9}:0`);
 });
 
