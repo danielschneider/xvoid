@@ -40,4 +40,8 @@ export function applyBodyPose(refs, { recoil, pose, facing, camera, fallenOrient
     if (pose > 0) refs.billboard.current.quaternion.slerp(fallenOrientation, pose);
     refs.billboard.current.position.y = THREE.MathUtils.lerp(spriteY, 0.05, pose);
   }
+  // The 2D sprite duplicates the 3D body's limbs; once the unit starts falling only the 3D model is shown.
+  const spriteVisible = pose === 0;
+  if (refs.sprite.current) refs.sprite.current.visible = spriteVisible;
+  if (refs.outline.current) refs.outline.current.visible = spriteVisible;
 }

@@ -5,7 +5,7 @@ import { moveEnemy } from '../movement/moveUnit.ts';
 import { getVisibleCells } from '../sight/fog.ts';
 import { hasLineOfSight } from '../sight/line.ts';
 import { computeCoverFor } from '../combat/hitChance.ts';
-import { fireAt } from '../combat/resolveShot.ts';
+import { fireAt, resolveOverwatch } from '../combat/resolveShot.ts';
 import { refreshAlerts } from './alerts.ts';
 import { wanderEnemy } from './wander.ts';
 import { chooseCoverDestination } from './takeCover.ts';
@@ -89,13 +89,18 @@ function chooseDestinations(
   return sortDestinations(destinations, target, enemy, role, retreating);
 }
 
-// Returns { state, events } for one enemy's turn: alert events from refreshAlerts first,
-// then the events of the step itself, then enemy-turn-end when a living enemy's turn was used up.
+// Returns { state, events } for one enemy step: alert events from refreshAlerts first, then either
+// an overwatch reaction or the enemy's own action. A reaction shot does not spend the enemy's turn:
+// the enemy stays on its turn and acts on the next step, after the shot has been shown.
 // Never mutates `stateIn`.
 export function enemyStep(stateIn: GameState): StepResult {
   const alerts = refreshAlerts(stateIn);
   const enemyId = alerts.state.enemyTurnOrder[alerts.state.enemyTurnIndex];
   const enemy = alerts.state.units.find((unit): unit is Enemy => isEnemy(unit) && unit.id === enemyId && unit.hp > 0);
+  if (enemy) {
+    const reaction = resolveOverwatch(alerts.state, enemy.id);
+    if (reaction.events.length > 0) return { state: reaction.state, events: [...alerts.events, ...reaction.events] };
+  }
   const step = takeEnemyTurn(alerts.state);
   const ended =
     enemy && step.state.enemyTurnIndex > alerts.state.enemyTurnIndex ? [enemyTurnEndEvent({ enemyId: enemy.id })] : [];

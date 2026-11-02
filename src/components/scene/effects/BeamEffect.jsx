@@ -5,6 +5,7 @@ import { toWorld, toWorldY } from '../coords.js';
 import { createDamageTexture } from '../textures/labels.js';
 import { Particles } from './Particles.jsx';
 import { burstSpawns } from './particleSim.js';
+import { BLOOD_COLOR, BLOOD_CORE_COLOR, BLOOD_SPARK_COUNT, BLOOD_SPARK_LIFE, BLOOD_SPARK_SIZE } from './blood.js';
 import {
   SHAKE_DURATION,
   TRACER_TRAIL,
@@ -165,6 +166,22 @@ export function BeamEffect({ shot, camera, cover }) {
     if (spec.dustCount > 0) {
       particles.emitBurst(
         burstSpawns(end, impactVelocities.dust, { life: DUST_LIFE, size: DUST_SIZE, color: DUST_COLOR })
+      );
+    }
+    if (shot.hit) {
+      particles.emitBurst(
+        burstSpawns(end, burstVelocities(BLOOD_SPARK_COUNT, shot.id + 2000), {
+          life: BLOOD_SPARK_LIFE,
+          size: BLOOD_SPARK_SIZE,
+          color: BLOOD_COLOR,
+        })
+      );
+      particles.emitBurst(
+        burstSpawns(end, burstVelocities(BLOOD_SPARK_COUNT / 3, shot.id + 3000), {
+          life: BLOOD_SPARK_LIFE * 0.5,
+          size: BLOOD_SPARK_SIZE * 0.6,
+          color: BLOOD_CORE_COLOR,
+        })
       );
     }
   };

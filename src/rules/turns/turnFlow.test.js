@@ -197,3 +197,33 @@ test('overwatch while another player unit has AP hands selection on without endi
   assert.equal(next.phase, 'player');
   assert.equal(next.selectedId, 2);
 });
+
+test('overwatch fires before an enemy that is already in sight shoots from its cell', () => {
+  const watcher = unit({ id: 1, status: 'overwatch', ap: 0 });
+  const shooter = unit({ id: 2, team: 'alien', name: 'E', x: 3, z: 0, groupId: 7, ap: 2 });
+  const state = stateWith([watcher, shooter], {
+    phase: 'enemy',
+    alertedGroups: [7],
+    enemyTurnOrder: [2],
+    enemyTurnIndex: 0,
+    movement: null,
+  });
+  const { state: after, events } = enemyStep(state);
+  const shots = events.filter((event) => event.type === 'shot');
+  assert.equal(shots.length, 1);
+  assert.equal(shots[0].reaction, true);
+  assert.equal(shots[0].shooterId, 1);
+  assert.equal(shots[0].enemyShot, false);
+  assert.equal(after.units.find((entry) => entry.id === 1).status, null);
+  // The reaction does not spend the enemy's turn: it acts on the next step.
+  assert.equal(after.enemyTurnIndex, 0);
+
+  const next = enemyStep({ ...after, lastShot: null });
+  const acted = next.events.some(
+    (event) =>
+      (event.type === 'shot' && event.shooterId === 2) ||
+      (event.type === 'move' && event.unitId === 2) ||
+      event.type === 'hold'
+  );
+  assert.equal(acted, true, 'the surviving enemy must act on its next step');
+});

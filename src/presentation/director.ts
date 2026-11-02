@@ -43,7 +43,8 @@ interface ArmedEntry {
 export function planSteps(state: GameState, view: StepView): StepSlot[] {
   const { activeEnemyHidden, movementHidden } = view;
   const movement = state.movement;
-  const enemyTurn = state.phase === 'enemy' && !movement;
+  // The enemy waits for any shot on screen (including overwatch reactions) to finish first.
+  const enemyTurn = state.phase === 'enemy' && !movement && !state.lastShot;
   const enemyFinished = state.enemyTurnIndex >= state.enemyTurnOrder.length;
   return [
     {
@@ -59,7 +60,14 @@ export function planSteps(state: GameState, view: StepView): StepSlot[] {
     },
     {
       key: 'enemy',
-      deps: [state.enemyTurnIndex, state.enemyTurnOrder.length, state.phase, movement, activeEnemyHidden],
+      deps: [
+        state.enemyTurnIndex,
+        state.enemyTurnOrder.length,
+        state.phase,
+        movement,
+        state.lastShot,
+        activeEnemyHidden,
+      ],
       timer: enemyTurn
         ? {
             kind: 'timeout',

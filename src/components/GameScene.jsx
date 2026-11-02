@@ -14,6 +14,8 @@ import { MoveTrace } from './scene/overlays/MoveTrace.jsx';
 import { SideCoverMarkers } from './scene/overlays/SideCoverMarkers.jsx';
 import { FlankLines } from './scene/overlays/FlankLines.jsx';
 import { BeamEffect } from './scene/effects/BeamEffect.jsx';
+import { BloodStains } from './scene/effects/BloodStains.jsx';
+import { useBloodStains } from './scene/effects/useBloodStains.js';
 import { CameraRig } from './scene/camera/CameraRig.jsx';
 import { PixelUnit } from './scene/units/PixelUnit.jsx';
 
@@ -65,6 +67,7 @@ function Battlefield({
     if (!shooter || !target) return null;
     return getCoverAgainst(state.map, target, shooter);
   }, [state.lastShot, state.units, state.map]);
+  const bloodStains = useBloodStains(state.lastShot, state.generation);
   const pendingPath = pendingMove ? paths.get(cellKey(pendingMove))?.path : null;
   const mapOffset = CELL_OFFSET - (state.map.size - 1) / 2;
   return (
@@ -79,6 +82,7 @@ function Battlefield({
         <WallField cells={revealedCells} selected={selected} mapSeed={state.map.seed} />
         <CoverField cells={revealedCells} selected={selected} mapSeed={state.map.seed} />
         <StructureField cells={revealedCells} />
+        <BloodStains stains={bloodStains} />
         <FogOfWar cells={visibleCells} visibleCellKeys={visibleCellKeys} />
         {selected?.ap > 0 && <ReachableOverlay paths={shownPaths} map={state.map} coverProfiles={coverProfiles} />}
         {pendingPath && selected && <MoveTrace path={pendingPath} start={selected} />}

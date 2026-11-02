@@ -221,3 +221,16 @@ test('director: a visible 3-step movement ticks every 220 ms and completes 960 m
   assert.equal(log.filter((entry) => entry.type === 'advance-movement').at(0).at, 220);
   assert.equal(scheduler.pending(), 0);
 });
+
+test('planSteps: no enemy timer while a shot (including an overwatch reaction) is still on screen', () => {
+  const state = stateWith([], {
+    phase: 'enemy',
+    enemyTurnOrder: [2],
+    enemyTurnIndex: 1,
+    lastShot: { id: 9, enemyShot: false, reaction: true },
+  });
+  const enemy = planSteps(state, { activeEnemyHidden: true, movementHidden: true }).find(
+    (slot) => slot.key === 'enemy'
+  );
+  assert.equal(enemy.timer, null);
+});
